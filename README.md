@@ -178,12 +178,24 @@ LLM 없이 규칙 기반으로 동작하며, 결과를 바로 확정하지 않�
 
 1. `open ios/Runner.xcworkspace`로 Xcode를 열고 Runner 타겟 → Signing & Capabilities에서 Team을 선택합니다.
    Bundle Identifier(`com.kimtaejin.wifiConnector`)가 이미 사용 중이라는 오류가 나면 고유한 값으로 바꿉니다.
-2. Capabilities에 **Hotspot Configuration**과 **Access WiFi Information**이 있는지 확인합니다
-   (`ios/Runner/Runner.entitlements`에 선언되어 있어 자동 서명 시 함께 등록됩니다).
-   Apple의 [지원 capability 표](https://developer.apple.com/help/account/reference/supported-capabilities-ios)상
-   두 capability 모두 무료 Apple 계정(Personal Team)에서도 사용 가능합니다.
+2. **유료 Apple Developer Program 멤버십이 필요합니다.** `ios/Runner/Runner.entitlements`에 선언한
+   Hotspot Configuration / Access WiFi Information은 무료 계정(Personal Team)으로 서명할 수 없습니다.
+   Xcode가 다음 오류로 거부합니다 (Xcode 26에서 확인):
+
+   ```text
+   Cannot create a iOS App Development provisioning profile for "com.kimtaejin.wifiConnector".
+   Personal development teams, including "...", do not support the
+   Access Wi-Fi Information and Hotspot capabilities.
+   ```
+
+   무료 계정으로 카메라/OCR/화면만 먼저 확인하려면 `Runner.entitlements`의 두 키를 임시로 지우고 빌드하세요.
+   이 경우 Wi-Fi 연결 요청은 실패합니다.
 3. iPhone을 연결하고 설정 → 개인정보 보호 및 보안 → 개발자 모드를 켠 뒤 `flutter run`.
    처음 실행 시 설정 → 일반 → VPN 및 기기 관리에서 개발자 앱을 신뢰해야 할 수 있습니다.
+   무료 계정은 기기당 개발 앱 3개까지만 설치할 수 있어, 한도를 넘으면 설치가
+   `ApplicationVerificationFailed`로 실패합니다 (기존 개발 앱을 지우면 해결).
+   홈 화면 아이콘으로 앱을 켜려면 release 빌드여야 합니다. debug 빌드는 iOS 14+에서
+   Flutter 도구/Xcode로만 실행할 수 있습니다 (`flutter run --release`).
 4. 안내문을 촬영하고 **Wi-Fi 연결**을 누르면 iOS가 "Wi-Fi 네트워크 'TestCafe'에 연결하겠습니까?" 알림을 띄웁니다.
    **연결**을 누르면 최대 5초 동안 실제 연결을 확인한 뒤 "Wi-Fi에 연결되었습니다."를 표시합니다.
 5. 알림에서 취소 → "Wi-Fi 연결이 취소되었습니다." / 틀린 비밀번호 → iOS가 "연결할 수 없음" 알림을 띄우고
@@ -222,7 +234,8 @@ LLM 없이 규칙 기반으로 동작하며, 결과를 바로 확정하지 않�
 
 ### iOS
 
-- `NEHotspotConfigurationManager`는 Hotspot Configuration entitlement가 필요합니다.
+- `NEHotspotConfigurationManager`는 Hotspot Configuration entitlement가 필요하고, 이 entitlement는
+  **유료 Apple Developer Program 계정에서만** 서명할 수 있습니다 (무료 Personal Team 불가).
 - `apply()`는 비밀번호가 틀려도 에러 없이 끝나는 경우가 있어, 완료 후 `NEHotspotNetwork.fetchCurrent`로
   현재 SSID를 최대 5회(1초 간격) 확인합니다. 앱이 직접 설정한 네트워크는 위치 권한 없이 조회되며
   Access WiFi Information entitlement가 필요합니다. 확인하지 못하면 실패로 단정하지 않고 "요청 완료"로 표시합니다.
