@@ -1,12 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/utils/platform_channel.dart';
 
 enum WifiConnectStatus {
-  /// 연결까지 확인됨 (iOS에서 현재 SSID로 검증된 경우).
+  /// OS가 연결까지 끝냈다고 알려줌 (iOS에서 이미 연결된 네트워크인 경우).
   connected,
 
-  /// OS가 요청을 받아들였지만 실제 연결 여부는 확인할 수 없음.
+  /// OS가 요청을 받아들였음. 실제 연결 여부는 [WifiService.awaitConnection]으로 확인한다.
   requested,
 
   /// Android 10: 네트워크 제안으로 등록됨. 사용자가 알림에서 허용해야 연결된다.
@@ -27,15 +28,17 @@ enum WifiConnectFailure {
 }
 
 class WifiConnectResult {
-  const WifiConnectResult(this.status, [this.failure]);
+  const WifiConnectResult(this.status, {this.failure, this.alreadySaved = false});
 
   const WifiConnectResult.failed(WifiConnectFailure failure)
-      : this(WifiConnectStatus.failed, failure);
+      : this(WifiConnectStatus.failed, failure: failure);
 
   factory WifiConnectResult.fromMap(Map<String, Object?> map) {
     final status = WifiConnectStatus.values.asNameMap()[map['status']];
     if (status == null) return const WifiConnectResult.failed(WifiConnectFailure.unknown);
-    if (status != WifiConnectStatus.failed) return WifiConnectResult(status);
+    if (status != WifiConnectStatus.failed) {
+      return WifiConnectResult(status, alreadySaved: map['alreadySaved'] == true);
+    }
     final failure = switch (map['reason']) {
       'invalid_password' => WifiConnectFailure.invalidPassword,
       'invalid_ssid' => WifiConnectFailure.invalidSsid,
@@ -49,10 +52,36 @@ class WifiConnectResult {
   final WifiConnectStatus status;
   final WifiConnectFailure? failure;
 
+  /// Android: 같은 SSID가 이미 저장돼 있어 OS가 새로 추가하지 않음.
+  /// 저장된 비밀번호가 다르면 사용자가 설정에서 지워야 한다.
+  final bool alreadySaved;
+
   bool get isSuccess =>
       status == WifiConnectStatus.connected ||
       status == WifiConnectStatus.requested ||
       status == WifiConnectStatus.suggested;
+
+  /// 요청은 성공했지만 실제 연결은 따로 확인해야 하는 상태.
+  bool get needsVerification =>
+      status == WifiConnectStatus.requested || status == WifiConnectStatus.suggested;
+}
+
+/// [WifiService.awaitConnection] 결과.
+class WifiConnectionCheck {
+  const WifiConnectionCheck({required this.connected, this.captivePortal = false});
+
+  factory WifiConnectionCheck.fromMap(Map<String, Object?> map) => WifiConnectionCheck(
+        connected: map['connected'] == true,
+        captivePortal: map['captivePortal'] == true,
+      );
+
+  /// 확인할 수 없었음. 연결이 안 됐다는 뜻은 아니다.
+  static const unconfirmed = WifiConnectionCheck(connected: false);
+
+  final bool connected;
+
+  /// 연결은 됐지만 브라우저 로그인이 필요한 네트워크 (Android에서만 감지).
+  final bool captivePortal;
 }
 
 /// OS 공식 Wi-Fi API로 연결을 요청한다.
@@ -77,6 +106,34 @@ class WifiService {
       return const WifiConnectResult.failed(WifiConnectFailure.unsupported);
     } on PlatformException {
       return const WifiConnectResult.failed(WifiConnectFailure.unknown);
+    }
+  }
+
+  /// 연결 요청이 받아들여진 뒤 실제로 연결됐는지 기다린다.
+  ///
+  /// - iOS: 앱이 설정한 네트워크의 SSID를 `NEHotspotNetwork.fetchCurrent`로 확인한다.
+  /// - Android: 위치 권한 없이는 SSID를 읽을 수 없으므로, 요청 이후 새 Wi-Fi 연결이
+  ///   생기는지 `ConnectivityManager` 콜백으로 감지한다.
+  ///
+  /// [WifiConnectionCheck.connected]가 false여도 연결이 안 됐다고 단정할 수는 없다
+  /// (이미 그 네트워크에 붙어 있었거나, OS가 기존 네트워크를 유지하는 경우).
+  Future<WifiConnectionCheck> awaitConnection({required String ssid, Duration? timeout}) async {
+    // iOS는 apply()가 연결 시도까지 마친 뒤 돌아오므로 짧게, Android는 저장 후 OS가
+    // 전환하는 데 시간이 걸리므로 길게 기다린다.
+    final wait = timeout ??
+        (defaultTargetPlatform == TargetPlatform.iOS
+            ? const Duration(seconds: 6)
+            : const Duration(seconds: 20));
+    try {
+      final result = await platformChannel.invokeMapMethod<String, Object?>(
+        'awaitConnection',
+        {'ssid': ssid, 'timeoutMs': wait.inMilliseconds},
+      );
+      return WifiConnectionCheck.fromMap(result ?? const {});
+    } on MissingPluginException {
+      return WifiConnectionCheck.unconfirmed;
+    } on PlatformException {
+      return WifiConnectionCheck.unconfirmed;
     }
   }
 

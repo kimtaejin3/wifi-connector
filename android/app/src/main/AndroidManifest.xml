@@ -4,6 +4,8 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- Android 10 네트워크 제안(addNetworkSuggestions)에 필요 (normal 권한) -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <!-- 연결 요청 뒤 새 Wi-Fi 연결이 생겼는지 ConnectivityManager로 확인 (normal 권한) -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- CAMERA 권한은 camera 플러그인이 선언한다. 위치 권한은 요청하지 않는다. -->
     <!-- camera 플러그인이 선언하지만 이 앱은 녹음(enableAudio: false)과 외부 저장소(촬영 파일은 캐시 디렉터리)를 쓰지 않는다. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />

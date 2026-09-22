@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../../data/models/wifi_credential.dart';
 import '../../data/services/wifi_service.dart';
 import '../../domain/services/wifi_input_validator.dart';
+import '../widgets/confusable_highlight_controller.dart';
 import '../widgets/connection_status_card.dart';
 
 /// OCR 결과를 확인/수정하고 Wi-Fi 연결을 요청하는 화면.
@@ -32,14 +33,21 @@ class WifiResultScreen extends StatefulWidget {
 }
 
 class _WifiResultScreenState extends State<WifiResultScreen> {
-  late final _ssid = TextEditingController(text: widget.credential.ssid ?? '');
-  late final _password = TextEditingController(text: widget.credential.password ?? '');
+  late final _ssid = ConfusableHighlightController(text: widget.credential.ssid ?? '');
+  late final _password = ConfusableHighlightController(text: widget.credential.password ?? '');
 
   /// OCR로 아무것도 찾지 못했을 때 사용자가 "직접 입력"을 눌렀는지.
   late bool _editing = widget.manualEntry || !widget.credential.isEmpty;
   bool _obscurePassword = false;
   bool _connecting = false;
   WifiConnectResult? _result;
+
+  /// 요청 승인 뒤 실제 연결 확인 상태.
+  bool _verifying = false;
+  WifiConnectionCheck? _check;
+
+  /// 값을 고치거나 다시 요청하면 이전 확인 결과를 버리기 위한 일련번호.
+  int _attempt = 0;
   String? _ssidError;
   String? _passwordError;
 
@@ -54,10 +62,13 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
   }
 
   void _onEdited(String _) {
+    _attempt++;
     setState(() {
       _ssidError = null;
       _passwordError = null;
       _result = null;
+      _check = null;
+      _verifying = false;
     });
   }
 
@@ -76,17 +87,31 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
       _ssidError = ssidError;
       _passwordError = passwordError;
       _result = null;
+      _check = null;
+      _verifying = false;
     });
     if (ssidError != null || passwordError != null) return;
 
+    final attempt = ++_attempt;
     setState(() => _connecting = true);
     final result = await widget.wifiService.connect(ssid: ssid, password: password);
-    if (!mounted) return;
+    if (!mounted || attempt != _attempt) return;
     setState(() {
       _connecting = false;
       _result = result;
+      _verifying = result.needsVerification;
     });
     if (result.isSuccess) HapticFeedback.lightImpact();
+    if (!result.needsVerification) return;
+
+    // OS가 요청을 받아들였다고 해서 연결된 것은 아니다. 실제 연결을 기다려 알려준다.
+    final check = await widget.wifiService.awaitConnection(ssid: ssid);
+    if (!mounted || attempt != _attempt) return;
+    setState(() {
+      _verifying = false;
+      _check = check;
+    });
+    if (check.connected) HapticFeedback.lightImpact();
   }
 
   void _close() => Navigator.of(context).maybePop();
@@ -239,6 +264,14 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
                   values: _alternatives(WifiCandidateType.password, _password.text),
                   onSelected: (v) => _useCandidate(_password, v),
                 ),
+              if (_hasConfusables)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10, left: 4),
+                  child: Text(
+                    '색으로 표시한 글자는 0/O, 1/l/I처럼 헷갈리기 쉬워요. 안내문과 비교해주세요.',
+                    style: TextStyle(fontSize: 13, color: muted, height: 1.4),
+                  ),
+                ),
               AnimatedSize(
                 duration: const Duration(milliseconds: 200),
                 alignment: Alignment.topCenter,
@@ -248,6 +281,8 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
                         padding: const EdgeInsets.only(top: 24),
                         child: ConnectionStatusCard(
                           result: _result!,
+                          check: _check,
+                          verifying: _verifying,
                           onOpenWifiSettings: widget.wifiService.openWifiSettings,
                         ),
                       ),
@@ -276,6 +311,12 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
 
   bool get _canConnect => !_connecting && _ssid.text.trim().isNotEmpty;
 
+  /// 직접 입력 중이 아니라 OCR 결과를 보고 있을 때만 헷갈리는 글자 안내를 보여준다.
+  bool get _hasConfusables =>
+      !_isManual &&
+      (ConfusableHighlightController.hasConfusables(_ssid.text) ||
+          (!_obscurePassword && ConfusableHighlightController.hasConfusables(_password.text)));
+
   Widget _buildPrimaryButton() {
     final result = _result;
     if (_connecting) {
@@ -291,12 +332,17 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
         ),
       );
     }
-    if (result != null && result.isSuccess) {
+    final check = _check;
+    // 확인이 안 됐어도 사용자가 더 기다리지 않고 나갈 수 있게 "완료"를 유지하되,
+    // 연결 실패가 의심되면 다시 시도할 수 있게 한다.
+    final unconfirmed = check != null && !check.connected;
+    if (result != null && result.isSuccess && !unconfirmed) {
       return FilledButton(onPressed: _close, child: const Text('완료'));
     }
     final label = switch (result?.status) {
       WifiConnectStatus.cancelled => '다시 연결',
       WifiConnectStatus.failed => '다시 시도',
+      _ when unconfirmed => '다시 시도',
       _ => 'Wi-Fi 연결',
     };
     return FilledButton(onPressed: _canConnect ? _connect : null, child: Text(label));
@@ -328,6 +374,7 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
     if (_isManual) return '안내문에 적힌 Wi-Fi 이름과 비밀번호를 입력하세요.';
     if (!_found.hasSsid) return '안내문에 적힌 Wi-Fi 이름을 입력해주세요.';
     if (!_found.hasPassword) return '비밀번호를 입력해주세요. 비밀번호가 없는 Wi-Fi라면 비워두고 연결하세요.';
+    if (_found.isOpenNetwork) return '비밀번호가 없는 Wi-Fi로 인식했어요. 이름만 확인하고 연결하세요.';
     final uncertain = _found.ssidConfidence < WifiCredential.confidentThreshold ||
         _found.passwordConfidence < WifiCredential.confidentThreshold;
     return uncertain ? '인식이 정확하지 않을 수 있어요. 확인 후 연결해주세요.' : '정보가 맞는지 확인하고 연결하세요.';
@@ -336,7 +383,7 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
   List<String> _alternatives(WifiCandidateType type, String current) => _found
       .candidatesOf(type)
       .map((c) => c.value)
-      .where((v) => v != current.trim())
+      .where((v) => v.isNotEmpty && v != current.trim())
       .take(3)
       .toList();
 }

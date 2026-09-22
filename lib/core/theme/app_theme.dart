@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 abstract final class AppTheme {
   static const success = Color(0xFF1E9E5A);
 
+  /// 확인이 필요한 글자(0/O, 1/l/I) 강조색.
+  static const attention = Color(0xFFD97706);
+
   static ThemeData light() => _build(Brightness.light);
   static ThemeData dark() => _build(Brightness.dark);
 

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../../../core/utils/text_normalizer.dart';
 import '../../data/models/wifi_credential.dart';
 
 /// OCR 텍스트에서 Wi-Fi SSID / Password를 찾아내는 rule-based 파서.
@@ -28,6 +29,11 @@ class WifiCredentialParser {
     void add(_LabelMatch label, String value, double base, {required bool isolated}) {
       final cleaned = _cleanValue(value);
       if (cleaned.isEmpty) return;
+      // "비밀번호 : 없음" → 공개 네트워크. 빈 비밀번호 후보로 기록한다.
+      if (label.type == WifiCandidateType.password && _openKeywords.hasMatch(cleaned)) {
+        found.add(WifiCandidate(value: '', type: label.type, score: (base * 0.95).clamp(0.0, 1.0)));
+        return;
+      }
       final factor = label.type == WifiCandidateType.ssid
           ? _ssidFactor(cleaned, isolated: isolated)
           : _passwordFactor(cleaned, isolated: isolated);
@@ -300,15 +306,67 @@ class WifiCredentialParser {
   }
 
   // ---------------------------------------------------------------------------
+  // 여러 인식 결과 병합
+
+  /// 서로 다른 OCR 인식기(예: 한국어 모델과 라틴 모델)가 같은 이미지에서 낸
+  /// 결과를 합친다. [sources]는 우선순위 순서로 넘긴다.
+  ///
+  /// - 후보는 모두 합치고 같은 값은 높은 점수를 쓴다. 다른 인식기의 값은
+  ///   결과 화면에서 "다른 후보"로 고를 수 있다.
+  /// - 두 인식기가 각각 확신(>= [WifiCredential.confidentThreshold])하는 값이
+  ///   서로 다르면, 어느 쪽이 맞는지 알 수 없으므로 선택된 값의 신뢰도를
+  ///   기준값 아래로 낮춰 사용자가 확인하도록 한다.
+  WifiCredential merge(List<WifiCredential> sources) {
+    if (sources.isEmpty) return WifiCredential.empty;
+    if (sources.length == 1) return sources.first;
+
+    // 앞선 source가 동점일 때 이기도록 아주 작은 가산점을 준다.
+    final found = <WifiCandidate>[
+      for (var i = 0; i < sources.length; i++)
+        for (final c in sources[i].candidates)
+          WifiCandidate(
+            value: c.value,
+            type: c.type,
+            score: (c.score + (sources.length - 1 - i) * 1e-6).clamp(0.0, 1.0),
+          ),
+    ];
+    final merged = _select(found);
+
+    bool disputed(WifiCandidateType type) {
+      final confident = <String>{};
+      for (final s in sources) {
+        final value = type == WifiCandidateType.ssid ? s.ssid : s.password;
+        final score = type == WifiCandidateType.ssid ? s.ssidConfidence : s.passwordConfidence;
+        if (value != null && score >= WifiCredential.confidentThreshold) confident.add(value);
+      }
+      return confident.length > 1;
+    }
+
+    const capped = WifiCredential.confidentThreshold - 0.05;
+    return WifiCredential(
+      ssid: merged.ssid,
+      password: merged.password,
+      ssidConfidence: disputed(WifiCandidateType.ssid)
+          ? merged.ssidConfidence.clamp(0.0, capped)
+          : merged.ssidConfidence,
+      passwordConfidence: disputed(WifiCandidateType.password)
+          ? merged.passwordConfidence.clamp(0.0, capped)
+          : merged.passwordConfidence,
+      candidates: merged.candidates,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // 토큰화
 
   List<List<_Segment>> _tokenize(String text) {
     final rows = <List<_Segment>>[];
     for (final line in text.split(_newline)) {
       final segs = <_Segment>[];
-      final cells = line.split('\t');
+      final cells = normalizeOcrText(line).split('\t');
       for (var c = 0; c < cells.length; c++) {
-        final cell = cells[c].replaceAll(' ', ' ').trim();
+        // "• Password: ..." 같은 글머리 기호는 라벨 인식을 막으므로 떼어낸다.
+        final cell = cells[c].trim().replaceFirst(_bullet, '').trim();
         if (cell.isEmpty) continue;
         segs.addAll(_segmentCell(cell, c));
       }
@@ -344,6 +402,8 @@ class WifiCredentialParser {
       final end = k + 1 < matches.length ? matches[k + 1].start : cell.length;
       var value = cell.substring(m.valueStart, end).trim();
       if (k + 1 < matches.length) value = value.replaceFirst(_trailingDelimiters, '');
+      // "cafe_momo 이고" 같은 문장 종결을 먼저 떼어내야 아래 여러 단어 판정에 걸리지 않는다.
+      value = _cleanValue(value);
 
       var header = m.header;
       if (_isNoise(value)) {
@@ -395,7 +455,14 @@ class WifiCredentialParser {
     );
   }
 
-  String _cleanValue(String value) => value.trim().replaceFirst(_trailingNote, '').trim();
+  /// 앞뒤 공백, 괄호 설명, "비밀번호는 abc12345 입니다" 같은 문장 종결만 떼어낸다.
+  /// 값 자체의 대소문자와 특수문자는 건드리지 않는다.
+  String _cleanValue(String value) {
+    var v = value.trim().replaceFirst(_trailingNote, '').trim();
+    final stripped = v.replaceFirst(_sentenceEnding, '').trim();
+    if (stripped.isNotEmpty) v = stripped;
+    return v;
+  }
 
   bool _isNoise(String value) {
     if (value.isEmpty) return false;
@@ -458,34 +525,47 @@ class _Segment {
 // 패턴
 
 const _wifi = r'w[i1l][\s\-‐‑_.·]?f[i1l]';
-const _wifiWord = '(?:$_wifi|wlan|와이파이|무선\\s*인터넷)';
+const _wifiWord = '(?:$_wifi|wlan|와이\\s?파이|무선\\s*인터넷)';
+const _network = '(?:network|네트\\s?워크)';
 const _free = r'(?:(?:free|무료)\s*)?';
+
+/// "비밀번호는 abc" 처럼 한글 라벨 뒤에 붙는 조사.
+const _particle = r'(?:(?:는|은|이|가|를|을)(?=\s|[:=：;|]|$))?';
 
 /// 라벨 바로 뒤에 글자/숫자/밑줄이 붙으면 라벨이 아니다 ("WIFI_MOMO", "Keyboard").
 const _boundary = r'(?![\p{L}\p{N}_]|-[\p{L}\p{N}])';
 
 final _passwordLabel = RegExp(
-  '$_free(?:(?:$_wifiWord|network|네트워크)\\s*)?'
+  '$_free(?:(?:$_wifiWord|$_network)\\s*)?'
   '(?:(?<strong>pass\\s?w[o0]r?d|passward|passwd|passcode|pwd|p\\s?/\\s?w|p\\.w\\.?|pw'
-  '|비밀\\s?번호|비번|암호|패스워드)|(?<weak>pass|key))'
-  '$_boundary',
+  '|비밀\\s?번호|비번|암호|패스\\s?워드)|(?<weak>pass|key))'
+  '$_particle$_boundary',
   caseSensitive: false,
   unicode: true,
 );
 
 final _ssidLabel = RegExp(
   '$_free(?:'
-  '(?<strong>s[s5][i1l]d|network\\s*name|네트워크\\s*(?:이름|명)'
-  '|$_wifiWord\\s*(?:name|id|ssid|이름|명))'
+  '(?<strong>s[s5][i1l]d|network\\s*name|네트\\s?워크\\s*(?:이름|명)'
+  '|$_wifiWord\\s*(?:name|[il1]d|ssid|이름|명))'
   '|(?<medium>$_wifiWord)'
-  '|(?<weak>network|네트워크|id)'
-  ')$_boundary',
+  '|(?<weak>$_network|[il1]d)'
+  ')$_particle$_boundary',
   caseSensitive: false,
   unicode: true,
 );
 
 final _freePrefix = RegExp(r'^(?:free|무료)', caseSensitive: false);
-final _separator = RegExp(r'\s*(?:[:=：]|[-–—>](?=\s))\s*');
+// OCR은 ':'를 ';'로, 표의 세로선을 '|'로 읽기도 한다.
+final _separator = RegExp(r'\s*(?:[:=：;|]|[-–—>](?=\s))\s*');
+final _bullet = RegExp(r'^(?:[•·▪▶►☞→■□●○◆◇✔✓※★☆*]+|-(?=\s))\s*');
+final _sentenceEnding = RegExp(
+  r'\s*(?:입니다|이에요|예요|에요|이며|이고|이구요|이라고|이에용|입니당|임다|이야|이에요)[.!。]?$',
+);
+final _openKeywords = RegExp(
+  r'^(?:없음|없어요|없습니다|없다|없슴|없음\.|x|-|none|no|no password|open|free|n/?a)$',
+  caseSensitive: false,
+);
 final _labelNote = RegExp(r'\s*[(\[（][^)\]）]{0,24}[)\]）](?=\s*(?:[:=：]|$))');
 final _bandQualifier = RegExp(r'\s*(?:\d(?:\.\d)?\s*g(?:hz)?|\d)(?=\s*[:=：])', caseSensitive: false);
 final _slash = RegExp(r'\s*/\s*');

@@ -42,21 +42,25 @@ lib/
 │   ├── theme/app_theme.dart          # 흰색/검정 Material 3 테마
 │   └── utils/
 │       ├── platform_channel.dart     # 네이티브 채널, 앱 설정 열기
-│       └── secret_mask.dart          # 로그용 비밀번호 마스킹
+│       ├── secret_mask.dart          # 로그용 비밀번호 마스킹
+│       └── text_normalizer.dart      # 전각 문자·특수 대시 등 OCR 변형 정규화
 └── features/wifi_scanner/
     ├── data/
     │   ├── models/wifi_credential.dart     # WifiCredential, WifiCandidate
     │   └── services/
-    │       ├── ocr_service.dart            # ML Kit OCR + 좌표 기반 행 재구성
-    │       └── wifi_service.dart           # connectWifi MethodChannel 래퍼
+    │       ├── image_cropper.dart          # 가이드 영역 → 사진 좌표 변환, 크롭
+    │       ├── ocr_service.dart            # ML Kit OCR (한국어+라틴) + 좌표 기반 행 재구성
+    │       └── wifi_service.dart           # connectWifi / awaitConnection MethodChannel 래퍼
     ├── domain/services/
-    │   ├── wifi_credential_parser.dart     # rule-based SSID/Password 파서
+    │   ├── wifi_credential_parser.dart     # rule-based SSID/Password 파서 + 결과 병합
+    │   ├── wifi_credential_extractor.dart  # 인식기별 결과 우선순위 결정 → 파서
     │   └── wifi_input_validator.dart       # SSID 32바이트, WPA 8~63자 검증
     └── presentation/
         ├── screens/
         │   ├── camera_screen.dart          # 첫 화면: 프리뷰 + 가이드 + 촬영
         │   └── wifi_result_screen.dart     # 확인/수정/연결/에러 표시
         └── widgets/
+            └── confusable_highlight_controller.dart  # 0/O, 1/l/I 강조 표시
 
 android/app/src/main/kotlin/.../WifiConnectorPlugin.kt   # Android Wi-Fi 연결
 ios/Runner/WifiConnectorPlugin.swift                     # iOS Wi-Fi 연결
@@ -66,11 +70,13 @@ ios/Runner/WifiConnectorPlugin.swift                     # iOS Wi-Fi 연결
 
 ### OCR
 
-1. `camera`로 사진 촬영 (1080p, 오디오 없음)
-2. ML Kit 한국어 인식기(`TextRecognitionScript.korean`, 라틴 문자 포함)로 텍스트 인식
-3. 인식 결과의 줄 좌표를 이용해 **같은 높이의 줄을 한 행으로 재구성** (셀 사이는 탭).
+1. `camera`로 사진 촬영 (1080p, 오디오 없음). 초점·노출은 가이드 영역 중앙에 맞추고, 화면을 탭하면 그 지점에 다시 맞춥니다.
+2. 사진에서 **가이드 영역만 잘라냅니다** (`image_cropper.dart`, 사방 8% 여유). 메뉴판 등 주변 글자가 후보에 섞이지 않고 인식도 빨라집니다.
+3. ML Kit **한국어 인식기와 라틴 인식기를 동시에** 실행합니다. 한국어 모델도 영문을 읽지만, 영문·숫자만 있는 안내문은 라틴 전용 모델이 더 정확합니다.
+4. 인식 결과의 줄 좌표를 이용해 **같은 높이의 줄을 한 행으로 재구성** (셀 사이는 탭).
    라벨 열과 값 열이 떨어져 있는 안내문(`Wi-Fi      cafe_momo`)을 올바르게 짝짓기 위해서입니다.
-4. 촬영한 사진 파일은 인식 직후 삭제
+5. 두 인식기 결과를 각각 파싱해 병합합니다. SSID나 비밀번호 중 하나라도 못 찾았으면 (안내문이 가이드보다 커서 잘렸을 수 있으므로) 전체 사진으로 한 번 더 인식해 빠진 값을 채웁니다. 가이드 안에서 찾은 값이 우선입니다.
+6. 촬영한 사진과 크롭 파일은 인식 직후 삭제
 
 ### Parser (`WifiCredentialParser`)
 
@@ -94,8 +100,15 @@ LLM 없이 규칙 기반으로 동작하며, 결과를 바로 확정하지 않�
 - 라벨이 없어도 `KT_GIGA_5G`, `iptime` 같은 SSID 형태나 영문+숫자 8자 이상 값은 낮은 점수 후보로 추천
 - 값 정리: 앞뒤 공백, 라벨, 공백 뒤 괄호 설명(`12345678 (숫자 8자리)`)만 제거.
   **대소문자와 특수문자(`!@#$%&*_-.`)는 절대 바꾸지 않음**
+- OCR 노이즈 보정: 전각 문자(`Ｔｅｓｔ１２３４５`)·특수 대시·따옴표를 ASCII로, 글머리 기호(`•`, `▶`) 제거,
+  `:`를 `;`나 `|`로 읽은 경우, `와이 파이`/`비밀 번호`처럼 라벨 안에 들어간 공백, `ID`를 `lD`로 읽은 경우,
+  `비밀번호는 abc12345 입니다` 같은 조사·문장 종결. `비밀번호 : 없음`/`none`은 공개 네트워크로 인식합니다.
+- 여러 인식기 결과 병합(`merge`): 같은 값은 높은 점수를 쓰고, 두 인식기가 각각 확신하는 값이 서로 다르면
+  선택된 값의 신뢰도를 기준값 아래로 낮춰 "확인 필요"를 띄우고 다른 값을 후보 칩으로 남깁니다.
 - 점수가 `WifiCredential.confidentThreshold`(0.8) 미만이면 화면에 "확인 필요"를 표시.
   V2의 AI Parser fallback은 이 기준값 아래에서만 호출하도록 붙이면 됩니다.
+- 결과 화면은 `0/O/o`, `1/l/I` 처럼 OCR이 자주 혼동하는 글자를 색으로 강조해 사용자가 안내문과 비교하도록 합니다.
+  앱은 어느 쪽이 맞는지 알 수 없으므로 값을 고치지는 않습니다.
 
 ### Wi-Fi 연결
 
@@ -113,11 +126,43 @@ LLM 없이 규칙 기반으로 동작하며, 결과를 바로 확정하지 않�
 
 | status | 의미 | 화면 |
 |---|---|---|
-| `connected` | 연결 확인됨 (iOS) | ✓ Wi-Fi에 연결되었습니다. |
-| `requested` | OS가 요청을 수락, 연결 여부는 확인 불가 | ✓ Wi-Fi 연결 요청이 완료되었습니다. |
-| `suggested` | Android 10 제안 등록 | ✓ 요청 완료 + 알림에서 허용 안내 |
+| `connected` | OS가 이미 연결됐다고 알려줌 (iOS `alreadyAssociated`) | ✓ Wi-Fi에 연결되었습니다. |
+| `requested` (+`alreadySaved`) | OS가 요청을 수락. 이어서 `awaitConnection`으로 실제 연결 확인 | 요청 완료 · 연결 확인 중… |
+| `suggested` | Android 10 제안 등록. 이어서 `awaitConnection` | 요청 완료 + 알림에서 허용 안내 |
 | `cancelled` | 사용자가 OS 화면에서 거절 | Wi-Fi 연결이 취소되었습니다. [다시 연결] |
 | `failed` + reason | `invalid_password` / `invalid_ssid` / `wifi_disabled` / `unsupported` / `unknown` | 사유별 안내 + [다시 시도] |
+
+`awaitConnection` {ssid, timeoutMs} → {connected, captivePortal}:
+
+| 결과 | 화면 |
+|---|---|
+| `connected: true` | ✓ Wi-Fi에 연결되었습니다. (캡티브 포털이면 브라우저 로그인 안내) |
+| `connected: false` | 아직 연결을 확인하지 못했어요. + 대소문자/비밀번호 확인, `alreadySaved`면 설정에서 삭제 안내, [Wi-Fi 설정 열기], [다시 시도] |
+
+- iOS: `NEHotspotNetwork.fetchCurrent`로 현재 SSID를 1초 간격, 최대 6초 확인합니다 (앱이 설정한 네트워크는 위치 권한 없이 조회됨).
+- Android: 위치 권한 없이는 SSID를 읽을 수 없어, 요청 **전에** `ConnectivityManager` 콜백을 등록해 현재 Wi-Fi 네트워크와
+  기본 게이트웨이를 기억해 두고, 승인 뒤 최대 20초 안에 **게이트웨이가 다른 새 Wi-Fi 연결**이 생기면 연결된 것으로 봅니다.
+  저장 직후 OS가 기존 네트워크를 끊었다 다시 붙이는 경우(에뮬레이터에서 실제로 발생)를 새 연결로 오인하지 않기 위한 조건입니다.
+  게이트웨이가 우연히 같은 다른 AP(둘 다 `192.168.0.1` 등)는 "확인 못 함"이 되며, 이 메시지는 실패로 단정하지 않습니다.
+
+## 인식률·연결 오류를 줄이기 위한 조치
+
+| 문제 | 조치 | 위치 |
+|---|---|---|
+| 사진 전체를 인식해 메뉴·장식 글자가 후보에 섞임 | 가이드 영역만 크롭해 인식, 빠진 값이 있으면 전체 사진으로 보충 | `image_cropper.dart`, `camera_screen.dart` |
+| 영문·숫자(`l/1/I`, `O/0`) 오인식 | 한국어 + 라틴 인식기 동시 실행 후 병합. 불일치하면 "확인 필요" + 후보 칩 | `ocr_service.dart`, `wifi_credential_parser.dart#merge` |
+| 초점이 안내문에 맞지 않아 흐리게 찍힘 | 초점·노출을 가이드 중앙에 고정, 탭 초점, 촬영 직전 진동 제거 | `camera_screen.dart` |
+| 전각 문자·특수 대시 등 비ASCII 변형 | ASCII로 정규화 (뜻이 하나로 정해지는 문자만) | `text_normalizer.dart` |
+| 문장형 안내문(`비밀번호는 … 입니다`), 글머리 기호, `;`/`\|` 구분자, 라벨 안 공백 | 파서 규칙 추가 | `wifi_credential_parser.dart` |
+| "비밀번호 없음"을 비밀번호로 오인 | 공개 네트워크로 인식해 빈 비밀번호로 연결 | `wifi_credential_parser.dart`, 결과 화면 |
+| 혼동 글자를 사용자가 놓침 | `0/O/o`, `1/l/I` 색 강조 + 안내 문구 | `confusable_highlight_controller.dart` |
+| "요청 완료"만 보여 실제 연결 여부를 모름 | 요청 뒤 실제 연결을 기다려 연결됨 / 확인 못 함 / 캡티브 포털을 구분 | `WifiConnectorPlugin.kt`, `WifiConnectorPlugin.swift` |
+| 같은 SSID가 이미 저장돼 있어 비밀번호가 갱신되지 않음 (Android) | `ADD_WIFI_RESULT_ALREADY_EXISTS`를 구분해 설정에서 삭제하도록 안내 | `WifiConnectorPlugin.kt` |
+| OS API가 거부할 입력 | SSID 32바이트, WPA 8~63자 ASCII를 요청 전에 검증 | `wifi_input_validator.dart` |
+
+한계: 산세리프 글꼴의 대문자 `I`와 소문자 `l`처럼 사람도 구분할 수 없는 글자는 OCR도 구분하지 못합니다.
+그래서 값을 자동으로 고치는 대신 강조 표시와 후보 칩으로 사용자가 확인하게 합니다.
+SSID 대소문자 오류는 주변 Wi-Fi 목록과 대조해야 잡을 수 있는데, Android/iOS 모두 위치 권한 없이는 스캔이 안 돼 MVP에서 제외했습니다.
 
 ## 실제 기기 테스트
 
@@ -144,7 +189,11 @@ LLM 없이 규칙 기반으로 동작하며, 결과를 바로 확정하지 않�
 | 이미 저장된 네트워크 → 시스템이 화면 없이 "이미 있음" 반환 → 요청 완료 | ✅ |
 | Wi-Fi 꺼짐 → "Wi-Fi가 꺼져 있어요" → [Wi-Fi 설정 열기]로 Wi-Fi 패널 표시 | ✅ |
 | Flutter 로그 / logcat에 비밀번호 문자열 없음 | ✅ |
-| ML Kit 한국어 모델로 안내문 이미지 인식 → Parser (integration test 4건) | ✅ |
+| ML Kit 한국어+라틴 모델로 안내문 이미지 인식 → Parser (integration test 5건, 가이드 밖 글자 제외 포함) | ✅ |
+| 촬영 → 크롭 → 이중 인식 → 전체 사진 재시도까지 7초 (크롭 전 단일 인식은 20초 이상) | ✅ |
+| 저장 승인 → "연결 확인 중…" → 새 연결이 없으면 "아직 연결을 확인하지 못했어요" + [Wi-Fi 설정 열기] | ✅ |
+| 저장 직후 기존 Wi-Fi가 끊겼다 다시 붙는 경우를 새 연결로 오인하지 않음 (게이트웨이 비교) | ✅ |
+| 승인 뒤 게이트웨이가 다른 새 Wi-Fi 연결 → "Wi-Fi에 연결되었습니다" | ❌ 에뮬레이터에는 AP가 하나뿐이라 실기기 확인 필요 |
 
 #### iPhone 실기기(iOS 26.6.2)에서 확인한 항목
 
@@ -171,6 +220,8 @@ LLM 없이 규칙 기반으로 동작하며, 결과를 바로 확정하지 않�
    ```
 
 3. 테스트 기기에서 해당 네트워크가 이미 저장되어 있다면 먼저 "저장 안 함/이 네트워크 지우기"로 삭제합니다.
+4. `test_signs/`에 카페 안내문 스타일의 테스트 이미지 4장이 있습니다 (영문 콜론형, 한글, 2열 표, 라벨 아래 값).
+   모니터에 전체 화면으로 띄우거나 인쇄해서 찍으면 됩니다. `sign1.png`가 위 안내문과 같은 내용입니다.
 
 ### Android
 
@@ -225,10 +276,12 @@ LLM 없이 규칙 기반으로 동작하며, 결과를 바로 확정하지 않�
 
 ### Android
 
-- **연결 성공 여부를 확인할 수 없음**: 현재 연결된 SSID를 읽으려면 위치 권한이 필요합니다.
-  PRD 원칙(불필요한 위치 권한 금지)에 따라 요청하지 않으므로, 시스템 화면에서 저장이 승인되면
-  "연결 요청 완료"까지만 표시합니다. 비밀번호가 틀리면 Android는 네트워크를 저장한 뒤 설정 화면에
-  "인증 문제"로 표시하며, 앱에서는 이를 알 수 없습니다.
+- **연결된 SSID를 읽을 수 없음**: 현재 연결된 SSID를 읽으려면 위치 권한이 필요합니다.
+  PRD 원칙(불필요한 위치 권한 금지)에 따라 요청하지 않으므로, 승인 뒤 "게이트웨이가 다른 새 Wi-Fi 연결"이
+  생겼는지로만 연결을 판단합니다. 비밀번호가 틀리면 Android는 네트워크를 저장한 뒤 설정 화면에
+  "인증 문제"로 표시하며, 앱은 20초 뒤 "아직 연결을 확인하지 못했어요"와 함께 비밀번호 확인과
+  Wi-Fi 설정 열기를 안내합니다. 이미 그 네트워크에 붙어 있었거나 OS가 기존 네트워크를 유지하는 경우에도
+  같은 메시지가 나오므로 실패로 단정하지 않습니다.
 - `ACTION_WIFI_ADD_NETWORKS`로 추가한 네트워크는 사용자가 저장한 네트워크가 됩니다
   (설정 → Wi-Fi에 표시, 앱을 지워도 유지). 이미 저장된 네트워크면 "이미 있음"으로 처리되어 성공으로 봅니다.
 - 다른 Wi-Fi에 연결된 상태에서는 OS가 새 네트워크로 즉시 전환하지 않을 수 있습니다.

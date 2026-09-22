@@ -51,6 +51,9 @@ class WifiCredential {
   bool get hasPassword => password != null;
   bool get isEmpty => !hasSsid && !hasPassword;
 
+  /// 안내문에 "비밀번호 없음"처럼 적혀 있어 공개 네트워크로 인식한 경우.
+  bool get isOpenNetwork => password == '';
+
   List<WifiCandidate> candidatesOf(WifiCandidateType type) =>
       candidates.where((c) => c.type == type).toList();
 

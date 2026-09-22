@@ -270,6 +270,91 @@ void main() {
     });
   });
 
+  group('OCR 노이즈 보정', () {
+    test('전각 문자', () {
+      expectParsed('ＳＳＩＤ：ＴｅｓｔＣａｆｅ\nＰＷ：Ｔｅｓｔ１２３４５', ssid: 'TestCafe', password: 'Test12345');
+    });
+
+    test('한글 조사와 문장 종결', () {
+      expectParsed('와이파이는 카페모모\n비밀번호는 abc12345 입니다', ssid: '카페모모', password: 'abc12345');
+      expectParsed('비밀번호 : abc12345입니다.', password: 'abc12345');
+      expectParsed('와이파이가 cafe_momo 이고\n비번은 hello1234예요', ssid: 'cafe_momo', password: 'hello1234');
+    });
+
+    test('글머리 기호', () {
+      expectParsed('• Wi-Fi : cafe\n▶ PW : abc12345\n- Enjoy', ssid: 'cafe', password: 'abc12345');
+    });
+
+    test('구분자 ; 와 |', () {
+      expectParsed('SSID; cafe\nPW; abc12345', ssid: 'cafe', password: 'abc12345');
+      expectParsed('ID | momo_guest\nPW | hello1234', ssid: 'momo_guest', password: 'hello1234');
+    });
+
+    test('라벨 안 띄어쓰기', () {
+      expectParsed('와이 파이 : cafe\n비밀 번호 : abc12345', ssid: 'cafe', password: 'abc12345');
+      expectParsed('네트 워크 : cafe\n패스 워드 : abc12345', ssid: 'cafe', password: 'abc12345');
+    });
+
+    test('ID를 lD/1D로 오인식', () {
+      expectParsed('lD : cafe\nPW : abc12345', ssid: 'cafe', password: 'abc12345');
+    });
+
+    test('대시 변형은 하이픈으로', () {
+      expectParsed('PW : abc–12345', password: 'abc-12345');
+    });
+
+    test('"비밀번호 없음"은 공개 네트워크', () {
+      final result = parser.parse('Wi-Fi : cafe_open\n비밀번호 : 없음');
+      expect(result.ssid, 'cafe_open');
+      expect(result.password, '');
+      expect(result.isOpenNetwork, isTrue);
+      expect(parser.parse('Password: none').isOpenNetwork, isTrue);
+      expect(parser.parse('Password: abc12345').isOpenNetwork, isFalse);
+    });
+  });
+
+  group('여러 인식 결과 병합', () {
+    test('같은 결과면 신뢰도를 유지한다', () {
+      final a = parser.parse('SSID: cafe\nPW: abc12345');
+      final b = parser.parse('SSID: cafe\nPW: abc12345');
+      final merged = parser.merge([a, b]);
+      expect(merged.ssid, 'cafe');
+      expect(merged.password, 'abc12345');
+      expect(merged.passwordConfidence, greaterThanOrEqualTo(WifiCredential.confidentThreshold));
+    });
+
+    test('확신하는 값이 서로 다르면 확인 필요 수준으로 낮추고 후보를 남긴다', () {
+      final korean = parser.parse('SSID: cafe\nPW: hel1o1234');
+      final latin = parser.parse('SSID: cafe\nPW: hello1234');
+      final merged = parser.merge([korean, latin]);
+      expect(merged.ssid, 'cafe');
+      expect(merged.ssidConfidence, greaterThanOrEqualTo(WifiCredential.confidentThreshold));
+      expect(merged.passwordConfidence, lessThan(WifiCredential.confidentThreshold));
+      final values = merged.candidatesOf(WifiCandidateType.password).map((c) => c.value);
+      expect(values, containsAll(['hel1o1234', 'hello1234']));
+    });
+
+    test('동점이면 앞선 source가 이긴다', () {
+      final first = parser.parse('PW: hello1234');
+      final second = parser.parse('PW: hel1o1234');
+      expect(parser.merge([first, second]).password, 'hello1234');
+      expect(parser.merge([second, first]).password, 'hel1o1234');
+    });
+
+    test('라벨 없는 낮은 점수 결과는 확신하는 결과를 뒤집지 못한다', () {
+      final korean = parser.parse('비밀번호: abc12345');
+      final latin = parser.parse('HIWHS abcl2345');
+      final merged = parser.merge([korean, latin]);
+      expect(merged.password, 'abc12345');
+      expect(merged.passwordConfidence, greaterThanOrEqualTo(WifiCredential.confidentThreshold));
+    });
+
+    test('빈 입력', () {
+      expect(parser.merge([]).isEmpty, isTrue);
+      expect(parser.merge([WifiCredential.empty, WifiCredential.empty]).isEmpty, isTrue);
+    });
+  });
+
   test('toString은 비밀번호를 노출하지 않는다', () {
     final result = parser.parse('SSID: cafe\nPassword: secret123');
     expect(result.toString(), isNot(contains('secret123')));

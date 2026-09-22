@@ -10,21 +10,25 @@ import UIKit
 final class WifiConnectorPlugin: NSObject, FlutterPlugin {
   private static let channelName = "com.kimtaejin.wifi_connector/platform"
 
-  /// apply() 이후 현재 SSID를 확인하는 횟수 (1초 간격).
-  private static let verifyAttempts = 5
-
   static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: channelName, binaryMessenger: registrar.messenger())
     registrar.addMethodCallDelegate(WifiConnectorPlugin(), channel: channel)
   }
 
   func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    let args = call.arguments as? [String: Any]
     switch call.method {
     case "connectWifi":
-      let args = call.arguments as? [String: Any]
       connect(
         ssid: args?["ssid"] as? String ?? "",
         password: args?["password"] as? String ?? "",
+        result: result
+      )
+    case "awaitConnection":
+      let timeoutMs = (args?["timeoutMs"] as? NSNumber)?.intValue ?? 6000
+      awaitConnection(
+        ssid: args?["ssid"] as? String ?? "",
+        deadline: Date().addingTimeInterval(Double(timeoutMs) / 1000),
         result: result
       )
     case "openAppSettings":
@@ -57,34 +61,34 @@ final class WifiConnectorPlugin: NSObject, FlutterPlugin {
       DispatchQueue.main.async {
         if let error = error as NSError? {
           result(Self.map(error))
-          return
+        } else {
+          // apply()는 비밀번호가 틀려도 에러 없이 끝나는 경우가 있어 연결 여부는 awaitConnection에서 확인한다.
+          result(["status": "requested"])
         }
-        self.verifyConnection(ssid: ssid, attempts: Self.verifyAttempts, result: result)
       }
     }
   }
 
-  /// apply()는 비밀번호가 틀려도 에러 없이 끝나는 경우가 있어 현재 연결된 SSID로 확인한다.
+  /// 현재 연결된 SSID가 [ssid]가 될 때까지 1초 간격으로 확인한다.
   /// NEHotspotNetwork.fetchCurrent는 이 앱이 NEHotspotConfiguration으로 설정한 네트워크라면
   /// 위치 권한 없이 동작한다 (Access Wi-Fi Information entitlement 필요).
-  /// 끝내 확인하지 못하면 실패로 단정하지 않고 "요청 완료"로 돌려준다.
-  private func verifyConnection(ssid: String, attempts: Int, result: @escaping FlutterResult) {
+  private func awaitConnection(ssid: String, deadline: Date, result: @escaping FlutterResult) {
     NEHotspotNetwork.fetchCurrent { network in
       DispatchQueue.main.async {
         if network?.ssid == ssid {
-          result(["status": "connected"])
-        } else if attempts <= 1 {
-          result(["status": "requested"])
+          result(["connected": true])
+        } else if Date() >= deadline {
+          result(["connected": false])
         } else {
           DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            self.verifyConnection(ssid: ssid, attempts: attempts - 1, result: result)
+            self.awaitConnection(ssid: ssid, deadline: deadline, result: result)
           }
         }
       }
     }
   }
 
-  private static func map(_ error: NSError) -> [String: String] {
+  private static func map(_ error: NSError) -> [String: Any] {
     guard error.domain == NEHotspotConfigurationErrorDomain,
           let code = NEHotspotConfigurationError(rawValue: error.code)
     else {
@@ -95,6 +99,9 @@ final class WifiConnectorPlugin: NSObject, FlutterPlugin {
       return ["status": "connected"]
     case .userDenied:
       return ["status": "cancelled"]
+    case .pending:
+      // 같은 요청이 아직 처리 중. 연결 여부는 awaitConnection에서 확인한다.
+      return ["status": "requested"]
     case .invalidWPAPassphrase, .invalidWEPPassphrase:
       return failure("invalid_password")
     case .invalidSSID, .invalidSSIDPrefix:
@@ -104,7 +111,7 @@ final class WifiConnectorPlugin: NSObject, FlutterPlugin {
     }
   }
 
-  private static func failure(_ reason: String) -> [String: String] {
+  private static func failure(_ reason: String) -> [String: Any] {
     ["status": "failed", "reason": reason]
   }
 }
