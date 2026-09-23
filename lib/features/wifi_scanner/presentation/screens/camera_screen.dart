@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/utils/platform_channel.dart';
 import '../../data/models/wifi_credential.dart';
@@ -48,6 +49,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   final _ocr = OcrService();
   final _extractor = const WifiCredentialExtractor();
   final _voter = CredentialVoter();
+  final _picker = ImagePicker();
 
   CameraController? _controller;
   _CameraStatus _status = _CameraStatus.initializing;
@@ -356,6 +358,33 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
+  /// 갤러리에서 고른 안내문 사진을 인식한다. 가이드 영역이 없으므로 사진 전체를 읽는다.
+  Future<void> _pickFromGallery() async {
+    if (_processing) return;
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked == null || !mounted) return;
+
+    setState(() => _processing = true);
+    await _stopLive();
+    WifiCredential? credential;
+    try {
+      final results = await _ocr.recognizeFileWithAllScripts(picked.path);
+      credential = _extractor.fromOcrResults(results);
+    } on Exception {
+      _showMessage('사진에서 글자를 인식하지 못했어요.');
+    } finally {
+      // image_picker가 앱 캐시에 복사한 사본. 비밀번호가 담겨 있으니 바로 지운다.
+      _deleteQuietly(picked.path);
+    }
+    if (!mounted) return;
+    setState(() => _processing = false);
+    if (credential != null) {
+      await _openResult(credential);
+    } else {
+      await _startLive();
+    }
+  }
+
   /// 실시간 인식이 안정된 값을 셔터 없이 결과 화면으로 넘긴다.
   Future<void> _confirmLive() async {
     final vote = _liveVote;
@@ -500,16 +529,30 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                     child: Row(
                       children: [
                         Expanded(
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: TextButton(
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(48, 48),
+                          child: Row(
+                            children: [
+                              IconButton(
+                                tooltip: '갤러리에서 선택',
+                                iconSize: 26,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.white24,
+                                  foregroundColor: Colors.white,
+                                  fixedSize: const Size(52, 52),
+                                ),
+                                onPressed: _processing ? null : _pickFromGallery,
+                                icon: const Icon(Icons.photo_library_outlined),
                               ),
-                              onPressed: _processing ? null : _openManualEntry,
-                              child: const Text('직접 입력'),
-                            ),
+                              const SizedBox(width: 4),
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size(44, 48),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                ),
+                                onPressed: _processing ? null : _openManualEntry,
+                                child: const Text('직접 입력'),
+                              ),
+                            ],
                           ),
                         ),
                         ShutterButton(onPressed: ready && !_processing ? _capture : null),
