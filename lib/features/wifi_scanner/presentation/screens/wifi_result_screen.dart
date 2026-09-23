@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -19,7 +18,6 @@ class WifiResultScreen extends StatefulWidget {
   const WifiResultScreen({
     super.key,
     required this.credential,
-    this.rawText,
     this.manualEntry = false,
     this.wifiService = const WifiService(),
     this.historyStore,
@@ -28,9 +26,6 @@ class WifiResultScreen extends StatefulWidget {
   });
 
   final WifiCredential credential;
-
-  /// 디버그 빌드에서만 보여주는 OCR 원문.
-  final String? rawText;
 
   /// 촬영 없이 직접 입력으로 들어온 경우.
   final bool manualEntry;
@@ -209,7 +204,6 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
             ],
           ),
         ),
-        _buildDebugRawText(),
       ],
     );
   }
@@ -304,7 +298,6 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
             child: Text(widget.retakeLabel ?? '닫기'),
           ),
         ),
-        _buildDebugRawText(),
       ],
     );
   }
@@ -343,24 +336,6 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
       _ => 'Wi-Fi 연결',
     };
     return FilledButton(onPressed: _canConnect ? _connect : null, child: Text(label));
-  }
-
-  Widget _buildDebugRawText() {
-    final raw = widget.rawText;
-    if (!kDebugMode || raw == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
-      child: ExpansionTile(
-        tilePadding: EdgeInsets.zero,
-        title: const Text('인식된 원문 (debug)', style: TextStyle(fontSize: 14)),
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SelectableText(raw.isEmpty ? '(인식된 텍스트 없음)' : raw),
-          ),
-        ],
-      ),
-    );
   }
 
   String get _title {
@@ -453,7 +428,7 @@ class _CandidateChips extends StatelessWidget {
         runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Text('혹시', style: TextStyle(fontSize: 13, color: p.muted, fontWeight: FontWeight.w600)),
+          Text('후보', style: TextStyle(fontSize: 13, color: p.muted, fontWeight: FontWeight.w600)),
           for (final value in values)
             ActionChip(
               label: Text(value),

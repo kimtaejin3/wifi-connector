@@ -301,7 +301,6 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     await _stopLive();
 
     WifiCredential? credential;
-    String? rawText;
     try {
       final file = await controller.takePicture();
       // 진동은 촬영이 끝난 뒤에. 촬영 직전에 울리면 손떨림으로 글자가 번진다.
@@ -322,7 +321,6 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         final cropMs = stopwatch.elapsedMilliseconds;
         final results = await _ocr.recognizeFileWithAllScripts(cropPath ?? file.path);
         credential = _extractor.fromOcrResults(results);
-        rawText = _debugText(results);
         // 시간만 기록한다. 인식된 내용(비밀번호 포함)은 절대 로그에 남기지 않는다.
         if (kDebugMode) {
           debugPrint('[ocr] crop ${cropMs}ms, recognize ${stopwatch.elapsedMilliseconds - cropMs}ms, '
@@ -334,7 +332,6 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         if (cropPath != null && (!credential.hasSsid || !credential.hasPassword)) {
           final full = await _ocr.recognizeFileWithAllScripts(file.path);
           credential = _extractor.fillMissing(credential, _extractor.fromOcrResults(full));
-          rawText = _debugText([...results, ...full]);
         }
 
         // 프리뷰 동안 읽은 여러 프레임과 다수결로 합쳐 한 장짜리 오류를 걸러낸다.
@@ -353,7 +350,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     if (!mounted) return;
     setState(() => _processing = false);
     if (credential != null) {
-      await _openResult(credential, rawText: rawText);
+      await _openResult(credential);
     } else {
       await _startLive();
     }
@@ -371,28 +368,14 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     await _openResult(credential);
   }
 
-  /// 디버그 화면용 원문. 릴리스에서는 만들지 않는다.
-  String? _debugText(List<OcrResult> results) {
-    if (!kDebugMode) return null;
-    return results.map((r) => '── ${r.script.name} ──\n${r.layoutText}').join('\n\n');
-  }
-
-  Future<void> _openResult(
-    WifiCredential credential, {
-    String? rawText,
-    bool manualEntry = false,
-  }) async {
+  Future<void> _openResult(WifiCredential credential, {bool manualEntry = false}) async {
     final reopenCamera = _status == _CameraStatus.ready;
     _resultOpen = true;
     // 결과 화면에 있는 동안에는 카메라를 끈다 (배터리, OS 연결 확인 화면과의 충돌 방지).
     _releaseCamera();
 
     await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => WifiResultScreen(
-        credential: credential,
-        rawText: rawText,
-        manualEntry: manualEntry,
-      ),
+      builder: (_) => WifiResultScreen(credential: credential, manualEntry: manualEntry),
     ));
 
     _resultOpen = false;
