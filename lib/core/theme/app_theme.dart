@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// 화면 전체에서 쓰는 색. 강조색은 인디고 하나뿐이고, 라운드는 카드 20 / 버튼·입력 16으로 통일한다.
+/// 화면 전체에서 쓰는 색. 강조색은 인디고 하나뿐이다.
+///
+/// 카드는 그림자 없이 얇은 테두리(hairline)로만 구분하고 라운드 16, 버튼은 알약(pill) 모양.
 class AppPalette extends ThemeExtension<AppPalette> {
   const AppPalette({
     required this.background,
@@ -14,27 +16,24 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.accentSoft,
     required this.success,
     required this.danger,
-    required this.shadow,
   });
 
   static const light = AppPalette(
-    background: Color(0xFFF3F5FB),
+    background: Color(0xFFF7F8FB),
     card: Color(0xFFFFFFFF),
-    ink: Color(0xFF1C1F33),
-    muted: Color(0xFF7C819A),
-    hairline: Color(0xFFE6E9F4),
+    ink: Color(0xFF1F2333),
+    muted: Color(0xFF8A90A6),
+    hairline: Color(0xFFE9EBF2),
     accent: Color(0xFF5B67F1),
     onAccent: Color(0xFFFFFFFF),
-    accentSoft: Color(0xFFEDEFFE),
+    accentSoft: Color(0xFFEEF0FE),
     success: Color(0xFF2EB872),
     danger: Color(0xFFE0475B),
-    // 배경색 계열로 물들인 그림자. 검정 그림자는 쓰지 않는다.
-    shadow: Color(0x1A2C3A8C),
   );
 
   static const dark = AppPalette(
     background: Color(0xFF0F1220),
-    card: Color(0xFF191D30),
+    card: Color(0xFF171B2C),
     ink: Color(0xFFF2F3FA),
     muted: Color(0xFF9AA0BC),
     hairline: Color(0xFF262B44),
@@ -43,7 +42,6 @@ class AppPalette extends ThemeExtension<AppPalette> {
     accentSoft: Color(0xFF232A55),
     success: Color(0xFF4CD08A),
     danger: Color(0xFFF06A7A),
-    shadow: Color(0x40000000),
   );
 
   final Color background;
@@ -56,14 +54,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color accentSoft;
   final Color success;
   final Color danger;
-  final Color shadow;
 
-  static const cardRadius = 20.0;
-  static const controlRadius = 16.0;
+  static const cardRadius = 16.0;
 
-  List<BoxShadow> get cardShadow => [
-        BoxShadow(color: shadow, blurRadius: 24, offset: const Offset(0, 10)),
-      ];
+  Border get cardBorder => Border.all(color: hairline);
 
   static AppPalette of(BuildContext context) => Theme.of(context).extension<AppPalette>()!;
 
@@ -104,8 +98,8 @@ abstract final class AppTheme {
         foregroundColor: p.ink,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: false,
-        titleTextStyle: TextStyle(color: p.ink, fontSize: 18, fontWeight: FontWeight.w700),
+        centerTitle: true,
+        titleTextStyle: TextStyle(color: p.ink, fontSize: 15, fontWeight: FontWeight.w600),
       ),
       textTheme: Typography.material2021(platform: defaultTargetPlatform).black.apply(
             bodyColor: p.ink,
@@ -114,7 +108,7 @@ abstract final class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: p.card,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         hintStyle: TextStyle(color: p.muted),
         border: _border(p.hairline),
         enabledBorder: _border(p.hairline),
@@ -126,30 +120,41 @@ abstract final class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: p.accent,
           foregroundColor: p.onAccent,
-          minimumSize: const Size.fromHeight(56),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppPalette.controlRadius)),
-          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          minimumSize: const Size(0, 46),
+          padding: const EdgeInsets.symmetric(horizontal: 22),
+          shape: const StadiumBorder(),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: p.accent,
+          minimumSize: const Size(0, 46),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          side: BorderSide(color: p.hairline),
+          shape: const StadiumBorder(),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: p.muted,
-          minimumSize: const Size.fromHeight(48),
-          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          minimumSize: const Size(0, 44),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: p.card,
         side: BorderSide(color: p.hairline),
         shape: const StadiumBorder(),
-        labelStyle: TextStyle(color: p.ink, fontSize: 14, fontWeight: FontWeight.w600),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        labelStyle: TextStyle(color: p.ink, fontSize: 13, fontWeight: FontWeight.w600),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: p.card,
         surfaceTintColor: Colors.transparent,
         indicatorColor: p.accentSoft,
-        height: 72,
+        height: 68,
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(color: states.contains(WidgetState.selected) ? p.accent : p.muted),
         ),
@@ -166,13 +171,13 @@ abstract final class AppTheme {
         behavior: SnackBarBehavior.floating,
         backgroundColor: p.ink,
         contentTextStyle: TextStyle(color: p.background, fontSize: 14, fontWeight: FontWeight.w600),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
 
   static OutlineInputBorder _border(Color color, {double width = 1}) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppPalette.controlRadius),
+        borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: color, width: width),
       );
 }

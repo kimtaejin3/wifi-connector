@@ -4,6 +4,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../data/models/saved_wifi.dart';
 import '../../data/models/wifi_credential.dart';
 import '../../data/services/wifi_history_store.dart';
+import '../widgets/flat_card.dart';
 import 'wifi_result_screen.dart';
 
 /// 인식해서 연결한 Wi-Fi 목록. 항목을 누르면 다시 연결할 수 있다.
@@ -86,124 +87,86 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final p = AppPalette.of(context);
     final entries = _entries;
     return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: switch (entries) {
-          null => const Center(child: CircularProgressIndicator.adaptive()),
-          [] => _Empty(onClear: null, header: _header(p, 0)),
-          _ => ListView(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-              children: [
-                _header(p, entries.length, onClear: _clearAll),
-                const SizedBox(height: 20),
-                _RecentCard(entry: entries.first, onTap: () => _open(entries.first)),
-                for (final entry in entries.skip(1)) ...[
-                  const SizedBox(height: 12),
-                  _EntryCard(entry: entry, onTap: () => _open(entry), onRemove: () => _remove(entry)),
-                ],
-                if (entries.length == 1) ...[
-                  const SizedBox(height: 20),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () => _remove(entries.first),
-                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                      label: const Text('기록 삭제'),
+      appBar: AppBar(title: const Text('스냅파이')),
+      body: switch (entries) {
+        null => const Center(child: CircularProgressIndicator.adaptive()),
+        _ => ListView(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '기록',
+                          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: p.ink, letterSpacing: -0.3),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          entries.isEmpty ? '연결한 Wi-Fi가 여기에 남아요' : '${entries.length}개 네트워크',
+                          style: TextStyle(fontSize: 13, color: p.muted),
+                        ),
+                      ],
                     ),
                   ),
+                  if (entries.isNotEmpty)
+                    TextButton(onPressed: _clearAll, child: const Text('모두 지우기')),
                 ],
-              ],
-            ),
-        },
-      ),
-    );
-  }
-
-  Widget _header(AppPalette p, int count, {VoidCallback? onClear}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '기록',
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: p.ink, letterSpacing: -0.5),
               ),
-              const SizedBox(height: 4),
-              Text(
-                count == 0 ? '연결한 Wi-Fi가 여기에 남아요' : '$count개 네트워크',
-                style: TextStyle(fontSize: 14, color: p.muted, fontWeight: FontWeight.w500),
-              ),
+              const SizedBox(height: 24),
+              if (entries.isEmpty)
+                FlatCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(color: p.accentSoft, shape: BoxShape.circle),
+                        child: Icon(Icons.wifi_rounded, color: p.accent, size: 26),
+                      ),
+                      const SizedBox(height: 18),
+                      Text('아직 기록이 없어요', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: p.ink)),
+                      const SizedBox(height: 6),
+                      Text(
+                        '안내문을 인식해서 연결하면 여기에 저장돼요. 다음에는 촬영 없이 바로 연결할 수 있어요.',
+                        style: TextStyle(fontSize: 13, color: p.muted, height: 1.5),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                for (var i = 0; i < entries.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 12),
+                  _EntryCard(
+                    entry: entries[i],
+                    recent: i == 0,
+                    onTap: () => _open(entries[i]),
+                    onRemove: () => _remove(entries[i]),
+                  ),
+                ],
             ],
           ),
-        ),
-        if (onClear != null)
-          TextButton(
-            style: TextButton.styleFrom(minimumSize: const Size(0, 40)),
-            onPressed: onClear,
-            child: const Text('모두 지우기'),
-          ),
-      ],
-    );
-  }
-}
-
-/// 가장 최근에 연결한 네트워크. 강조 카드로 보여준다.
-class _RecentCard extends StatelessWidget {
-  const _RecentCard({required this.entry, required this.onTap});
-
-  final SavedWifi entry;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
-    return Material(
-      color: p.accent,
-      borderRadius: BorderRadius.circular(AppPalette.cardRadius),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppPalette.cardRadius),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(20, 20, 18, 20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppPalette.cardRadius),
-            boxShadow: [BoxShadow(color: p.accent.withValues(alpha: 0.35), blurRadius: 24, offset: const Offset(0, 10))],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      entry.ssid,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: p.onAccent, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.2),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '최근 연결 · ${formatSavedAt(entry.savedAt)}',
-                      style: TextStyle(color: p.onAccent.withValues(alpha: 0.72), fontSize: 13, fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.check_rounded, color: p.onAccent, size: 26),
-            ],
-          ),
-        ),
-      ),
+      },
     );
   }
 }
 
 class _EntryCard extends StatelessWidget {
-  const _EntryCard({required this.entry, required this.onTap, required this.onRemove});
+  const _EntryCard({
+    required this.entry,
+    required this.recent,
+    required this.onTap,
+    required this.onRemove,
+  });
 
   final SavedWifi entry;
+
+  /// 가장 최근에 연결한 항목.
+  final bool recent;
   final VoidCallback onTap;
   final VoidCallback onRemove;
 
@@ -221,95 +184,38 @@ class _EntryCard extends StatelessWidget {
           color: p.danger,
           borderRadius: BorderRadius.circular(AppPalette.cardRadius),
         ),
-        child: Icon(Icons.delete_outline_rounded, color: p.onAccent),
+        child: const Icon(Icons.delete_outline_rounded, color: Colors.white),
       ),
-      child: Material(
-        color: p.card,
-        borderRadius: BorderRadius.circular(AppPalette.cardRadius),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppPalette.cardRadius),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(20, 18, 14, 18),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppPalette.cardRadius),
-              boxShadow: p.cardShadow,
-            ),
-            child: Row(
+      child: FlatCard(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        entry.ssid,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: p.ink, fontSize: 17, fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        formatSavedAt(entry.savedAt),
-                        style: TextStyle(color: p.muted, fontSize: 13, fontWeight: FontWeight.w500),
-                      ),
-                    ],
+                  child: Text(
+                    entry.ssid,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: p.ink, fontSize: 17, fontWeight: FontWeight.w600),
                   ),
                 ),
-                Icon(entry.isOpen ? Icons.wifi_rounded : Icons.wifi_lock_rounded, color: p.accent, size: 22),
+                Icon(entry.isOpen ? Icons.wifi_rounded : Icons.wifi_lock_rounded, color: p.muted, size: 20),
               ],
             ),
-          ),
+            const SizedBox(height: 4),
+            Text(
+              '${recent ? '최근 연결 · ' : ''}${formatSavedAt(entry.savedAt)}',
+              style: TextStyle(color: p.muted, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            if (recent)
+              FilledButton(onPressed: onTap, child: const Text('다시 연결'))
+            else
+              OutlinedButton(onPressed: onTap, child: const Text('다시 연결')),
+          ],
         ),
-      ),
-    );
-  }
-}
-
-class _Empty extends StatelessWidget {
-  const _Empty({required this.header, this.onClear});
-
-  final Widget header;
-  final VoidCallback? onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          header,
-          const Spacer(),
-          Center(
-            child: Column(
-              children: [
-                Container(
-                  width: 88,
-                  height: 88,
-                  decoration: BoxDecoration(
-                    color: p.card,
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: p.cardShadow,
-                  ),
-                  child: Icon(Icons.wifi_rounded, size: 40, color: p.accent),
-                ),
-                const SizedBox(height: 22),
-                Text(
-                  '아직 기록이 없어요',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: p.ink),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '안내문을 인식해서 연결하면\n여기에 저장돼요.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: p.muted, height: 1.45),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(flex: 2),
-        ],
       ),
     );
   }

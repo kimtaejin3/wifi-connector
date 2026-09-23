@@ -13,7 +13,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" tools:ignore="ScopedStorage" />
 
     <application
-        android:label="Wi-Fi 연결"
+        android:label="스냅파이"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -11,7 +11,7 @@ import '../../data/services/wifi_history_store.dart';
 import '../../data/services/wifi_service.dart';
 import '../../domain/services/wifi_input_validator.dart';
 import '../widgets/connection_status_card.dart';
-import '../widgets/credential_card.dart';
+import '../widgets/flat_card.dart';
 
 /// 인식 결과를 확인하고 Wi-Fi 연결을 요청하는 화면.
 /// 값은 먼저 읽기 전용으로 보여주고, [수정하기]를 누르면 같은 카드 안에서 편집한다.
@@ -170,54 +170,47 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
 
   Widget _buildNotFound(BuildContext context) {
     final p = AppPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              children: [
-                const SizedBox(height: 56),
-                Center(
-                  child: Container(
-                    width: 88,
-                    height: 88,
-                    decoration: BoxDecoration(
-                      color: p.card,
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: p.cardShadow,
-                    ),
-                    child: Icon(Icons.wifi_find_rounded, size: 40, color: p.accent),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+      children: [
+        _Heading(title: 'Wi-Fi 정보를 찾지 못했어요', subtitle: '안내문이 화면에 잘 보이도록 다시 촬영해주세요.'),
+        const SizedBox(height: 24),
+        FlatCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(color: p.accentSoft, shape: BoxShape.circle),
+                child: Icon(Icons.wifi_find_rounded, color: p.accent, size: 26),
+              ),
+              const SizedBox(height: 18),
+              Text('잘 찍는 요령', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: p.ink)),
+              const SizedBox(height: 6),
+              Text(
+                '글자가 정사각형 영역 안에 들어오게 맞추고, 반사되는 빛을 피해 정면에서 비춰주세요.',
+                style: TextStyle(fontSize: 13, color: p.muted, height: 1.5),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  FilledButton(onPressed: _close, child: const Text('다시 촬영')),
+                  const SizedBox(width: 10),
+                  OutlinedButton(
+                    onPressed: () => setState(() {
+                      _showForm = true;
+                      _editable = true;
+                    }),
+                    child: const Text('직접 입력'),
                   ),
-                ),
-                const SizedBox(height: 28),
-                Text(
-                  'Wi-Fi 정보를 찾지 못했어요',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: p.ink, letterSpacing: -0.3),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  '안내문이 화면에 잘 보이도록\n다시 촬영해주세요.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 15, color: p.muted, height: 1.45),
-                ),
-                const SizedBox(height: 24),
-                _buildDebugRawText(),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
-          FilledButton(onPressed: _close, child: const Text('다시 촬영')),
-          const SizedBox(height: 4),
-          TextButton(
-            onPressed: () => setState(() {
-              _showForm = true;
-              _editable = true;
-            }),
-            child: const Text('직접 입력하기'),
-          ),
-        ],
-      ),
+        ),
+        _buildDebugRawText(),
+      ],
     );
   }
 
@@ -229,102 +222,89 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
     final ssidMissing = !_isManual && !_found.hasSsid;
     final passwordMissing = !_isManual && _found.hasSsid && !_found.hasPassword;
 
-    return Column(
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       children: [
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        _Heading(title: _title, subtitle: _subtitle),
+        const SizedBox(height: 24),
+        FlatCard(
+          padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
+          borderColor: (_ssidError ?? _passwordError) != null ? p.danger : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                _title,
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, height: 1.2, color: p.ink, letterSpacing: -0.4),
-              ),
-              const SizedBox(height: 8),
-              Text(_subtitle, style: TextStyle(fontSize: 15, color: p.muted, height: 1.45)),
-              const SizedBox(height: 28),
-              CredentialCard(
+              FieldRow(
                 label: '네트워크',
                 controller: _ssid,
-                icon: Icons.wifi_rounded,
-                accent: true,
                 editable: _editable,
                 autofocus: _editable && (_isManual || ssidMissing),
                 hint: 'Wi-Fi 이름',
-                error: _ssidError,
                 textInputAction: TextInputAction.next,
                 onChanged: _onEdited,
               ),
+              if (_ssidError != null) _ErrorText(_ssidError!),
               _CandidateChips(
                 values: _alternatives(WifiCandidateType.ssid, _ssid.text),
                 onSelected: (v) => _useCandidate(_ssid, v),
               ),
-              const SizedBox(height: 16),
-              CredentialCard(
+              const Padding(padding: EdgeInsets.symmetric(vertical: 18), child: Divider()),
+              FieldRow(
                 label: '비밀번호',
                 controller: _password,
-                icon: Icons.key_rounded,
                 editable: _editable,
                 autofocus: _editable && passwordMissing,
                 hint: _editable ? '없으면 비워두세요' : '비밀번호 없음',
-                error: _passwordError,
                 textInputAction: TextInputAction.done,
                 onChanged: _onEdited,
                 onSubmitted: (_) {
                   if (_canConnect) _connect();
                 },
               ),
+              if (_passwordError != null) _ErrorText(_passwordError!),
               _CandidateChips(
                 values: _alternatives(WifiCandidateType.password, _password.text),
                 onSelected: (v) => _useCandidate(_password, v),
               ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 200),
-                alignment: Alignment.topCenter,
-                child: _result == null
-                    ? const SizedBox(width: double.infinity)
-                    : Padding(
-                        padding: const EdgeInsets.only(top: 20),
-                        child: ConnectionStatusCard(
-                          result: _result!,
-                          check: _check,
-                          verifying: _verifying,
-                          onOpenWifiSettings: widget.wifiService.openWifiSettings,
-                        ),
-                      ),
-              ),
-              const SizedBox(height: 16),
-              _buildDebugRawText(),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
-          child: Column(
-            children: [
-              _buildPrimaryButton(),
-              const SizedBox(height: 4),
+              const SizedBox(height: 22),
               Row(
                 children: [
-                  if (!_editable)
-                    Expanded(
-                      child: TextButton.icon(
-                        onPressed: _connecting ? null : _startEditing,
-                        icon: const Icon(Icons.edit_outlined, size: 18),
-                        label: const Text('수정하기'),
-                      ),
+                  _buildPrimaryButton(),
+                  if (!_editable) ...[
+                    const SizedBox(width: 10),
+                    OutlinedButton(
+                      onPressed: _connecting ? null : _startEditing,
+                      child: const Text('수정하기'),
                     ),
-                  Expanded(
-                    child: TextButton(
-                      onPressed: _connecting ? null : _close,
-                      child: Text(widget.retakeLabel ?? '닫기'),
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ],
           ),
         ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          alignment: Alignment.topCenter,
+          child: _result == null
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: ConnectionStatusCard(
+                    result: _result!,
+                    check: _check,
+                    verifying: _verifying,
+                    onOpenWifiSettings: widget.wifiService.openWifiSettings,
+                  ),
+                ),
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: TextButton(
+            onPressed: _connecting ? null : _close,
+            child: Text(widget.retakeLabel ?? '닫기'),
+          ),
+        ),
+        _buildDebugRawText(),
       ],
     );
   }
@@ -340,11 +320,11 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox.square(
-              dimension: 18,
+              dimension: 16,
               child: CircularProgressIndicator(strokeWidth: 2, color: AppPalette.of(context).onAccent),
             ),
-            const SizedBox(width: 12),
-            const Text('연결 요청 중...'),
+            const SizedBox(width: 10),
+            const Text('연결 요청 중'),
           ],
         ),
       );
@@ -368,15 +348,18 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
   Widget _buildDebugRawText() {
     final raw = widget.rawText;
     if (!kDebugMode || raw == null) return const SizedBox.shrink();
-    return ExpansionTile(
-      tilePadding: EdgeInsets.zero,
-      title: const Text('인식된 원문 (debug)', style: TextStyle(fontSize: 14)),
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: SelectableText(raw.isEmpty ? '(인식된 텍스트 없음)' : raw),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        title: const Text('인식된 원문 (debug)', style: TextStyle(fontSize: 14)),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SelectableText(raw.isEmpty ? '(인식된 텍스트 없음)' : raw),
+          ),
+        ],
+      ),
     );
   }
 
@@ -414,6 +397,44 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
   }
 }
 
+class _Heading extends StatelessWidget {
+  const _Heading({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, height: 1.25, color: p.ink, letterSpacing: -0.3),
+        ),
+        const SizedBox(height: 6),
+        Text(subtitle, style: TextStyle(fontSize: 13, color: p.muted, height: 1.5)),
+      ],
+    );
+  }
+}
+
+class _ErrorText extends StatelessWidget {
+  const _ErrorText(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Text(text, style: TextStyle(color: p.danger, fontSize: 13, fontWeight: FontWeight.w500)),
+    );
+  }
+}
+
 /// 파서가 찾은 다른 후보. 자동 선택이 틀렸을 때 한 번에 바꿀 수 있게 한다.
 class _CandidateChips extends StatelessWidget {
   const _CandidateChips({required this.values, required this.onSelected});
@@ -426,7 +447,7 @@ class _CandidateChips extends StatelessWidget {
     if (values.isEmpty) return const SizedBox.shrink();
     final p = AppPalette.of(context);
     return Padding(
-      padding: const EdgeInsets.only(top: 12, left: 4),
+      padding: const EdgeInsets.only(top: 10),
       child: Wrap(
         spacing: 8,
         runSpacing: 8,

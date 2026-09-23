@@ -42,7 +42,7 @@ class ConnectionStatusCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: p.card,
           borderRadius: BorderRadius.circular(AppPalette.cardRadius),
-          boxShadow: p.cardShadow,
+          border: p.cardBorder,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -277,7 +277,7 @@ void main() {
     expect(find.text('Wi-Fi 정보를 찾지 못했어요'), findsOneWidget);
     expect(find.text('다시 촬영'), findsOneWidget);
 
-    await tester.tap(find.text('직접 입력하기'));
+    await tester.tap(find.text('직접 입력'));
     await tester.pumpAndSettle();
     expect(find.text('Wi-Fi 정보를 입력해주세요'), findsOneWidget);
     expect(find.byType(TextField), findsNWidgets(2));

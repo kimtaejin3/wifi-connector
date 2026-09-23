@@ -42,6 +42,7 @@ class CameraMessageView extends StatelessWidget {
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
+                minimumSize: const Size.fromHeight(52),
               ),
               onPressed: onAction,
               child: Text(actionLabel),

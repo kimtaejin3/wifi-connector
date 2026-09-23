@@ -30,14 +30,14 @@ class LiveResultBanner extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppPalette.cardRadius),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 24, offset: const Offset(0, 10))],
+              border: p.cardBorder,
             ),
             child: Row(
               children: [
                 Container(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(color: p.accentSoft, borderRadius: BorderRadius.circular(13)),
+                  decoration: BoxDecoration(color: p.accentSoft, shape: BoxShape.circle),
                   child: Icon(Icons.check_rounded, color: p.accent, size: 24),
                 ),
                 const SizedBox(width: 12),
