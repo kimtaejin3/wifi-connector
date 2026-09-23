@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wifi_connector/core/theme/app_theme.dart';
 import 'package:wifi_connector/features/wifi_scanner/data/models/wifi_credential.dart';
+import 'package:wifi_connector/features/wifi_scanner/data/services/wifi_history_store.dart';
 import 'package:wifi_connector/features/wifi_scanner/data/services/wifi_service.dart';
 import 'package:wifi_connector/features/wifi_scanner/presentation/screens/wifi_result_screen.dart';
 
@@ -26,17 +27,40 @@ class FakeWifiService extends WifiService {
   }
 }
 
-Future<void> pumpResult(
+class InMemoryStore implements SecureKeyValueStore {
+  final map = <String, String>{};
+
+  @override
+  Future<String?> read(String key) async => map[key];
+
+  @override
+  Future<void> write(String key, String value) async => map[key] = value;
+
+  @override
+  Future<void> delete(String key) async => map.remove(key);
+}
+
+Future<WifiHistoryStore> pumpResult(
   WidgetTester tester,
   WifiCredential credential, {
   WifiService service = const WifiService(),
+  String? retakeLabel = '다시 촬영',
 }) async {
+  final history = WifiHistoryStore(store: InMemoryStore());
   await tester.pumpWidget(MaterialApp(
     theme: AppTheme.light(),
-    home: WifiResultScreen(credential: credential, wifiService: service),
+    home: WifiResultScreen(
+      credential: credential,
+      wifiService: service,
+      historyStore: history,
+      retakeLabel: retakeLabel,
+    ),
   ));
   await tester.pumpAndSettle();
+  return history;
 }
+
+bool isReadOnly(WidgetTester tester, Finder field) => tester.widget<TextField>(field).readOnly;
 
 const found = WifiCredential(
   ssid: 'TestCafe',
@@ -48,13 +72,16 @@ const found = WifiCredential(
 const requested = WifiConnectResult(WifiConnectStatus.requested);
 
 void main() {
-  testWidgets('인식한 SSID와 비밀번호를 보여주고, 요청 후 실제 연결을 확인한다', (tester) async {
+  testWidgets('인식한 SSID와 비밀번호를 보여주고, 요청 후 실제 연결을 확인하고, 기록에 남긴다', (tester) async {
     final service = FakeWifiService(requested);
-    await pumpResult(tester, found, service: service);
+    final history = await pumpResult(tester, found, service: service);
 
     expect(find.text('Wi-Fi를 찾았어요'), findsOneWidget);
     expect(find.text('TestCafe'), findsOneWidget);
     expect(find.text('Test12345'), findsOneWidget);
+    // 인식 결과는 읽기 전용으로 시작한다.
+    expect(isReadOnly(tester, find.byType(TextField).first), isTrue);
+    expect(find.text('수정하기'), findsOneWidget);
 
     await tester.tap(find.text('Wi-Fi 연결'));
     await tester.pumpAndSettle();
@@ -63,6 +90,37 @@ void main() {
     expect(service.awaited, ['TestCafe']);
     expect(find.text('Wi-Fi에 연결되었습니다.'), findsOneWidget);
     expect(find.text('완료'), findsOneWidget);
+
+    final saved = await history.load();
+    expect(saved.single.ssid, 'TestCafe');
+    expect(saved.single.password, 'Test12345');
+  });
+
+  testWidgets('수정하기를 누르면 편집할 수 있다', (tester) async {
+    await pumpResult(tester, found);
+    expect(isReadOnly(tester, find.byType(TextField).last), isTrue);
+
+    await tester.tap(find.text('수정하기'));
+    await tester.pumpAndSettle();
+
+    expect(isReadOnly(tester, find.byType(TextField).last), isFalse);
+    expect(find.text('수정하기'), findsNothing);
+  });
+
+  testWidgets('기록에서 열면 닫기 버튼만 있고 제목이 바뀐다', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light(),
+      home: WifiResultScreen(
+        credential: found,
+        historyStore: WifiHistoryStore(store: InMemoryStore()),
+        title: '저장된 Wi-Fi',
+        retakeLabel: null,
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('저장된 Wi-Fi'), findsOneWidget);
+    expect(find.text('다시 촬영'), findsNothing);
+    expect(find.text('수정하기'), findsOneWidget);
   });
 
   testWidgets('연결을 확인하지 못하면 안내와 다시 시도 버튼', (tester) async {
@@ -108,6 +166,8 @@ void main() {
     final service = FakeWifiService(requested);
     await pumpResult(tester, found, service: service);
 
+    await tester.tap(find.text('수정하기'));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, 'Fixed12345');
     await tester.tap(find.text('Wi-Fi 연결'));
     await tester.pumpAndSettle();
@@ -115,9 +175,9 @@ void main() {
     expect(service.calls.single, ('TestCafe', 'Fixed12345'));
   });
 
-  testWidgets('사용자가 거절하면 취소 안내와 다시 연결 버튼, 확인은 하지 않는다', (tester) async {
+  testWidgets('사용자가 거절하면 취소 안내와 다시 연결 버튼, 확인도 기록도 하지 않는다', (tester) async {
     final service = FakeWifiService(const WifiConnectResult(WifiConnectStatus.cancelled));
-    await pumpResult(tester, found, service: service);
+    final history = await pumpResult(tester, found, service: service);
 
     await tester.tap(find.text('Wi-Fi 연결'));
     await tester.pumpAndSettle();
@@ -125,6 +185,7 @@ void main() {
     expect(find.text('Wi-Fi 연결이 취소되었습니다.'), findsOneWidget);
     expect(find.text('다시 연결'), findsOneWidget);
     expect(service.awaited, isEmpty);
+    expect(await history.load(), isEmpty);
   });
 
   testWidgets('연결 실패 시 안내와 다시 시도 버튼', (tester) async {
@@ -149,6 +210,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('아직 연결을 확인하지 못했어요.'), findsOneWidget);
 
+    await tester.tap(find.text('수정하기'));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, 'Other12345');
     await tester.pumpAndSettle();
     expect(find.text('아직 연결을 확인하지 못했어요.'), findsNothing);
@@ -164,6 +227,8 @@ void main() {
     );
 
     expect(find.textContaining('Wi-Fi 이름을 찾지 못했어요'), findsOneWidget);
+    // 빠진 값이 있으면 바로 편집 상태로 시작한다.
+    expect(isReadOnly(tester, find.byType(TextField).first), isFalse);
     await tester.tap(find.text('Wi-Fi 연결'));
     await tester.pumpAndSettle();
     expect(service.calls, isEmpty);
@@ -214,6 +279,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Wi-Fi 정보를 입력해주세요'), findsOneWidget);
     expect(find.byType(TextField), findsNWidgets(2));
+  });
+
+  testWidgets('1순위와 점수 차가 큰 후보는 칩으로 보여주지 않는다', (tester) async {
+    await pumpResult(
+      tester,
+      const WifiCredential(
+        ssid: 'kkk_5G',
+        ssidConfidence: 0.75,
+        candidates: [
+          WifiCandidate(value: 'kkk_5G', type: WifiCandidateType.ssid, score: 0.86),
+          WifiCandidate(value: 'kkk 5G', type: WifiCandidateType.ssid, score: 0.85),
+          WifiCandidate(value: '들니다', type: WifiCandidateType.ssid, score: 0.6),
+        ],
+      ),
+    );
+    expect(find.text('kkk 5G'), findsOneWidget);
+    expect(find.text('들니다'), findsNothing);
   });
 
   testWidgets('비밀번호 보기/숨기기', (tester) async {

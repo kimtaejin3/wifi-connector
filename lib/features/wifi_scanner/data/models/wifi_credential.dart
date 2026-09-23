@@ -31,6 +31,8 @@ class WifiCredential {
     this.ssidConfidence = 0,
     this.passwordConfidence = 0,
     this.candidates = const [],
+    this.ssidUncertainIndexes = const {},
+    this.passwordUncertainIndexes = const {},
   });
 
   static const empty = WifiCredential();
@@ -46,6 +48,30 @@ class WifiCredential {
 
   /// 점수 내림차순 정렬된 전체 후보.
   final List<WifiCandidate> candidates;
+
+  /// 인식기가 자신 없어 한 글자의 위치. 결과 화면에서 강조한다.
+  final Set<int> ssidUncertainIndexes;
+  final Set<int> passwordUncertainIndexes;
+
+  WifiCredential withUncertainIndexes({required Set<int> ssid, required Set<int> password}) =>
+      copyWith(ssidUncertainIndexes: ssid, passwordUncertainIndexes: password);
+
+  WifiCredential copyWith({
+    double? ssidConfidence,
+    double? passwordConfidence,
+    List<WifiCandidate>? candidates,
+    Set<int>? ssidUncertainIndexes,
+    Set<int>? passwordUncertainIndexes,
+  }) =>
+      WifiCredential(
+        ssid: ssid,
+        password: password,
+        ssidConfidence: ssidConfidence ?? this.ssidConfidence,
+        passwordConfidence: passwordConfidence ?? this.passwordConfidence,
+        candidates: candidates ?? this.candidates,
+        ssidUncertainIndexes: ssidUncertainIndexes ?? this.ssidUncertainIndexes,
+        passwordUncertainIndexes: passwordUncertainIndexes ?? this.passwordUncertainIndexes,
+      );
 
   bool get hasSsid => ssid != null;
   bool get hasPassword => password != null;

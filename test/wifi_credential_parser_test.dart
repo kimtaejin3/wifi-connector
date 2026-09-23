@@ -295,6 +295,18 @@ void main() {
       expectParsed('네트 워크 : cafe\n패스 워드 : abc12345', ssid: 'cafe', password: 'abc12345');
     });
 
+    test('Wi-Fi의 i가 빠진 W-Fi, Wi-F', () {
+      expectParsed('W-Fi: kkk_5G\nPassword:@kim54796', ssid: 'kkk_5G', password: '@kim54796');
+      expectParsed('Wi-F : cafe', ssid: 'cafe');
+    });
+
+    test('제목 다음 줄의 문구는 라벨이 붙은 값보다 훨씬 낮은 점수', () {
+      final result = parser.parse('FREE WI-FI\n들니다\nWi-Fi: kkk 5G');
+      expect(result.ssid, 'kkk_5G');
+      final noise = result.candidatesOf(WifiCandidateType.ssid).firstWhere((c) => c.value == '들니다');
+      expect(noise.score, lessThan(result.candidatesOf(WifiCandidateType.ssid).first.score - 0.2));
+    });
+
     test('ID를 lD/1D로 오인식', () {
       expectParsed('lD : cafe\nPW : abc12345', ssid: 'cafe', password: 'abc12345');
     });
@@ -310,6 +322,42 @@ void main() {
       expect(result.isOpenNetwork, isTrue);
       expect(parser.parse('Password: none').isOpenNetwork, isTrue);
       expect(parser.parse('Password: abc12345').isOpenNetwork, isFalse);
+    });
+  });
+
+  group('밑줄을 공백으로 읽은 경우', () {
+    test('대역 표기 앞 공백은 밑줄을 우선하고 확인을 요청한다', () {
+      final result = parser.parse('Wi-Fi : kkk 5G\nPassword : @kim54796');
+      expect(result.ssid, 'kkk_5G');
+      expect(result.ssidConfidence, lessThan(WifiCredential.confidentThreshold));
+      expect(result.candidatesOf(WifiCandidateType.ssid).map((c) => c.value), contains('kkk 5G'));
+      expect(result.password, '@kim54796');
+      expect(result.passwordConfidence, greaterThanOrEqualTo(WifiCredential.confidentThreshold));
+    });
+
+    test('그 밖의 공백은 원래 값을 유지하고 밑줄/하이픈/공백 제거 후보를 덧붙인다', () {
+      final result = parser.parse('Network: My Cafe\nPW: Coffee! 123');
+      expect(result.ssid, 'My Cafe');
+      expect(result.ssidConfidence, lessThan(WifiCredential.confidentThreshold));
+      expect(result.candidatesOf(WifiCandidateType.ssid).map((c) => c.value),
+          containsAll(['My_Cafe', 'My-Cafe']));
+      expect(result.password, 'Coffee! 123');
+      expect(result.passwordConfidence, lessThan(WifiCredential.confidentThreshold));
+      final passwords = result.candidatesOf(WifiCandidateType.password).map((c) => c.value).toList();
+      expect(passwords, containsAll(['Coffee!123', 'Coffee!_123', 'Coffee!-123']));
+      // 공백 제거 후보가 다른 변형보다 앞에 온다.
+      expect(passwords.indexOf('Coffee!123'), lessThan(passwords.indexOf('Coffee!_123')));
+    });
+
+    test('한국어 인식기가 기호를 자모/한자로 읽은 경우', () {
+      expectParsed('PW : abcㅡ1234\nSSID : cafe一5G', ssid: 'cafe-5G', password: 'abc-1234');
+      expectParsed('PW : pass井12〇4', password: 'pass#1204');
+    });
+
+    test('공백이 없으면 후보를 만들지 않는다', () {
+      final result = parser.parse('SSID: cafe_5G\nPW: abc12345');
+      expect(result.ssidConfidence, greaterThanOrEqualTo(WifiCredential.confidentThreshold));
+      expect(result.candidatesOf(WifiCandidateType.ssid).length, 1);
     });
   });
 

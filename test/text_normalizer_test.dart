@@ -17,6 +17,13 @@ void main() {
     expect(normalizeOcrText('a b　c'), 'a b c');
   });
 
+  test('한국어 인식기의 기호 오인식(자모/한자)을 되돌린다', () {
+    expect(normalizeOcrText('abcㅡ12一3ー'), 'abc-12-3-');
+    expect(normalizeOcrText('〇○井∼〜'), '00#~~');
+    expect(normalizeOcrText('ㅣ丨'), 'll');
+    expect(normalizeOcrText('©kim'), '@kim');
+  });
+
   test('한글과 일반 ASCII, 대소문자는 그대로', () {
     expect(normalizeOcrText('카페모모 CafeABC_!@#'), '카페모모 CafeABC_!@#');
   });

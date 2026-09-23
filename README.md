@@ -4,12 +4,13 @@
 OS 공식 Wi-Fi API로 연결을 요청하는 Flutter 앱입니다. 요구사항은 [PRD.md](PRD.md)를 참고하세요.
 
 ```text
-앱 실행 → 안내문 촬영 → (온디바이스 OCR + 파싱) → 확인/수정 → [Wi-Fi 연결] → OS 승인 → 연결
+앱 실행 → 안내문에 카메라 비춤 → (온디바이스 OCR, 여러 프레임 다수결) → 확인/수정 → [Wi-Fi 연결] → OS 승인 → 연결
 ```
 
 - 서버, 로그인, DB, 분석 도구 없음
-- OCR은 Google ML Kit으로 기기 안에서만 처리 (한국어 + 라틴 문자)
-- Wi-Fi 비밀번호는 저장하거나 로그로 남기지 않음
+- OCR·QR 인식은 Google ML Kit으로 기기 안에서만 처리 (한국어 + 라틴 문자)
+- Wi-Fi 비밀번호는 로그로 남기지 않음. 인식 기록은 OS Keychain/Keystore에만 저장
+- 하단 메뉴: **안내문**(문자 인식) · **QR**(Wi-Fi QR 코드) · **기록**(인식해서 연결한 Wi-Fi)
 
 ## 개발 환경
 
@@ -19,7 +20,8 @@ OS 공식 Wi-Fi API로 연결을 요청하는 Flutter 앱입니다. 요구사항
 | Android | minSdk 24, targetSdk 36 · Wi-Fi 연결은 Android 10(API 29)+ |
 | iOS | 15.5+ (ML Kit 요구사항) · Xcode 26 |
 
-주요 의존성: [`camera`](https://pub.dev/packages/camera), [`google_mlkit_text_recognition`](https://pub.dev/packages/google_mlkit_text_recognition).
+주요 의존성: [`camera`](https://pub.dev/packages/camera), [`google_mlkit_text_recognition`](https://pub.dev/packages/google_mlkit_text_recognition),
+[`google_mlkit_barcode_scanning`](https://pub.dev/packages/google_mlkit_barcode_scanning), [`flutter_secure_storage`](https://pub.dev/packages/flutter_secure_storage), [`image`](https://pub.dev/packages/image).
 Wi-Fi 연결은 유지보수 상태가 불확실한 Flutter 패키지 대신 MethodChannel로 네이티브 API를 직접 호출합니다.
 
 ```bash
@@ -46,21 +48,31 @@ lib/
 │       └── text_normalizer.dart      # 전각 문자·특수 대시 등 OCR 변형 정규화
 └── features/wifi_scanner/
     ├── data/
-    │   ├── models/wifi_credential.dart     # WifiCredential, WifiCandidate
+    │   ├── models/
+    │   │   ├── wifi_credential.dart        # WifiCredential, WifiCandidate
+    │   │   └── saved_wifi.dart             # 인식 기록 한 건
     │   └── services/
+    │       ├── camera_frame.dart           # 프리뷰 프레임 → ML Kit InputImage (형식·회전)
     │       ├── image_cropper.dart          # 가이드 영역 → 사진 좌표 변환, 크롭
-    │       ├── ocr_service.dart            # ML Kit OCR (한국어+라틴) + 좌표 기반 행 재구성
+    │       ├── ocr_service.dart            # ML Kit OCR (한국어+라틴) + 좌표 기반 행 재구성 + 글자 신뢰도
+    │       ├── wifi_history_store.dart     # 인식 기록 (Keychain/Keystore)
     │       └── wifi_service.dart           # connectWifi / awaitConnection MethodChannel 래퍼
     ├── domain/services/
+    │   ├── credential_voter.dart           # 여러 프레임 결과의 글자 단위 다수결
     │   ├── wifi_credential_parser.dart     # rule-based SSID/Password 파서 + 결과 병합
-    │   ├── wifi_credential_extractor.dart  # 인식기별 결과 우선순위 결정 → 파서
+    │   ├── wifi_credential_extractor.dart  # 인식기별 결과 우선순위, 불확실 글자 후보
+    │   ├── wifi_qr_parser.dart             # WIFI:T:WPA;S:..;P:..;; 파싱
     │   └── wifi_input_validator.dart       # SSID 32바이트, WPA 8~63자 검증
     └── presentation/
         ├── screens/
-        │   ├── camera_screen.dart          # 첫 화면: 프리뷰 + 가이드 + 촬영
-        │   └── wifi_result_screen.dart     # 확인/수정/연결/에러 표시
+        │   ├── home_shell.dart             # 하단 메뉴 (안내문 · QR · 기록)
+        │   ├── camera_screen.dart          # 안내문 인식: 프리뷰 + 실시간 인식 + 촬영
+        │   ├── qr_scan_screen.dart         # Wi-Fi QR 인식
+        │   ├── history_screen.dart         # 인식 기록 목록
+        │   └── wifi_result_screen.dart     # 확인 → [수정하기] → 연결/에러 표시
         └── widgets/
-            └── confusable_highlight_controller.dart  # 0/O, 1/l/I 강조 표시
+            ├── confusable_highlight_controller.dart  # 불확실·혼동 글자 강조 표시
+            └── live_result_banner.dart     # 실시간 인식이 안정됐을 때 뜨는 카드
 
 android/app/src/main/kotlin/.../WifiConnectorPlugin.kt   # Android Wi-Fi 연결
 ios/Runner/WifiConnectorPlugin.swift                     # iOS Wi-Fi 연결
@@ -77,6 +89,16 @@ ios/Runner/WifiConnectorPlugin.swift                     # iOS Wi-Fi 연결
    라벨 열과 값 열이 떨어져 있는 안내문(`Wi-Fi      cafe_momo`)을 올바르게 짝짓기 위해서입니다.
 5. 두 인식기 결과를 각각 파싱해 병합합니다. SSID나 비밀번호 중 하나라도 못 찾았으면 (안내문이 가이드보다 커서 잘렸을 수 있으므로) 전체 사진으로 한 번 더 인식해 빠진 값을 채웁니다. 가이드 안에서 찾은 값이 우선입니다.
 6. 촬영한 사진과 크롭 파일은 인식 직후 삭제
+
+### 실시간 인식과 다수결 (`CredentialVoter`)
+
+프리뷰가 켜져 있는 동안 약 0.35초마다 프레임을 두 인식기에 넣고, 가이드 영역 안의 줄만 파서에 넘겨
+SSID/비밀번호 판독을 최근 8개까지 모읍니다. 같은 길이의 판독끼리 **글자 위치별 다수결**로 값을 정하므로
+`@`를 어떤 프레임에서 `0`으로 읽어도 다른 프레임들이 `@`로 읽으면 `@`가 됩니다.
+
+- 3개 이상 프레임이 기여하고 모든 글자의 일치율이 60% 이상이면 "Wi-Fi 정보를 찾았어요" 카드가 떠서 셔터 없이 넘어갈 수 있습니다.
+- 셔터를 누르면 고해상도 사진(가이드 크롭)의 결과에 두 표를 주고 실시간 판독과 합칩니다.
+- 일치율이 75% 미만인 글자는 결과 화면에서 강조합니다.
 
 ### Parser (`WifiCredentialParser`)
 
@@ -145,6 +167,17 @@ LLM 없이 규칙 기반으로 동작하며, 결과를 바로 확정하지 않�
   저장 직후 OS가 기존 네트워크를 끊었다 다시 붙이는 경우(에뮬레이터에서 실제로 발생)를 새 연결로 오인하지 않기 위한 조건입니다.
   게이트웨이가 우연히 같은 다른 AP(둘 다 `192.168.0.1` 등)는 "확인 못 함"이 되며, 이 메시지는 실패로 단정하지 않습니다.
 
+### 결과 화면
+
+인식 결과는 먼저 **읽기 전용**으로 보여주고 [Wi-Fi 연결]을 바로 누를 수 있습니다. 틀렸으면 [수정하기]로 편집합니다.
+직접 입력이거나 SSID/비밀번호 중 하나가 빠졌으면 처음부터 편집 상태입니다.
+OS가 연결 요청을 받아들이면 **기록** 탭에 저장됩니다 (SSID당 한 건, 최대 50건, Keychain/Keystore).
+
+### QR
+
+`WIFI:T:WPA;S:ssid;P:password;;` 형식의 Wi-Fi QR을 ML Kit 바코드 스캐너로 프리뷰에서 바로 읽습니다.
+`T:nopass`는 공개 네트워크로 처리합니다. Wi-Fi가 아닌 QR은 "Wi-Fi QR 코드가 아니에요"로 안내합니다.
+
 ## 인식률·연결 오류를 줄이기 위한 조치
 
 | 문제 | 조치 | 위치 |
@@ -155,7 +188,12 @@ LLM 없이 규칙 기반으로 동작하며, 결과를 바로 확정하지 않�
 | 전각 문자·특수 대시 등 비ASCII 변형 | ASCII로 정규화 (뜻이 하나로 정해지는 문자만) | `text_normalizer.dart` |
 | 문장형 안내문(`비밀번호는 … 입니다`), 글머리 기호, `;`/`\|` 구분자, 라벨 안 공백 | 파서 규칙 추가 | `wifi_credential_parser.dart` |
 | "비밀번호 없음"을 비밀번호로 오인 | 공개 네트워크로 인식해 빈 비밀번호로 연결 | `wifi_credential_parser.dart`, 결과 화면 |
-| 혼동 글자를 사용자가 놓침 | `0/O/o`, `1/l/I` 색 강조 + 안내 문구 | `confusable_highlight_controller.dart` |
+| 밑줄·하이픈을 놓치거나 기호 앞뒤에서 단어가 갈라짐 (`cafe_5G` → `cafe 5G`, `Coffee!123` → `Coffee! 123`) | 공백이 든 값마다 `_`, `-`, 공백 제거 후보를 만들고 "확인 필요" 표시. `5G` 같은 대역 표기 앞 공백은 밑줄을 기본값으로 | `wifi_credential_parser.dart` |
+| 한국어 인식기가 기호를 자모/한자로 읽음 (`-`→`ㅡ`/`一`, `0`→`〇`, `#`→`井`) | ASCII로 정규화 | `text_normalizer.dart` |
+| 어떤 글자가 잘못 읽혔는지 모름 | Android ML Kit의 글자별 신뢰도가 0.65 미만인 글자를 색으로 강조 (iOS는 신뢰도를 주지 않음) | `ocr_service.dart#uncertainCharIndexes` |
+| 혼동 글자를 사용자가 놓침 | `0/O/o`, `1/l/I`, `5/S`, `8/B` 색 강조 + 안내 문구 | `confusable_highlight_controller.dart` |
+| 한 장의 OCR 결과가 촬영마다 흔들림 (`@`↔`0`) | 프리뷰 프레임을 계속 인식해 글자 단위 다수결, 안정되면 셔터 없이 진행 | `credential_voter.dart`, `camera_screen.dart` |
+| 불확실한 글자를 사용자가 일일이 고쳐야 함 | 신뢰도 낮은 글자 자리에 혼동 문자(`0`→`@/O/o`, `1`→`l/I/!` …)를 넣은 값을 후보 칩으로 제시 | `wifi_credential_extractor.dart#withSubstitutions` |
 | "요청 완료"만 보여 실제 연결 여부를 모름 | 요청 뒤 실제 연결을 기다려 연결됨 / 확인 못 함 / 캡티브 포털을 구분 | `WifiConnectorPlugin.kt`, `WifiConnectorPlugin.swift` |
 | 같은 SSID가 이미 저장돼 있어 비밀번호가 갱신되지 않음 (Android) | `ADD_WIFI_RESULT_ALREADY_EXISTS`를 구분해 설정에서 삭제하도록 안내 | `WifiConnectorPlugin.kt` |
 | OS API가 거부할 입력 | SSID 32바이트, WPA 8~63자 ASCII를 요청 전에 검증 | `wifi_input_validator.dart` |
@@ -206,6 +244,13 @@ SSID 대소문자 오류는 주변 Wi-Fi 목록과 대조해야 잡을 수 있�
 | 인식 결과가 결과 화면에 채워짐 | ✅ |
 | Wi-Fi 연결 요청 | ⚠️ entitlement 없이 빌드해 실패 안내 표시 (예상된 동작) |
 | 실제 AP 연결 | ❌ 미확인 — 유료 계정 필요 |
+
+#### Android 실기기(Galaxy S24, Android 14)에서 확인한 항목
+
+| 항목 | 결과 |
+|---|---|
+| 모니터에 띄운 안내문 촬영 → 인식 → [Wi-Fi 연결] → 시스템 저장 승인 → **실제 AP(휴대폰 핫스팟) 연결** | ✅ MVP 완료 조건 충족 |
+| SSID의 밑줄(`_`)을 놓침 → 공백/밑줄 후보 제시로 대응 | ✅ 개선 적용 |
 
 ### 준비: 테스트용 안내문과 AP
 
@@ -318,6 +363,8 @@ SSID 대소문자 오류는 주변 Wi-Fi 목록과 대조해야 잡을 수 있�
 ## 개인정보
 
 - Wi-Fi 비밀번호를 서버·분석 도구·로그·크래시 리포트로 보내지 않습니다. 앱에 서버, 분석, 크래시 리포터가 없습니다.
+- 인식 기록(SSID·비밀번호)은 `flutter_secure_storage`를 통해 Android Keystore / iOS Keychain에만 저장하며,
+  기록 탭에서 건별로 또는 전부 지울 수 있습니다. 평문 파일이나 SharedPreferences에는 쓰지 않습니다.
 - `WifiCredential`, `WifiCandidate`, `OcrResult`의 `toString()`은 비밀번호/원문을 마스킹합니다 (`********`).
 - 촬영 사진은 OCR 직후 삭제하고, SSID/비밀번호를 앱에 저장하지 않습니다 (앱 종료 시 사라짐).
   향후 저장 기능을 추가한다면 Keychain / Keystore를 사용해야 합니다.

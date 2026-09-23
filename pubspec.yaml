@@ -12,6 +12,9 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  flutter_secure_storage: ^11.2.0
+  google_mlkit_barcode_scanning: ^0.16.1
+  google_mlkit_commons: ^0.13.0
   google_mlkit_text_recognition: ^0.17.1
   image: ^4.10.1
 

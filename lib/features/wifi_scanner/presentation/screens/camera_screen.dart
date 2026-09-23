@@ -5,13 +5,18 @@ import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 import '../../../../core/utils/platform_channel.dart';
 import '../../data/models/wifi_credential.dart';
+import '../../data/services/camera_frame.dart';
 import '../../data/services/image_cropper.dart';
 import '../../data/services/ocr_service.dart';
+import '../../domain/services/credential_voter.dart';
 import '../../domain/services/wifi_credential_extractor.dart';
 import '../widgets/camera_message_view.dart';
+import '../widgets/cover_camera_preview.dart';
+import '../widgets/live_result_banner.dart';
 import '../widgets/scan_guide_overlay.dart';
 import '../widgets/shutter_button.dart';
 import 'wifi_result_screen.dart';
@@ -19,6 +24,10 @@ import 'wifi_result_screen.dart';
 enum _CameraStatus { initializing, ready, permissionDenied, unavailable }
 
 /// 앱 첫 화면. 카메라로 Wi-Fi 안내문을 촬영해 OCR → 파싱 후 결과 화면으로 보낸다.
+///
+/// 프리뷰가 켜져 있는 동안 프레임을 계속 인식해 여러 프레임의 다수결로 값을 정한다
+/// ([CredentialVoter]). 결과가 안정되면 셔터 없이 넘어갈 수 있는 카드를 띄우고,
+/// 셔터를 누르면 고해상도 사진의 결과를 다수결에 합친다.
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
 
@@ -33,8 +42,12 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     'CameraAccessRestricted',
   };
 
+  /// 실시간 인식 프레임 간격. 두 인식기를 함께 돌리므로 너무 촘촘하면 발열만 늘어난다.
+  static const _liveInterval = Duration(milliseconds: 350);
+
   final _ocr = OcrService();
   final _extractor = const WifiCredentialExtractor();
+  final _voter = CredentialVoter();
 
   CameraController? _controller;
   _CameraStatus _status = _CameraStatus.initializing;
@@ -49,6 +62,12 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   /// 탭 초점 위치 표시.
   Offset? _focusRing;
   Timer? _focusRingTimer;
+
+  /// 실시간 인식 상태.
+  bool _streaming = false;
+  bool _frameBusy = false;
+  DateTime _lastFrameAt = DateTime.fromMillisecondsSinceEpoch(0);
+  VoteResult _liveVote = const VoteResult();
 
   /// 백그라운드로 가면서 카메라를 해제했으면 복귀할 때 다시 연다.
   bool _releasedForBackground = false;
@@ -94,6 +113,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // 카메라
+
   Future<void> _initCamera() async {
     if (_initializing) return;
     _initializing = true;
@@ -113,7 +135,13 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         return;
       }
 
-      controller = CameraController(camera, ResolutionPreset.veryHigh, enableAudio: false);
+      controller = CameraController(
+        camera,
+        ResolutionPreset.veryHigh,
+        enableAudio: false,
+        // ML Kit이 그대로 받을 수 있는 프레임 형식.
+        imageFormatGroup: mlKitImageFormatGroup,
+      );
       await controller.initialize();
       try {
         await controller.setFlashMode(FlashMode.off);
@@ -133,6 +161,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       // 초점과 노출을 안내문이 놓일 가이드 중앙에 맞춘다.
       final view = _viewSize;
       if (view != null) _setFocus(ScanGuideOverlay.guideRect(view).center, showRing: false);
+      await _startLive();
     } on CameraException catch (e) {
       await controller?.dispose();
       if (!mounted) return;
@@ -151,6 +180,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     if (controller == null) return;
     _controller = null;
     _torchOn = false;
+    _streaming = false;
+    _voter.clear();
+    _liveVote = const VoteResult();
     if (mounted) setState(() {});
     controller.dispose();
   }
@@ -186,6 +218,75 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // 실시간 인식
+
+  Future<void> _startLive() async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized || _streaming) return;
+    try {
+      await controller.startImageStream(_onFrame);
+      _streaming = true;
+    } on CameraException {
+      // 프레임 스트림을 지원하지 않는 기기. 셔터 촬영만 쓴다.
+    }
+  }
+
+  Future<void> _stopLive() async {
+    final controller = _controller;
+    if (controller == null || !_streaming) return;
+    _streaming = false;
+    try {
+      await controller.stopImageStream();
+    } on CameraException {
+      // 이미 멈춤
+    }
+  }
+
+  Future<void> _onFrame(CameraImage image) async {
+    if (_frameBusy || !_streaming || _processing || _resultOpen) return;
+    if (DateTime.now().difference(_lastFrameAt) < _liveInterval) return;
+    final controller = _controller;
+    if (controller == null) return;
+    final input = inputImageFromFrame(image, controller);
+    final rotation = frameRotation(controller);
+    if (input == null || rotation == null) return;
+
+    _frameBusy = true;
+    _lastFrameAt = DateTime.now();
+    try {
+      final results = await _ocr.recognizeImage(input);
+      final credential = _extractor.fromOcrResults(_insideGuide(results, image, rotation));
+      _voter.add(credential);
+      final vote = _voter.vote();
+      if (mounted && _streaming) setState(() => _liveVote = vote);
+    } on Exception {
+      // 프레임 하나의 실패는 무시한다.
+    } finally {
+      _frameBusy = false;
+    }
+  }
+
+  /// 가이드 영역 안의 줄만 남긴다. 좌표계가 어긋나 모두 걸러지면 원본을 쓴다.
+  List<OcrResult> _insideGuide(List<OcrResult> results, CameraImage image, InputImageRotation rotation) {
+    final view = _viewSize;
+    if (view == null) return results;
+    // 프레임과 프리뷰의 비율이 조금 다를 수 있어 여유를 넉넉히 둔다.
+    final guide = mapCoverRectToImage(
+      viewRect: ScanGuideOverlay.guideRect(view),
+      viewSize: view,
+      imageSize: uprightFrameSize(image, rotation),
+      margin: 0.25,
+    );
+    final filtered = [
+      for (final r in results) r.withLines(r.lines.where((l) => guide.contains(l.box.center)).toList()),
+    ];
+    return filtered.every((r) => r.lines.isEmpty) ? results : filtered;
+  }
+
+  // ---------------------------------------------------------------------------
+  // 촬영
+
   Future<void> _capture() async {
     final controller = _controller;
     if (controller == null ||
@@ -196,6 +297,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
 
     setState(() => _processing = true);
+    // 사진 촬영과 프레임 분석을 동시에 쓰지 못하는 기기가 있어 스트림을 먼저 멈춘다.
+    await _stopLive();
 
     WifiCredential? credential;
     String? rawText;
@@ -206,6 +309,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
       String? cropPath;
       try {
+        final stopwatch = Stopwatch()..start();
         // 가이드 영역만 인식해 주변 글자(메뉴판 등)가 섞이지 않게 한다.
         final view = _viewSize;
         if (view != null) {
@@ -215,17 +319,26 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
             viewSize: view,
           );
         }
+        final cropMs = stopwatch.elapsedMilliseconds;
         final results = await _ocr.recognizeFileWithAllScripts(cropPath ?? file.path);
         credential = _extractor.fromOcrResults(results);
         rawText = _debugText(results);
+        // 시간만 기록한다. 인식된 내용(비밀번호 포함)은 절대 로그에 남기지 않는다.
+        if (kDebugMode) {
+          debugPrint('[ocr] crop ${cropMs}ms, recognize ${stopwatch.elapsedMilliseconds - cropMs}ms, '
+              'live readings ${_voter.count}');
+        }
 
         // 안내문이 가이드보다 크게 찍혀 글자가 잘렸을 수 있으니, 빠진 값이 있으면
         // 전체 사진으로 한 번 더 인식해 채운다. 가이드 안에서 찾은 값이 우선이다.
         if (cropPath != null && (!credential.hasSsid || !credential.hasPassword)) {
           final full = await _ocr.recognizeFileWithAllScripts(file.path);
-          credential = _extractor.parser.merge([credential, _extractor.fromOcrResults(full)]);
+          credential = _extractor.fillMissing(credential, _extractor.fromOcrResults(full));
           rawText = _debugText([...results, ...full]);
         }
+
+        // 프리뷰 동안 읽은 여러 프레임과 다수결로 합쳐 한 장짜리 오류를 걸러낸다.
+        credential = _voter.combine(credential);
       } finally {
         // 촬영 이미지에는 비밀번호가 담겨 있으므로 인식 직후 지운다.
         _deleteQuietly(file.path);
@@ -239,7 +352,23 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
     if (!mounted) return;
     setState(() => _processing = false);
-    if (credential != null) await _openResult(credential, rawText: rawText);
+    if (credential != null) {
+      await _openResult(credential, rawText: rawText);
+    } else {
+      await _startLive();
+    }
+  }
+
+  /// 실시간 인식이 안정된 값을 셔터 없이 결과 화면으로 넘긴다.
+  Future<void> _confirmLive() async {
+    final vote = _liveVote;
+    if (!vote.isStable || _processing) return;
+    setState(() => _processing = true);
+    await _stopLive();
+    final credential = _voter.toCredential(vote, sources: const []);
+    if (!mounted) return;
+    setState(() => _processing = false);
+    await _openResult(credential);
   }
 
   /// 디버그 화면용 원문. 릴리스에서는 만들지 않는다.
@@ -300,6 +429,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     File(path).delete().then((_) {}, onError: (_) {});
   }
 
+  // ---------------------------------------------------------------------------
+  // 화면
+
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -330,6 +462,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   Widget _buildScanner() {
     final controller = _controller;
     final ready = controller != null && controller.value.isInitialized;
+    final vote = _liveVote;
+    final showBanner = ready && !_processing && vote.isStable;
 
     return LayoutBuilder(builder: (context, constraints) {
       _viewSize = constraints.biggest;
@@ -337,8 +471,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       return Stack(
         fit: StackFit.expand,
         children: [
-          if (ready) _CoverCameraPreview(controller: controller),
-          ScanGuideOverlay(processing: _processing),
+          if (ready) CoverCameraPreview(controller: controller),
+          ScanGuideOverlay(
+            processing: _processing,
+            reading: !_processing && _voter.count > 0 && !vote.isStable,
+          ),
           // 탭한 곳에 초점을 맞춘다 (글자가 흐리면 인식률이 크게 떨어진다).
           Positioned.fill(
             child: GestureDetector(
@@ -358,42 +495,61 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
             bottom: 0,
             child: SafeArea(
               top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton(
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(48, 48),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: showBanner
+                        ? Padding(
+                            key: const ValueKey('banner'),
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                            child: LiveResultBanner(
+                              ssid: vote.ssid!.value,
+                              hasPassword: vote.password!.value.isNotEmpty,
+                              onConfirm: _confirmLive,
+                            ),
+                          )
+                        : const SizedBox.shrink(key: ValueKey('none')),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton(
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size(48, 48),
+                              ),
+                              onPressed: _processing ? null : _openManualEntry,
+                              child: const Text('직접 입력'),
+                            ),
                           ),
-                          onPressed: _processing ? null : _openManualEntry,
-                          child: const Text('직접 입력'),
                         ),
-                      ),
-                    ),
-                    ShutterButton(onPressed: ready && !_processing ? _capture : null),
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: IconButton(
-                          tooltip: _torchOn ? '플래시 끄기' : '플래시 켜기',
-                          iconSize: 26,
-                          style: IconButton.styleFrom(
-                            backgroundColor: _torchOn ? Colors.white : Colors.white24,
-                            foregroundColor: _torchOn ? Colors.black : Colors.white,
-                            fixedSize: const Size(52, 52),
+                        ShutterButton(onPressed: ready && !_processing ? _capture : null),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: IconButton(
+                              tooltip: _torchOn ? '플래시 끄기' : '플래시 켜기',
+                              iconSize: 26,
+                              style: IconButton.styleFrom(
+                                backgroundColor: _torchOn ? Colors.white : Colors.white24,
+                                foregroundColor: _torchOn ? Colors.black : Colors.white,
+                                fixedSize: const Size(52, 52),
+                              ),
+                              onPressed: ready && !_processing ? _toggleTorch : null,
+                              icon: Icon(_torchOn ? Icons.flashlight_on : Icons.flashlight_off),
+                            ),
                           ),
-                          onPressed: ready && !_processing ? _toggleTorch : null,
-                          icon: Icon(_torchOn ? Icons.flashlight_on : Icons.flashlight_off),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -415,30 +571,6 @@ class _FocusRing extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
         boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 6)],
-      ),
-    );
-  }
-}
-
-/// 프리뷰를 비율을 유지한 채 화면 전체를 채우도록 확대한다.
-class _CoverCameraPreview extends StatelessWidget {
-  const _CoverCameraPreview({required this.controller});
-
-  final CameraController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final previewSize = controller.value.previewSize;
-    if (previewSize == null) return const SizedBox.shrink();
-    // previewSize는 가로 기준이므로 세로 화면에서는 너비/높이를 뒤집는다.
-    return ClipRect(
-      child: FittedBox(
-        fit: BoxFit.cover,
-        child: SizedBox(
-          width: previewSize.height,
-          height: previewSize.width,
-          child: CameraPreview(controller),
-        ),
       ),
     );
   }

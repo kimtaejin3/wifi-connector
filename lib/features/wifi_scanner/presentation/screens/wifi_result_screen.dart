@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../data/models/saved_wifi.dart';
 import '../../data/models/wifi_credential.dart';
+import '../../data/services/wifi_history_store.dart';
 import '../../data/services/wifi_service.dart';
 import '../../domain/services/wifi_input_validator.dart';
 import '../widgets/confusable_highlight_controller.dart';
@@ -16,9 +20,21 @@ class WifiResultScreen extends StatefulWidget {
     this.rawText,
     this.manualEntry = false,
     this.wifiService = const WifiService(),
+    this.historyStore,
+    this.title,
+    this.retakeLabel = '다시 촬영',
   });
 
   final WifiCredential credential;
+
+  /// 연결 요청이 받아들여지면 여기에 기록한다. null이면 앱 공용 저장소.
+  final WifiHistoryStore? historyStore;
+
+  /// 기본 제목("Wi-Fi를 찾았어요") 대신 쓸 제목.
+  final String? title;
+
+  /// 아래쪽 보조 버튼 문구. null이면 버튼을 숨긴다 (기록에서 열었을 때).
+  final String? retakeLabel;
 
   /// 디버그 빌드에서만 보여주는 OCR 원문.
   final String? rawText;
@@ -33,11 +49,22 @@ class WifiResultScreen extends StatefulWidget {
 }
 
 class _WifiResultScreenState extends State<WifiResultScreen> {
-  late final _ssid = ConfusableHighlightController(text: widget.credential.ssid ?? '');
-  late final _password = ConfusableHighlightController(text: widget.credential.password ?? '');
+  late final _ssid = ConfusableHighlightController(
+    text: widget.credential.ssid ?? '',
+    uncertainIndexes: widget.credential.ssidUncertainIndexes,
+  );
+  late final _password = ConfusableHighlightController(
+    text: widget.credential.password ?? '',
+    uncertainIndexes: widget.credential.passwordUncertainIndexes,
+  );
 
   /// OCR로 아무것도 찾지 못했을 때 사용자가 "직접 입력"을 눌렀는지.
   late bool _editing = widget.manualEntry || !widget.credential.isEmpty;
+
+  /// 값을 고칠 수 있는 상태. 인식 결과는 먼저 읽기 전용으로 보여주고 [수정하기]로 연다.
+  /// 직접 입력이거나 빠진 값이 있으면 바로 편집 상태로 시작한다.
+  late bool _editable =
+      _isManual || !widget.credential.hasSsid || !widget.credential.hasPassword;
   bool _obscurePassword = false;
   bool _connecting = false;
   WifiConnectResult? _result;
@@ -101,7 +128,12 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
       _result = result;
       _verifying = result.needsVerification;
     });
-    if (result.isSuccess) HapticFeedback.lightImpact();
+    if (result.isSuccess) {
+      HapticFeedback.lightImpact();
+      // OS가 요청을 받아들였으면 기록에 남긴다 (Keychain/Keystore).
+      unawaited((widget.historyStore ?? wifiHistoryStore)
+          .save(SavedWifi(ssid: ssid, password: password, savedAt: DateTime.now())));
+    }
     if (!result.needsVerification) return;
 
     // OS가 요청을 받아들였다고 해서 연결된 것은 아니다. 실제 연결을 기다려 알려준다.
@@ -211,7 +243,8 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
               ),
               TextField(
                 controller: _ssid,
-                autofocus: _isManual || ssidMissing,
+                readOnly: !_editable,
+                autofocus: _editable && (_isManual || ssidMissing),
                 autocorrect: false,
                 enableSuggestions: false,
                 textInputAction: TextInputAction.next,
@@ -235,7 +268,8 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
               ),
               TextField(
                 controller: _password,
-                autofocus: passwordMissing,
+                readOnly: !_editable,
+                autofocus: _editable && passwordMissing,
                 obscureText: _obscurePassword,
                 autocorrect: false,
                 enableSuggestions: false,
@@ -268,7 +302,7 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 10, left: 4),
                   child: Text(
-                    '색으로 표시한 글자는 0/O, 1/l/I처럼 헷갈리기 쉬워요. 안내문과 비교해주세요.',
+                    '색으로 표시한 글자는 인식이 불확실하거나 0/O, 1/l/I처럼 헷갈리기 쉬운 글자예요. 안내문과 비교해주세요.',
                     style: TextStyle(fontSize: 13, color: muted, height: 1.4),
                   ),
                 ),
@@ -298,9 +332,31 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
             children: [
               _buildPrimaryButton(),
               const SizedBox(height: 4),
-              TextButton(
-                onPressed: _connecting ? null : _close,
-                child: const Text('다시 촬영'),
+              Row(
+                children: [
+                  if (!_editable)
+                    Expanded(
+                      child: TextButton.icon(
+                        onPressed: _connecting ? null : _startEditing,
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        label: const Text('수정하기'),
+                      ),
+                    ),
+                  if (widget.retakeLabel != null)
+                    Expanded(
+                      child: TextButton(
+                        onPressed: _connecting ? null : _close,
+                        child: Text(widget.retakeLabel!),
+                      ),
+                    ),
+                  if (_editable && widget.retakeLabel == null)
+                    Expanded(
+                      child: TextButton(
+                        onPressed: _connecting ? null : _close,
+                        child: const Text('닫기'),
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
@@ -311,11 +367,13 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
 
   bool get _canConnect => !_connecting && _ssid.text.trim().isNotEmpty;
 
+  void _startEditing() {
+    setState(() => _editable = true);
+  }
+
   /// 직접 입력 중이 아니라 OCR 결과를 보고 있을 때만 헷갈리는 글자 안내를 보여준다.
   bool get _hasConfusables =>
-      !_isManual &&
-      (ConfusableHighlightController.hasConfusables(_ssid.text) ||
-          (!_obscurePassword && ConfusableHighlightController.hasConfusables(_password.text)));
+      !_isManual && (_ssid.hasHighlights || (!_obscurePassword && _password.hasHighlights));
 
   Widget _buildPrimaryButton() {
     final result = _result;
@@ -364,6 +422,7 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
   }
 
   String get _title {
+    if (widget.title != null && !_isManual) return widget.title!;
     if (_isManual) return 'Wi-Fi 정보를 입력해주세요';
     if (_found.hasSsid && _found.hasPassword) return 'Wi-Fi를 찾았어요';
     if (_found.hasSsid) return 'Wi-Fi 이름은 찾았지만\n비밀번호를 찾지 못했어요';
@@ -372,20 +431,33 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
 
   String get _subtitle {
     if (_isManual) return '안내문에 적힌 Wi-Fi 이름과 비밀번호를 입력하세요.';
+    if (widget.title != null && _found.hasSsid && _found.hasPassword) {
+      return '정보가 맞는지 확인하고 연결하세요. 틀리면 수정하기를 누르세요.';
+    }
     if (!_found.hasSsid) return '안내문에 적힌 Wi-Fi 이름을 입력해주세요.';
     if (!_found.hasPassword) return '비밀번호를 입력해주세요. 비밀번호가 없는 Wi-Fi라면 비워두고 연결하세요.';
     if (_found.isOpenNetwork) return '비밀번호가 없는 Wi-Fi로 인식했어요. 이름만 확인하고 연결하세요.';
     final uncertain = _found.ssidConfidence < WifiCredential.confidentThreshold ||
         _found.passwordConfidence < WifiCredential.confidentThreshold;
-    return uncertain ? '인식이 정확하지 않을 수 있어요. 확인 후 연결해주세요.' : '정보가 맞는지 확인하고 연결하세요.';
+    return uncertain
+        ? '인식이 정확하지 않을 수 있어요. 안내문과 비교해보고 틀리면 수정하기를 누르세요.'
+        : '정보가 맞는지 확인하고 연결하세요. 틀리면 수정하기를 누르세요.';
   }
 
-  List<String> _alternatives(WifiCandidateType type, String current) => _found
-      .candidatesOf(type)
-      .map((c) => c.value)
-      .where((v) => v.isNotEmpty && v != current.trim())
-      .take(3)
-      .toList();
+  /// 1순위와 점수 차가 큰 후보는 잡음일 가능성이 높아 보여주지 않는다.
+  static const _chipScoreMargin = 0.2;
+
+  List<String> _alternatives(WifiCandidateType type, String current) {
+    final candidates = _found.candidatesOf(type);
+    if (candidates.isEmpty) return const [];
+    final floor = candidates.first.score - _chipScoreMargin;
+    return candidates
+        .where((c) => c.score >= floor)
+        .map((c) => c.value)
+        .where((v) => v.isNotEmpty && v != current.trim())
+        .take(3)
+        .toList();
+  }
 }
 
 class _FieldLabel extends StatelessWidget {

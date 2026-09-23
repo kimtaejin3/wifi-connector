@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import '../../../../core/utils/text_normalizer.dart';
 import '../../data/models/wifi_credential.dart';
@@ -100,7 +101,35 @@ class WifiCredentialParser {
     }
 
     _addUnlabeledFallbacks(rows, found);
+    _addSeparatorVariants(found);
     return _select(found);
+  }
+
+  /// OCR은 밑줄(`_`)과 하이픈(`-`)을 자주 놓치고 그 자리를 공백으로 읽거나, 기호 앞뒤에서
+  /// 단어를 나눠 없던 공백을 만든다 (`cafe_5G` → `cafe 5G`, `Coffee!123` → `Coffee! 123`).
+  /// 공백이 든 값마다 `_`, `-`, 공백 제거 후보를 함께 만들어 사용자가 고를 수 있게 한다.
+  ///
+  /// - SSID: 공백이 실제일 수 있으므로 원래 값을 유지한다. 단 `5G`, `2.4GHz` 같은 대역 표기
+  ///   앞의 공백은 실제로 밑줄인 경우가 대부분이라 밑줄 쪽을 우선한다.
+  /// - 비밀번호: 공백이 든 비밀번호는 드물지만 원래 값을 유지하고 후보만 덧붙인다.
+  void _addSeparatorVariants(List<WifiCandidate> found) {
+    for (final c in found.toList()) {
+      if (!c.value.contains(' ') || _contactLike.hasMatch(c.value)) continue;
+      final isSsid = c.type == WifiCandidateType.ssid;
+      final variants = <String, double>{
+        c.value.replaceAll(_spaces, '_'): isSsid && _bandSuffix.hasMatch(c.value) ? 0.01 : -0.02,
+        c.value.replaceAll(_spaces, '-'): -0.03,
+        if (!isSsid) c.value.replaceAll(_spaces, ''): -0.01,
+      };
+      for (final entry in variants.entries) {
+        if (entry.key == c.value) continue;
+        found.add(WifiCandidate(
+          value: entry.key,
+          type: c.type,
+          score: (c.score + entry.value).clamp(0.0, 1.0),
+        ));
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -198,7 +227,8 @@ class WifiCredentialParser {
     var base = l.type == WifiCandidateType.ssid ? 0.9 : 0.92;
     if (!sameRow) base -= 0.02;
     if (l.strength == _Strength.weak) base -= 0.1;
-    if (seg.header) base -= 0.1;
+    // "FREE WI-FI" 같은 제목 다음 줄은 장식이나 다른 문구인 경우가 많다.
+    if (seg.header) base -= 0.25;
     return base;
   }
 
@@ -296,11 +326,21 @@ class WifiCredentialParser {
       }
     }
 
+    // 공백/밑줄/하이픈 중 어느 쪽이 맞는지는 알 수 없으므로 사용자 확인을 요청한다.
+    double confidence(WifiCandidate? c) {
+      if (c == null) return 0;
+      final stripped = c.value.replaceAll(_separators, '');
+      final ambiguous = c.value.contains(' ') ||
+          candidates.any((o) =>
+              o.type == c.type && o.value != c.value && o.value.replaceAll(_separators, '') == stripped);
+      return ambiguous ? math.min(c.score, WifiCredential.confidentThreshold - 0.05) : c.score;
+    }
+
     return WifiCredential(
       ssid: ssid?.value,
       password: password?.value,
-      ssidConfidence: ssid?.score ?? 0,
-      passwordConfidence: password?.score ?? 0,
+      ssidConfidence: confidence(ssid),
+      passwordConfidence: confidence(password),
       candidates: candidates,
     );
   }
@@ -524,7 +564,8 @@ class _Segment {
 // -----------------------------------------------------------------------------
 // 패턴
 
-const _wifi = r'w[i1l][\s\-‐‑_.·]?f[i1l]';
+/// "Wi-Fi", "WIFI", "Wl-Fi" 외에 OCR이 얇은 i를 빠뜨린 "W-Fi", "Wi-F"도 허용한다.
+const _wifi = r'w(?:[i1l][\s\-‐‑_.·]?|[\-‐‑_.·])f[i1l]?';
 const _wifiWord = '(?:$_wifi|wlan|와이\\s?파이|무선\\s*인터넷)';
 const _network = '(?:network|네트\\s?워크)';
 const _free = r'(?:(?:free|무료)\s*)?';
@@ -574,6 +615,9 @@ final _trailingDelimiters = RegExp(r'[\s/|,;·]+$');
 final _trailingNote = RegExp(r'\s+[(\[（【][^)\]）】]*[)\]）】]$');
 final _valueSplitters = [RegExp(r'\s+/\s+'), RegExp(r'\s*\|\s*'), RegExp(r'\s*/\s*'), RegExp(r'\s+')];
 final _whitespace = RegExp(r'\s+');
+final _spaces = RegExp(r' +');
+final _separators = RegExp(r'[ _-]');
+final _bandSuffix = RegExp(r' \d(?:\.\d)?\s?g(?:hz)?$', caseSensitive: false);
 final _newline = RegExp(r'\r?\n');
 final _printableAscii = RegExp(r'^[\x20-\x7E]+$');
 final _digitsOnly = RegExp(r'^\d+$');

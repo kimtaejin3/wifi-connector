@@ -37,6 +37,24 @@ String normalizeOcrText(String text) {
         buffer.write('"');
       case 0x2026: // …
         buffer.write('...');
+      // 한국어 인식기가 기호를 한글 자모/한자로 읽는 경우. 이 글자들은 SSID/비밀번호에 쓰일 수 없다.
+      case 0x3161: // ㅡ
+      case 0x4E00: // 一
+      case 0x30FC: // ー
+        buffer.write('-');
+      case 0x3163: // ㅣ
+      case 0x4E28: // 丨
+        buffer.write('l');
+      case 0x3007: // 〇
+      case 0x25CB: // ○
+        buffer.write('0');
+      case 0x301C: // 〜
+      case 0x223C: // ∼
+        buffer.write('~');
+      case 0x4E95: // 井
+        buffer.write('#');
+      case 0x00A9: // ©
+        buffer.write('@');
       default:
         buffer.writeCharCode(rune);
     }
