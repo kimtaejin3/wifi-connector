@@ -60,7 +60,6 @@ Future<WifiHistoryStore> pumpResult(
   return history;
 }
 
-bool isReadOnly(WidgetTester tester, Finder field) => tester.widget<TextField>(field).readOnly;
 
 const found = WifiCredential(
   ssid: 'TestCafe',
@@ -79,8 +78,8 @@ void main() {
     expect(find.text('Wi-Fi를 찾았어요'), findsOneWidget);
     expect(find.text('TestCafe'), findsOneWidget);
     expect(find.text('Test12345'), findsOneWidget);
-    // 인식 결과는 읽기 전용으로 시작한다.
-    expect(isReadOnly(tester, find.byType(TextField).first), isTrue);
+    // 인식 결과는 읽기 전용(입력창 없음)으로 시작한다.
+    expect(find.byType(TextField), findsNothing);
     expect(find.text('수정하기'), findsOneWidget);
 
     await tester.tap(find.text('Wi-Fi 연결'));
@@ -98,12 +97,12 @@ void main() {
 
   testWidgets('수정하기를 누르면 편집할 수 있다', (tester) async {
     await pumpResult(tester, found);
-    expect(isReadOnly(tester, find.byType(TextField).last), isTrue);
+    expect(find.byType(TextField), findsNothing);
 
     await tester.tap(find.text('수정하기'));
     await tester.pumpAndSettle();
 
-    expect(isReadOnly(tester, find.byType(TextField).last), isFalse);
+    expect(find.byType(TextField), findsNWidgets(2));
     expect(find.text('수정하기'), findsNothing);
   });
 
@@ -229,9 +228,9 @@ void main() {
       service: service,
     );
 
-    expect(find.textContaining('Wi-Fi 이름을 찾지 못했어요'), findsOneWidget);
+    expect(find.text('Wi-Fi 이름을 찾지 못했어요'), findsOneWidget);
     // 빠진 값이 있으면 바로 편집 상태로 시작한다.
-    expect(isReadOnly(tester, find.byType(TextField).first), isFalse);
+    expect(find.byType(TextField), findsNWidgets(2));
     await tester.tap(find.text('Wi-Fi 연결'));
     await tester.pumpAndSettle();
     expect(service.calls, isEmpty);
@@ -275,7 +274,7 @@ void main() {
   testWidgets('아무것도 찾지 못하면 재촬영 안내, 직접 입력 가능', (tester) async {
     await pumpResult(tester, WifiCredential.empty);
 
-    expect(find.text('Wi-Fi 정보를 찾지 못했어요.'), findsOneWidget);
+    expect(find.text('Wi-Fi 정보를 찾지 못했어요'), findsOneWidget);
     expect(find.text('다시 촬영'), findsOneWidget);
 
     await tester.tap(find.text('직접 입력하기'));
@@ -301,14 +300,4 @@ void main() {
     expect(find.text('들니다'), findsNothing);
   });
 
-  testWidgets('비밀번호 보기/숨기기', (tester) async {
-    await pumpResult(tester, found);
-
-    EditableText password() => tester.widget<EditableText>(find.byType(EditableText).last);
-    expect(password().obscureText, isFalse);
-
-    await tester.tap(find.byTooltip('비밀번호 숨기기'));
-    await tester.pump();
-    expect(password().obscureText, isTrue);
-  });
 }

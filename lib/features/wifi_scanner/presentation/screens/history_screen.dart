@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../data/models/saved_wifi.dart';
 import '../../data/models/wifi_credential.dart';
 import '../../data/services/wifi_history_store.dart';
@@ -52,6 +53,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
         title: '저장된 Wi-Fi',
         historyStore: _store,
+        retakeLabel: null,
       ),
     ));
   }
@@ -61,7 +63,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('${entry.ssid} 기록을 지웠어요.')));
+      ..showSnackBar(SnackBar(content: Text('${entry.ssid} 기록을 지웠어요')));
   }
 
   Future<void> _clearAll() async {
@@ -81,75 +83,243 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     final entries = _entries;
-    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('인식 기록'),
-        actions: [
-          if (entries != null && entries.isNotEmpty)
-            TextButton(onPressed: _clearAll, child: const Text('모두 지우기')),
-        ],
-      ),
-      body: switch (entries) {
-        null => const Center(child: CircularProgressIndicator.adaptive()),
-        [] => Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.history_rounded, size: 52, color: scheme.onSurfaceVariant),
-                  const SizedBox(height: 16),
-                  const Text(
-                    '아직 기록이 없어요',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '안내문이나 QR을 인식해서 연결하면\n여기에 저장돼요.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant, height: 1.4),
+      body: SafeArea(
+        bottom: false,
+        child: switch (entries) {
+          null => const Center(child: CircularProgressIndicator.adaptive()),
+          [] => _Empty(onClear: null, header: _header(p, 0)),
+          _ => ListView(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+              children: [
+                _header(p, entries.length, onClear: _clearAll),
+                const SizedBox(height: 20),
+                _RecentCard(entry: entries.first, onTap: () => _open(entries.first)),
+                for (final entry in entries.skip(1)) ...[
+                  const SizedBox(height: 12),
+                  _EntryCard(entry: entry, onTap: () => _open(entry), onRemove: () => _remove(entry)),
+                ],
+                if (entries.length == 1) ...[
+                  const SizedBox(height: 20),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () => _remove(entries.first),
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                      label: const Text('기록 삭제'),
+                    ),
                   ),
                 ],
-              ),
+              ],
             ),
-          ),
-        _ => ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: entries.length,
-            separatorBuilder: (_, _) => const Divider(height: 1, indent: 72),
-            itemBuilder: (context, index) {
-              final entry = entries[index];
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: scheme.surfaceContainerHighest,
-                  foregroundColor: scheme.onSurface,
-                  child: Icon(entry.isOpen ? Icons.wifi_rounded : Icons.wifi_lock_rounded),
-                ),
-                title: Text(entry.ssid, style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text(
-                  '${entry.isOpen ? '비밀번호 없음' : '비밀번호 저장됨'} · ${_formatDate(entry.savedAt)}',
-                ),
-                trailing: IconButton(
-                  tooltip: '기록 삭제',
-                  icon: const Icon(Icons.delete_outline_rounded),
-                  onPressed: () => _remove(entry),
-                ),
-                onTap: () => _open(entry),
-              );
-            },
-          ),
-      },
+        },
+      ),
     );
   }
 
-  static String _formatDate(DateTime time) {
-    final local = time.toLocal();
-    final now = DateTime.now();
-    final sameDay = local.year == now.year && local.month == now.month && local.day == now.day;
-    String two(int v) => v.toString().padLeft(2, '0');
-    if (sameDay) return '오늘 ${two(local.hour)}:${two(local.minute)}';
-    return '${local.year}.${two(local.month)}.${two(local.day)}';
+  Widget _header(AppPalette p, int count, {VoidCallback? onClear}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '기록',
+                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: p.ink, letterSpacing: -0.5),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                count == 0 ? '연결한 Wi-Fi가 여기에 남아요' : '$count개 네트워크',
+                style: TextStyle(fontSize: 14, color: p.muted, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+        if (onClear != null)
+          TextButton(
+            style: TextButton.styleFrom(minimumSize: const Size(0, 40)),
+            onPressed: onClear,
+            child: const Text('모두 지우기'),
+          ),
+      ],
+    );
   }
+}
+
+/// 가장 최근에 연결한 네트워크. 강조 카드로 보여준다.
+class _RecentCard extends StatelessWidget {
+  const _RecentCard({required this.entry, required this.onTap});
+
+  final SavedWifi entry;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Material(
+      color: p.accent,
+      borderRadius: BorderRadius.circular(AppPalette.cardRadius),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppPalette.cardRadius),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 20, 18, 20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppPalette.cardRadius),
+            boxShadow: [BoxShadow(color: p.accent.withValues(alpha: 0.35), blurRadius: 24, offset: const Offset(0, 10))],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      entry.ssid,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: p.onAccent, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.2),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '최근 연결 · ${formatSavedAt(entry.savedAt)}',
+                      style: TextStyle(color: p.onAccent.withValues(alpha: 0.72), fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.check_rounded, color: p.onAccent, size: 26),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EntryCard extends StatelessWidget {
+  const _EntryCard({required this.entry, required this.onTap, required this.onRemove});
+
+  final SavedWifi entry;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Dismissible(
+      key: ValueKey('history-${entry.ssid}'),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) => onRemove(),
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        decoration: BoxDecoration(
+          color: p.danger,
+          borderRadius: BorderRadius.circular(AppPalette.cardRadius),
+        ),
+        child: Icon(Icons.delete_outline_rounded, color: p.onAccent),
+      ),
+      child: Material(
+        color: p.card,
+        borderRadius: BorderRadius.circular(AppPalette.cardRadius),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppPalette.cardRadius),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 18, 14, 18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppPalette.cardRadius),
+              boxShadow: p.cardShadow,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.ssid,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: p.ink, fontSize: 17, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        formatSavedAt(entry.savedAt),
+                        style: TextStyle(color: p.muted, fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(entry.isOpen ? Icons.wifi_rounded : Icons.wifi_lock_rounded, color: p.accent, size: 22),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Empty extends StatelessWidget {
+  const _Empty({required this.header, this.onClear});
+
+  final Widget header;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          header,
+          const Spacer(),
+          Center(
+            child: Column(
+              children: [
+                Container(
+                  width: 88,
+                  height: 88,
+                  decoration: BoxDecoration(
+                    color: p.card,
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: p.cardShadow,
+                  ),
+                  child: Icon(Icons.wifi_rounded, size: 40, color: p.accent),
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  '아직 기록이 없어요',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: p.ink),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '안내문을 인식해서 연결하면\n여기에 저장돼요.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: p.muted, height: 1.45),
+                ),
+              ],
+            ),
+          ),
+          const Spacer(flex: 2),
+        ],
+      ),
+    );
+  }
+}
+
+String formatSavedAt(DateTime time) {
+  final local = time.toLocal();
+  final now = DateTime.now();
+  final sameDay = local.year == now.year && local.month == now.month && local.day == now.day;
+  String two(int v) => v.toString().padLeft(2, '0');
+  if (sameDay) return '오늘 ${two(local.hour)}:${two(local.minute)}';
+  return '${local.year}.${two(local.month)}.${two(local.day)}';
 }

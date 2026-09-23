@@ -28,7 +28,8 @@ class ConnectionStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final state = _state(scheme);
+    final p = AppPalette.of(context);
+    final state = _state(scheme, p);
 
     final showSettings = onOpenWifiSettings != null &&
         defaultTargetPlatform == TargetPlatform.android &&
@@ -39,22 +40,28 @@ class ConnectionStatusCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: state.color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(14),
+          color: p.card,
+          borderRadius: BorderRadius.circular(AppPalette.cardRadius),
+          boxShadow: p.cardShadow,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (state.icon == null)
-              Padding(
-                padding: const EdgeInsets.all(2),
-                child: SizedBox.square(
-                  dimension: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: state.color),
-                ),
-              )
-            else
-              Icon(state.icon, color: state.color, size: 22),
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: state.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: state.icon == null
+                  ? SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: state.color),
+                    )
+                  : Icon(state.icon, color: state.color, size: 20),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -62,13 +69,13 @@ class ConnectionStatusCard extends StatelessWidget {
                 children: [
                   Text(
                     state.title,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: scheme.onSurface),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: p.ink),
                   ),
                   if (state.body != null) ...[
                     const SizedBox(height: 4),
                     Text(
                       state.body!,
-                      style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant, height: 1.4),
+                      style: TextStyle(fontSize: 13, color: p.muted, height: 1.45),
                     ),
                   ],
                   if (showSettings)
@@ -76,10 +83,11 @@ class ConnectionStatusCard extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 4),
                       child: TextButton(
                         style: TextButton.styleFrom(
+                          foregroundColor: p.accent,
                           padding: EdgeInsets.zero,
                           minimumSize: const Size(0, 36),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                         ),
                         onPressed: onOpenWifiSettings,
                         child: const Text('Wi-Fi 설정 열기'),
@@ -94,45 +102,45 @@ class ConnectionStatusCard extends StatelessWidget {
     );
   }
 
-  _CardState _state(ColorScheme scheme) {
+  _CardState _state(ColorScheme scheme, AppPalette p) {
     switch (result.status) {
       case WifiConnectStatus.connected:
-        return _CardState(Icons.check_circle_rounded, AppTheme.success, 'Wi-Fi에 연결되었습니다.');
+        return _CardState(Icons.check_circle_rounded, p.success, 'Wi-Fi에 연결되었습니다.');
 
       case WifiConnectStatus.cancelled:
-        return _CardState(Icons.info_rounded, scheme.onSurfaceVariant, 'Wi-Fi 연결이 취소되었습니다.');
+        return _CardState(Icons.info_rounded, p.muted, 'Wi-Fi 연결이 취소되었습니다.');
 
       case WifiConnectStatus.failed:
         return switch (result.failure) {
           WifiConnectFailure.invalidPassword => _CardState(
               Icons.error_rounded,
-              scheme.error,
+              p.danger,
               '연결할 수 없습니다.',
               body: '비밀번호를 확인해주세요.',
             ),
           WifiConnectFailure.invalidSsid => _CardState(
               Icons.error_rounded,
-              scheme.error,
+              p.danger,
               'Wi-Fi에 연결하지 못했습니다.',
               body: 'Wi-Fi 이름을 확인해주세요.',
             ),
           WifiConnectFailure.wifiDisabled => _CardState(
               Icons.wifi_off_rounded,
-              scheme.error,
+              p.danger,
               'Wi-Fi가 꺼져 있어요.',
               body: 'Wi-Fi를 켠 뒤 다시 시도해주세요.',
               suggestSettings: true,
             ),
           WifiConnectFailure.unsupported => _CardState(
               Icons.error_rounded,
-              scheme.error,
+              p.danger,
               '이 기기에서는 자동 연결을 지원하지 않아요.',
               body: 'Wi-Fi 설정에서 직접 연결해주세요.',
               suggestSettings: true,
             ),
           _ => _CardState(
               Icons.error_rounded,
-              scheme.error,
+              p.danger,
               'Wi-Fi에 연결하지 못했습니다.',
               body: 'SSID 또는 비밀번호를 확인해주세요.',
             ),
@@ -144,7 +152,7 @@ class ConnectionStatusCard extends StatelessWidget {
         if (result.alreadySaved && check == null && !verifying) {
           return _CardState(
             Icons.info_rounded,
-            AppTheme.success,
+            p.success,
             '이미 저장된 네트워크예요.',
             body: '이미 연결돼 있다면 그대로 쓰시면 돼요. 연결돼 있지 않으면 Wi-Fi 설정에서 이 네트워크를 선택하고, '
                 '비밀번호가 바뀌었으면 설정에서 지운 뒤 다시 시도해주세요.',
@@ -154,7 +162,7 @@ class ConnectionStatusCard extends StatelessWidget {
         if (verifying) {
           return _CardState(
             null,
-            scheme.primary,
+            p.accent,
             '연결 요청이 완료되었습니다.',
             body: suggested
                 ? '알림에서 네트워크 연결을 허용하면 연결돼요. 확인하고 있어요…'
@@ -165,7 +173,7 @@ class ConnectionStatusCard extends StatelessWidget {
         if (c == null) {
           return _CardState(
             Icons.check_circle_rounded,
-            AppTheme.success,
+            p.success,
             'Wi-Fi 연결 요청이 완료되었습니다.',
             body: suggested
                 ? '알림에서 네트워크 연결을 허용하면 자동으로 연결돼요.'
@@ -175,7 +183,7 @@ class ConnectionStatusCard extends StatelessWidget {
         if (c.connected) {
           return _CardState(
             Icons.check_circle_rounded,
-            AppTheme.success,
+            p.success,
             'Wi-Fi에 연결되었습니다.',
             body: c.captivePortal ? '브라우저 로그인이 필요한 Wi-Fi예요. 상단 알림을 눌러 로그인하세요.' : null,
           );
@@ -191,7 +199,7 @@ class ConnectionStatusCard extends StatelessWidget {
         }
         return _CardState(
           Icons.help_rounded,
-          scheme.onSurfaceVariant,
+          p.muted,
           '아직 연결을 확인하지 못했어요.',
           body: why,
           suggestSettings: true,

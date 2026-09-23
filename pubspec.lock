@@ -247,14 +247,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  google_mlkit_barcode_scanning:
-    dependency: "direct main"
-    description:
-      name: google_mlkit_barcode_scanning
-      sha256: aaefc95e35f3caea5b6d4745fabab4b8a877a39360ee77e1daab5b9d4e8be4e9
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.16.1"
   google_mlkit_commons:
     dependency: "direct main"
     description:
