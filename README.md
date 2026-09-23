@@ -1,4 +1,4 @@
-# Camera Wi-Fi Connector
+# 와이파이 렌즈 (Camera Wi-Fi Connector)
 
 카페·음식점·숙소의 Wi-Fi 안내문을 카메라로 찍으면 SSID와 비밀번호를 자동으로 인식하고,
 OS 공식 Wi-Fi API로 연결을 요청하는 Flutter 앱입니다. 요구사항은 [PRD.md](PRD.md)를 참고하세요.

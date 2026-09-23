@@ -87,7 +87,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final p = AppPalette.of(context);
     final entries = _entries;
     return Scaffold(
-      appBar: AppBar(title: const Text('스냅파이')),
+      appBar: AppBar(title: const Text('와이파이 렌즈')),
       body: switch (entries) {
         null => const Center(child: CircularProgressIndicator.adaptive()),
         _ => ListView(
