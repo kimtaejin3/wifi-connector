@@ -123,10 +123,13 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
     setState(() => _connecting = true);
     final result = await widget.wifiService.connect(ssid: ssid, password: password);
     if (!mounted || attempt != _attempt) return;
+    // 이미 저장된 네트워크는 OS가 새로 연결을 시도하지 않으므로 기다리지 않는다
+    // (이미 붙어 있거나, 설정에서 직접 골라야 한다).
+    final verify = result.needsVerification && !result.alreadySaved;
     setState(() {
       _connecting = false;
       _result = result;
-      _verifying = result.needsVerification;
+      _verifying = verify;
     });
     if (result.isSuccess) {
       HapticFeedback.lightImpact();
@@ -134,7 +137,7 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
       unawaited((widget.historyStore ?? wifiHistoryStore)
           .save(SavedWifi(ssid: ssid, password: password, savedAt: DateTime.now())));
     }
-    if (!result.needsVerification) return;
+    if (!verify) return;
 
     // OS가 요청을 받아들였다고 해서 연결된 것은 아니다. 실제 연결을 기다려 알려준다.
     final check = await widget.wifiService.awaitConnection(ssid: ssid);

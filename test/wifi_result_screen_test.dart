@@ -135,7 +135,7 @@ void main() {
     expect(find.text('다시 시도'), findsOneWidget);
   });
 
-  testWidgets('이미 저장된 네트워크면 설정에서 지우라고 안내한다', (tester) async {
+  testWidgets('이미 저장된 네트워크면 기다리지 않고 바로 안내한다', (tester) async {
     final service = FakeWifiService(
       const WifiConnectResult(WifiConnectStatus.requested, alreadySaved: true),
       check: WifiConnectionCheck.unconfirmed,
@@ -145,7 +145,10 @@ void main() {
     await tester.tap(find.text('Wi-Fi 연결'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('이미 저장된 네트워크'), findsOneWidget);
+    expect(find.text('이미 저장된 네트워크예요.'), findsOneWidget);
+    expect(find.textContaining('확인하고 있어요'), findsNothing);
+    expect(service.awaited, isEmpty);
+    expect(find.text('완료'), findsOneWidget);
   });
 
   testWidgets('캡티브 포털이면 로그인 안내', (tester) async {

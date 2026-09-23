@@ -141,6 +141,16 @@ class ConnectionStatusCard extends StatelessWidget {
       case WifiConnectStatus.requested:
       case WifiConnectStatus.suggested:
         final suggested = result.status == WifiConnectStatus.suggested;
+        if (result.alreadySaved && check == null && !verifying) {
+          return _CardState(
+            Icons.info_rounded,
+            AppTheme.success,
+            '이미 저장된 네트워크예요.',
+            body: '이미 연결돼 있다면 그대로 쓰시면 돼요. 연결돼 있지 않으면 Wi-Fi 설정에서 이 네트워크를 선택하고, '
+                '비밀번호가 바뀌었으면 설정에서 지운 뒤 다시 시도해주세요.',
+            suggestSettings: true,
+          );
+        }
         if (verifying) {
           return _CardState(
             null,
