@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/utils/platform_channel.dart';
@@ -118,12 +117,9 @@ class WifiService {
   /// [WifiConnectionCheck.connected]가 false여도 연결이 안 됐다고 단정할 수는 없다
   /// (이미 그 네트워크에 붙어 있었거나, OS가 기존 네트워크를 유지하는 경우).
   Future<WifiConnectionCheck> awaitConnection({required String ssid, Duration? timeout}) async {
-    // iOS는 apply()가 연결 시도까지 마친 뒤 돌아오므로 짧게, Android는 저장 후 OS가
-    // 전환하는 데 시간이 걸리므로 길게 기다린다.
-    final wait = timeout ??
-        (defaultTargetPlatform == TargetPlatform.iOS
-            ? const Duration(seconds: 6)
-            : const Duration(seconds: 20));
+    // iOS의 apply()는 실제 접속 전에 돌아오는 경우가 많고, Android는 저장 후 OS가
+    // 전환하는 데 시간이 걸린다. 둘 다 넉넉히 기다리되 붙는 즉시 끝난다.
+    final wait = timeout ?? const Duration(seconds: 20);
     try {
       final result = await platformChannel.invokeMapMethod<String, Object?>(
         'awaitConnection',

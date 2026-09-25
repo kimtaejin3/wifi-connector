@@ -57,6 +57,10 @@ final class WifiConnectorPlugin: NSObject, FlutterPlugin {
     // joinOnce = true 이면 앱이 백그라운드로 갈 때 연결이 끊긴다. 카페에서 계속 쓰도록 저장한다.
     configuration.joinOnce = false
 
+    // 이 앱이 예전에 같은 SSID로 저장한 설정이 있으면 지우고 새로 적용한다.
+    // 비밀번호가 바뀐 경우 옛 설정으로 붙으려다 실패하는 것을 막는다.
+    NEHotspotConfigurationManager.shared.removeConfiguration(forSSID: ssid)
+
     NEHotspotConfigurationManager.shared.apply(configuration) { error in
       DispatchQueue.main.async {
         if let error = error as NSError? {
@@ -69,7 +73,9 @@ final class WifiConnectorPlugin: NSObject, FlutterPlugin {
     }
   }
 
-  /// 현재 연결된 SSID가 [ssid]가 될 때까지 1초 간격으로 확인한다.
+  /// 현재 연결된 SSID가 [ssid]가 될 때까지 0.5초 간격으로 확인한다.
+  /// apply()는 사용자가 승인한 직후 실제 접속이 끝나기 전에 돌아오는 경우가 많아,
+  /// 접속이 몇 초 늦어도 놓치지 않도록 충분히 기다리되 붙는 즉시 돌려준다.
   /// NEHotspotNetwork.fetchCurrent는 이 앱이 NEHotspotConfiguration으로 설정한 네트워크라면
   /// 위치 권한 없이 동작한다 (Access Wi-Fi Information entitlement 필요).
   private func awaitConnection(ssid: String, deadline: Date, result: @escaping FlutterResult) {
@@ -80,7 +86,7 @@ final class WifiConnectorPlugin: NSObject, FlutterPlugin {
         } else if Date() >= deadline {
           result(["connected": false])
         } else {
-          DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.awaitConnection(ssid: ssid, deadline: deadline, result: result)
           }
         }
