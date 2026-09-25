@@ -88,7 +88,8 @@ void main() {
     expect(service.calls, [('TestCafe', 'Test12345')]);
     expect(service.awaited, ['TestCafe']);
     expect(find.text('Wi-Fi에 연결되었습니다.'), findsOneWidget);
-    expect(find.text('완료'), findsOneWidget);
+    expect(find.text('완료'), findsNothing);
+    expect(find.text('수정하기'), findsNothing);
 
     final saved = await history.load();
     expect(saved.single.ssid, 'TestCafe');
@@ -147,7 +148,8 @@ void main() {
     expect(find.text('이미 저장된 네트워크예요.'), findsOneWidget);
     expect(find.textContaining('확인하고 있어요'), findsNothing);
     expect(service.awaited, isEmpty);
-    expect(find.text('완료'), findsOneWidget);
+    expect(find.text('완료'), findsNothing);
+    expect(find.text('수정하기'), findsNothing);
   });
 
   testWidgets('캡티브 포털이면 로그인 안내', (tester) async {

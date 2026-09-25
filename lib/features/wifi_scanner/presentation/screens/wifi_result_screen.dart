@@ -126,8 +126,11 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
     if (result.isSuccess) {
       HapticFeedback.lightImpact();
       // OS가 요청을 받아들였으면 기록에 남긴다 (Keychain/Keystore).
-      unawaited((widget.historyStore ?? wifiHistoryStore)
-          .save(SavedWifi(ssid: ssid, password: password, savedAt: DateTime.now())));
+      unawaited(
+        (widget.historyStore ?? wifiHistoryStore).save(
+          SavedWifi(ssid: ssid, password: password, savedAt: DateTime.now()),
+        ),
+      );
     }
     if (!verify) return;
 
@@ -147,16 +150,9 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          tooltip: '닫기',
-          icon: const Icon(Icons.close_rounded),
-          onPressed: _close,
-        ),
+        leading: IconButton(tooltip: '닫기', icon: const Icon(Icons.close_rounded), onPressed: _close),
       ),
-      body: SafeArea(
-        top: false,
-        child: _showForm ? _buildForm(context) : _buildNotFound(context),
-      ),
+      body: SafeArea(top: false, child: _showForm ? _buildForm(context) : _buildNotFound(context)),
     );
   }
 
@@ -181,7 +177,10 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
                 child: Icon(Icons.wifi_find_rounded, color: p.accent, size: 26),
               ),
               const SizedBox(height: 18),
-              Text('잘 찍는 요령', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: p.ink)),
+              Text(
+                '잘 찍는 요령',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: p.ink),
+              ),
               const SizedBox(height: 6),
               Text(
                 '글자가 정사각형 영역 안에 들어오게 맞추고, 반사되는 빛을 피해 정면에서 비춰주세요.',
@@ -260,19 +259,18 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
                 values: _alternatives(WifiCandidateType.password, _password.text),
                 onSelected: (v) => _useCandidate(_password, v),
               ),
-              const SizedBox(height: 22),
-              Row(
-                children: [
-                  _buildPrimaryButton(),
-                  if (!_editable) ...[
-                    const SizedBox(width: 10),
-                    OutlinedButton(
-                      onPressed: _connecting ? null : _startEditing,
-                      child: const Text('수정하기'),
-                    ),
+              if (!_succeeded) ...[
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    _buildPrimaryButton(),
+                    if (!_editable) ...[
+                      const SizedBox(width: 10),
+                      OutlinedButton(onPressed: _connecting ? null : _startEditing, child: const Text('수정하기')),
+                    ],
                   ],
-                ],
-              ),
+                ),
+              ],
             ],
           ),
         ),
@@ -293,13 +291,19 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
         ),
         const SizedBox(height: 8),
         Center(
-          child: TextButton(
-            onPressed: _connecting ? null : _close,
-            child: Text(widget.retakeLabel ?? '닫기'),
-          ),
+          child: TextButton(onPressed: _connecting ? null : _close, child: Text(widget.retakeLabel ?? '닫기')),
         ),
       ],
     );
+  }
+
+  /// 연결 요청이 받아들여졌고 실패가 의심되지 않는 상태. 이때는 카드 안 버튼을 숨기고
+  /// 아래 상태 카드와 닫기 버튼만 보여준다. 실패·취소·확인 못 함이면 다시 버튼이 나온다.
+  bool get _succeeded {
+    final result = _result;
+    if (result == null || !result.isSuccess) return false;
+    final check = _check;
+    return check == null || check.connected;
   }
 
   bool get _canConnect => !_connecting && _ssid.text.trim().isNotEmpty;
@@ -351,7 +355,8 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
     if (!_found.hasSsid) return '비밀번호는 찾았어요. 안내문에 적힌 Wi-Fi 이름을 입력해주세요.';
     if (!_found.hasPassword) return 'Wi-Fi 이름은 찾았어요. 비밀번호가 없는 Wi-Fi라면 비워두고 연결하세요.';
     if (_found.isOpenNetwork) return '비밀번호가 없는 Wi-Fi로 인식했어요. 이름만 확인하고 연결하세요.';
-    final uncertain = _found.ssidConfidence < WifiCredential.confidentThreshold ||
+    final uncertain =
+        _found.ssidConfidence < WifiCredential.confidentThreshold ||
         _found.passwordConfidence < WifiCredential.confidentThreshold;
     return uncertain ? '안내문과 비교해보고, 다르면 수정하기를 누르세요.' : '정보가 맞으면 바로 연결하세요.';
   }
@@ -405,7 +410,10 @@ class _ErrorText extends StatelessWidget {
     final p = AppPalette.of(context);
     return Padding(
       padding: const EdgeInsets.only(top: 6),
-      child: Text(text, style: TextStyle(color: p.danger, fontSize: 13, fontWeight: FontWeight.w500)),
+      child: Text(
+        text,
+        style: TextStyle(color: p.danger, fontSize: 13, fontWeight: FontWeight.w500),
+      ),
     );
   }
 }
@@ -428,13 +436,12 @@ class _CandidateChips extends StatelessWidget {
         runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Text('후보', style: TextStyle(fontSize: 13, color: p.muted, fontWeight: FontWeight.w600)),
+          Text(
+            '후보',
+            style: TextStyle(fontSize: 13, color: p.muted, fontWeight: FontWeight.w600),
+          ),
           for (final value in values)
-            ActionChip(
-              label: Text(value),
-              visualDensity: VisualDensity.compact,
-              onPressed: () => onSelected(value),
-            ),
+            ActionChip(label: Text(value), visualDensity: VisualDensity.compact, onPressed: () => onSelected(value)),
         ],
       ),
     );
