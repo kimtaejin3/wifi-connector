@@ -42,7 +42,7 @@ class ScanGuideOverlay extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.w600,
                 height: 1.35,
                 shadows: [Shadow(blurRadius: 8, color: Colors.black54)],
@@ -82,14 +82,30 @@ class _GuidePainter extends CustomPainter {
       ..addRect(Offset.zero & size)
       ..addRRect(guide)
       ..fillType = PathFillType.evenOdd;
-    canvas.drawPath(dim, Paint()..color = Colors.black.withValues(alpha: 0.55));
-    canvas.drawRRect(
-      guide,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..color = Colors.white.withValues(alpha: 0.9),
-    );
+    canvas.drawPath(dim, Paint()..color = Colors.black.withValues(alpha: 0.5));
+
+    // 네 모서리만 그린다.
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round
+      ..color = Colors.white;
+    const arm = 34.0;
+    final r = _radius.x;
+    final corners = [
+      (rect.topLeft, 1.0, 1.0),
+      (rect.topRight, -1.0, 1.0),
+      (rect.bottomRight, -1.0, -1.0),
+      (rect.bottomLeft, 1.0, -1.0),
+    ];
+    for (final (c, sx, sy) in corners) {
+      final path = Path()
+        ..moveTo(c.dx, c.dy + sy * (r + arm))
+        ..lineTo(c.dx, c.dy + sy * r)
+        ..arcToPoint(Offset(c.dx + sx * r, c.dy), radius: _radius, clockwise: sx * sy > 0)
+        ..lineTo(c.dx + sx * (r + arm), c.dy);
+      canvas.drawPath(path, paint);
+    }
   }
 
   @override

@@ -19,8 +19,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
   });
 
   static const light = AppPalette(
-    background: Color(0xFFF7F8FB),
-    card: Color(0xFFFFFFFF),
+    background: Color(0xFFFFFFFF),
+    card: Color(0xFFF5F6FA),
     ink: Color(0xFF1F2333),
     muted: Color(0xFF8A90A6),
     hairline: Color(0xFFE9EBF2),
@@ -151,10 +151,10 @@ abstract final class AppTheme {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: p.card,
+        backgroundColor: p.background,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: p.accentSoft,
-        height: 68,
+        indicatorColor: Colors.transparent,
+        height: 64,
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(color: states.contains(WidgetState.selected) ? p.accent : p.muted),
         ),

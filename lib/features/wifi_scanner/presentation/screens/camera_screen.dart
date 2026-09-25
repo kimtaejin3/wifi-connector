@@ -529,30 +529,19 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                     child: Row(
                       children: [
                         Expanded(
-                          child: Row(
-                            children: [
-                              IconButton(
-                                tooltip: '갤러리에서 선택',
-                                iconSize: 26,
-                                style: IconButton.styleFrom(
-                                  backgroundColor: Colors.white24,
-                                  foregroundColor: Colors.white,
-                                  fixedSize: const Size(52, 52),
-                                ),
-                                onPressed: _processing ? null : _pickFromGallery,
-                                icon: const Icon(Icons.photo_library_outlined),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: IconButton(
+                              tooltip: '갤러리에서 선택',
+                              iconSize: 24,
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.white24,
+                                foregroundColor: Colors.white,
+                                fixedSize: const Size(52, 52),
                               ),
-                              const SizedBox(width: 4),
-                              TextButton(
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  minimumSize: const Size(44, 48),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                ),
-                                onPressed: _processing ? null : _openManualEntry,
-                                child: const Text('직접 입력'),
-                              ),
-                            ],
+                              onPressed: _processing ? null : _pickFromGallery,
+                              icon: const Icon(Icons.photo_library_outlined),
+                            ),
                           ),
                         ),
                         ShutterButton(onPressed: ready && !_processing ? _capture : null),

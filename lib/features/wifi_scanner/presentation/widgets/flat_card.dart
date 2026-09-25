@@ -42,6 +42,7 @@ class FieldRow extends StatelessWidget {
     super.key,
     required this.label,
     required this.controller,
+    this.large = false,
     this.editable = false,
     this.autofocus = false,
     this.hint,
@@ -50,8 +51,11 @@ class FieldRow extends StatelessWidget {
     this.onSubmitted,
   });
 
-  final String label;
+  final String? label;
   final TextEditingController controller;
+
+  /// 네트워크 이름처럼 화면의 주인공인 값은 크게.
+  final bool large;
   final bool editable;
   final bool autofocus;
   final String? hint;
@@ -62,14 +66,22 @@ class FieldRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final valueStyle = TextStyle(color: p.ink, fontSize: 20, fontWeight: FontWeight.w600, height: 1.3);
+    final valueStyle = TextStyle(
+      color: p.ink,
+      fontSize: large ? 30 : 22,
+      fontWeight: large ? FontWeight.w700 : FontWeight.w600,
+      height: 1.25,
+      letterSpacing: large ? -0.5 : -0.2,
+    );
     final hintStyle = valueStyle.copyWith(color: p.muted, fontWeight: FontWeight.w500);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: p.muted, fontSize: 12, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
+        if (label != null) ...[
+          Text(label!, style: TextStyle(color: p.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+        ],
         if (editable)
           TextField(
             controller: controller,

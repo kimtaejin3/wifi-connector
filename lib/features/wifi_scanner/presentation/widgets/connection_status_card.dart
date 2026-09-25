@@ -40,9 +40,8 @@ class ConnectionStatusCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: p.card,
-          borderRadius: BorderRadius.circular(AppPalette.cardRadius),
-          border: p.cardBorder,
+          color: state.color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
