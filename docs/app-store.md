@@ -82,25 +82,34 @@ ML Kit의 진단 정보 전송이 없다고 판단되면 "데이터를 수집하
 
 로그인 없음 (데모 계정 불필요)
 
-메모:
+메모 (2026-09-26 Guideline 2.1 요청에 따라 보강):
 
 ```
-This app reads a Wi-Fi sign (network name and password) with the on-device camera
-and asks iOS to join the network through NEHotspotConfigurationManager.
-The system "Join Wi-Fi Network?" alert is always shown; the app never joins without user approval.
+PURPOSE
+Wi-Fi Lens reads a printed Wi-Fi sign (network name and password) with the camera and asks iOS to join that network, so people do not have to type long passwords at cafes, restaurants, hotels, and offices. No account, no login, no paid content, no user-generated content.
 
-How to test:
-1. Show the attached test image (or any sign with "SSID : xxx / Password : yyy") on another screen.
-2. Point the camera at it, or tap the gallery button and choose a photo of it.
-3. Check the recognized name and password, then tap "Wi-Fi 연결".
-Joining succeeds only if a network with that name is actually nearby.
+HOW TO TEST
+1. Launch the app. The camera opens on the "안내문" (Sign) tab.
+2. Point the camera at the attached test image (Wi-Fi : WifiLens_Test / PW : lens2026!). When the banner appears, tap "확인" (OK).
+3. Check the name and password, tap "Wi-Fi 연결" (Connect Wi-Fi), and approve the iOS "Join Wi-Fi Network?" alert.
+4. Or tap the photo button at the bottom left and choose a photo of a sign.
+5. Networks that iOS accepted appear in the "기록" (History) tab.
+iOS can only join a network that is in range. To see a successful join, create a hotspot named WifiLens_Test with the password lens2026!.
 
-Entitlements: Hotspot Configuration (join), Access WiFi Information
-(only to confirm that the requested network is now connected). No location permission is requested.
-All text recognition runs on-device with Google ML Kit. No server, no account.
+EXTERNAL SERVICES
+- Google ML Kit Text Recognition, on-device only. Images and recognized text never leave the device.
+- Apple NEHotspotConfigurationManager to request the join (the system alert always asks the user) and NEHotspotNetwork to confirm it. No location permission.
+- Keychain for the on-device History list.
+No server, authentication, payments, analytics, or AI/cloud services.
+
+REGIONS
+Works the same in all regions. Recognizes Korean and Latin text.
+
+REGULATED CONTENT
+Not applicable.
 ```
 
-첨부: `test_signs/sign1.png`
+첨부: `test_signs/sign-hotspot.png`
 
 ## 수출 규정
 
