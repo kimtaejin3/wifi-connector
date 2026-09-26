@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>갤러리에서 고른 Wi-Fi 안내문 사진을 인식합니다. 사진은 기기 안에서만 처리되고 저장되지 않습니다.</string>
 	<key>NSCameraUsageDescription</key>
