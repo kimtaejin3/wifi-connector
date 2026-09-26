@@ -35,7 +35,7 @@ Hello App Review Team,
 Thank you for the review. Here is the requested information.
 
 1. Screen recording
-The attached recording was captured on a physical iPhone running the latest iOS. It starts from launching the app and shows the full flow: pointing the camera at a Wi-Fi sign, confirming the recognized network name and password, joining the network through the system "Join Wi-Fi Network?" alert, the History tab, and choosing a photo from the library.
+The attached recording was captured on a physical iPhone running the latest iOS. It starts from launching the app on the Home Screen and shows the full flow: pointing the camera at a Wi-Fi sign, confirming the recognized network name and password, joining the network through the system "Join Wi-Fi Network?" alert, the connection confirmation, and the History tab. Choosing a photo of a sign from the photo library (bottom-left button) leads to the same result screen.
 The app has no account registration, login, user-generated content, or paid content.
 
 2. Purpose and target audience
