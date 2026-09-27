@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/saved_wifi.dart';
 import '../../data/models/wifi_credential.dart';
 import '../../data/services/wifi_history_store.dart';
 import 'wifi_result_screen.dart';
+
+/// 스토어에 등록한 것과 같은 개인정보 처리방침. 앱 안에서도 볼 수 있어야 한다 (Google Play 정책).
+final privacyPolicyUrl = Uri.parse('https://github.com/kimtaejin3/wifi-connector/blob/main/docs/privacy.md');
 
 /// 인식해서 연결한 Wi-Fi 목록. 항목을 누르면 다시 연결할 수 있다.
 class HistoryScreen extends StatefulWidget {
@@ -66,6 +70,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ..showSnackBar(SnackBar(content: Text('${entry.ssid} 기록을 지웠어요')));
   }
 
+  Future<void> _openPrivacyPolicy() async {
+    final opened = await launchUrl(privacyPolicyUrl, mode: LaunchMode.externalApplication);
+    if (opened || !mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('브라우저를 열 수 없어요')));
+  }
+
   Future<void> _clearAll() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -115,6 +127,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   if (i > 0) Divider(color: p.hairline, height: 1),
                   _EntryRow(entry: entries[i], onTap: () => _open(entries[i]), onRemove: () => _remove(entries[i])),
                 ],
+                const SizedBox(height: 32),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: _openPrivacyPolicy,
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 40)),
+                    child: Text(
+                      '개인정보 처리방침',
+                      style: TextStyle(color: p.muted, fontSize: 13, decoration: TextDecoration.underline),
+                    ),
+                  ),
+                ),
               ],
             ),
         },
