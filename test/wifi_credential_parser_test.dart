@@ -403,6 +403,59 @@ void main() {
     });
   });
 
+  group('WIFI 글자 없이 아이콘만 있는 안내문', () {
+    test('아이콘을 OCR이 엉뚱한 글자로 읽어도 값은 살린다', () {
+      expectParsed('令 cafe_momo\n🔒 momo1234', ssid: 'cafe_momo', password: 'momo1234');
+      expectParsed('? cafe_momo\n? momo1234', ssid: 'cafe_momo', password: 'momo1234');
+      expectParsed('@ MomoCafe_5G\n@ coffee2024!', ssid: 'MomoCafe_5G', password: 'coffee2024!');
+    });
+
+    test('아이콘이 따로 떨어진 셀로 읽혀도 무시한다', () {
+      expectParsed('令\tcafe_momo\n🔒\tmomo1234', ssid: 'cafe_momo', password: 'momo1234');
+    });
+
+    test('이름표 없는 한 단어 다음 줄이 비밀번호 모양이면 앞줄을 이름으로 본다', () {
+      expectParsed('MomoCafe\ncoffee2024!', ssid: 'MomoCafe', password: 'coffee2024!');
+      expectParsed('令 MomoCafe\n🔒 coffee2024!', ssid: 'MomoCafe', password: 'coffee2024!');
+      expectParsed('MOMO CAFE\nMomoGuest\nmomo12345', ssid: 'MomoGuest', password: 'momo12345');
+    });
+
+    test('이름표 없이 추측한 값은 확신하지 않는다 (사용자가 확인)', () {
+      final r = parser.parse('MomoCafe\ncoffee2024!');
+      expect(r.ssidConfidence, lessThan(WifiCredential.confidentThreshold));
+      expect(r.passwordConfidence, lessThan(WifiCredential.confidentThreshold));
+    });
+
+    test('제목이나 인사말 한 단어는 이름으로 보지 않는다', () {
+      expectParsed('WELCOME\nEnjoy your coffee', ssid: null, password: null);
+      expectParsed('FREE\nmomo12345', ssid: null, password: 'momo12345');
+    });
+
+    test('이름표가 있으면 추측보다 이름표를 따른다', () {
+      expectParsed('MomoCafe\nSSID: cafe_real\nPW: real12345', ssid: 'cafe_real', password: 'real12345');
+    });
+
+    test('아이콘 뒤에 이름표가 있어도 그대로 읽는다', () {
+      expectParsed('令 Wi-Fi : cafe_momo\n🔒 PW : momo1234', ssid: 'cafe_momo', password: 'momo1234');
+    });
+  });
+
+  group('한글 와이파이 표기', () {
+    test('여러 가지 한글 이름표', () {
+      expectParsed('와이파이 : cafe_momo\n비밀번호 : momo1234', ssid: 'cafe_momo', password: 'momo1234');
+      expectParsed('와이 파이 : cafe_momo\n비번 : momo1234', ssid: 'cafe_momo', password: 'momo1234');
+      expectParsed('와이파이 이름 : MomoCafe\n와이파이 비밀번호 : momo1234', ssid: 'MomoCafe', password: 'momo1234');
+      expectParsed('와이파이명 MomoCafe\n와이파이 비번 momo1234', ssid: 'MomoCafe', password: 'momo1234');
+      expectParsed('무선인터넷 : MomoCafe\n암호 : momo1234', ssid: 'MomoCafe', password: 'momo1234');
+      expectParsed('무료 와이파이\nMomoCafe\n비밀번호\nmomo1234', ssid: 'MomoCafe', password: 'momo1234');
+    });
+
+    test('문장형 한글 안내', () {
+      expectParsed('와이파이는 MomoCafe 이고 비밀번호는 momo1234 입니다',
+          ssid: 'MomoCafe', password: 'momo1234');
+    });
+  });
+
   test('toString은 비밀번호를 노출하지 않는다', () {
     final result = parser.parse('SSID: cafe\nPassword: secret123');
     expect(result.toString(), isNot(contains('secret123')));

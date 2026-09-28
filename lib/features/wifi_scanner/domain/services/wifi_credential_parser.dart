@@ -266,6 +266,16 @@ class WifiCredentialParser {
   // 라벨 없는 값
 
   void _addUnlabeledFallbacks(List<List<_Segment>> rows, List<WifiCandidate> found) {
+    // 이름표 없이 "MomoCafe" 다음 줄에 "coffee2024!"가 오면 앞줄을 네트워크 이름으로 본다.
+    // 모양만 보고 추측한 값이라 점수를 낮게 둬서 사용자가 확인하게 한다.
+    for (var r = 0; r + 1 < rows.length; r++) {
+      final name = _loneValue(rows[r]);
+      final next = _loneValue(rows[r + 1]);
+      if (name == null || next == null || _looksLikeSsid(name)) continue;
+      if (_fallbackPasswordScore(next) == null || !_plausibleBareSsid(name)) continue;
+      found.add(WifiCandidate(value: name, type: WifiCandidateType.ssid, score: 0.45));
+    }
+
     for (final row in rows) {
       for (final seg in row) {
         if (seg.isLabel || seg.consumed) continue;
@@ -282,6 +292,23 @@ class WifiCredentialParser {
       }
     }
   }
+
+  /// 행에 라벨 없는 값 하나만 있고 공백이 없으면 그 값.
+  String? _loneValue(List<_Segment> row) {
+    if (row.length != 1) return null;
+    final seg = row.single;
+    if (seg.isLabel || seg.consumed) return null;
+    final v = seg.value.trim();
+    return v.isEmpty || v.contains(_whitespace) ? null : v;
+  }
+
+  bool _plausibleBareSsid(String v) =>
+      utf8.encode(v).length <= 32 &&
+      v.length >= 2 &&
+      !_digitsOnly.hasMatch(v) &&
+      !_contactLike.hasMatch(v) &&
+      !_noiseWords.contains(v.toLowerCase().replaceAll(_noisePunctuation, '')) &&
+      !_greetingWords.contains(v.toLowerCase().replaceAll(_noisePunctuation, ''));
 
   bool _looksLikeSsid(String v) =>
       utf8.encode(v).length <= 32 &&
@@ -406,8 +433,9 @@ class WifiCredentialParser {
       final cells = normalizeOcrText(line).split('\t');
       for (var c = 0; c < cells.length; c++) {
         // "• Password: ..." 같은 글머리 기호는 라벨 인식을 막으므로 떼어낸다.
-        final cell = cells[c].trim().replaceFirst(_bullet, '').trim();
-        if (cell.isEmpty) continue;
+        final cell = cells[c].trim().replaceFirst(_bullet, '').trim().replaceFirst(_iconPrefix, '');
+        // Wi-Fi·자물쇠 아이콘을 OCR이 "令", "?", "🔒" 같은 한두 글자로 읽은 셀은 버린다.
+        if (cell.isEmpty || _iconOnly.hasMatch(cell)) continue;
         segs.addAll(_segmentCell(cell, c));
       }
       if (segs.isNotEmpty) rows.add(segs);
@@ -629,6 +657,16 @@ final _ssidShape = RegExp(
   caseSensitive: false,
 );
 final _noisePunctuation = RegExp(r'[!.,~]');
+
+/// 줄 앞의 아이콘 자리: 영문·숫자·한글로 시작하지 않는 한두 글자 + 공백 ("令 cafe", "🔒 pw1234").
+final _iconPrefix = RegExp(r'^(?![A-Za-z0-9가-힣ㄱ-ㅎ])\S{1,2}\s+(?=\S)', unicode: true);
+final _iconOnly = RegExp(r'^(?![A-Za-z0-9가-힣ㄱ-ㅎ])\S{1,2}$', unicode: true);
+
+/// 안내문 제목·인사말로 자주 쓰이는 한 단어. 이름표 없는 네트워크 이름으로 보지 않는다.
+const _greetingWords = {
+  'welcome', 'thanks', 'thank', 'enjoy', 'hello', 'wifi', 'wi-fi', 'password', 'cafe', 'coffee', 'menu',
+  '환영합니다', '감사합니다', '안녕하세요', '어서오세요', '카페',
+};
 const _noiseWords = {
   'zone', 'free', 'available', 'spot', 'hotspot', 'area', 'here', 'service', 'info',
   'information', 'guide', '존', '무료', '가능', '사용가능', '이용가능', '제공', '서비스', '안내', '정보',
