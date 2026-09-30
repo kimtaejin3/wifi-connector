@@ -404,7 +404,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     _releaseCamera();
 
     await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => WifiResultScreen(credential: credential, manualEntry: manualEntry),
+      // O와 0처럼 OCR이 확신하고도 틀리는 글자는 바꾼 값을 후보로 보여준다.
+      builder: (_) => WifiResultScreen(
+        credential: manualEntry ? credential : _extractor.withLookalikes(credential),
+        manualEntry: manualEntry,
+      ),
     ));
 
     _resultOpen = false;

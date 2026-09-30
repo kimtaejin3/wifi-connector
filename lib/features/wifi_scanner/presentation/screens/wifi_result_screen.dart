@@ -117,20 +117,24 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
     if (!mounted || attempt != _attempt) return;
     // 이미 저장된 네트워크는 OS가 새로 연결을 시도하지 않으므로 기다리지 않는다
     // (이미 붙어 있거나, 설정에서 직접 골라야 한다).
-    final verify = result.needsVerification && !result.alreadySaved;
+    // 원인 모를 실패도 곧 연결될 수 있으니, 실패를 띄우기 전에 실제 연결 여부를 확인한다.
+    final recovering = result.mayStillConnect;
+    final verify = (result.needsVerification && !result.alreadySaved) || recovering;
     setState(() {
       _connecting = false;
-      _result = result;
+      // 확인하는 동안은 "확인하고 있어요"를 보여주고, 끝나면 실제 결과로 바꾼다.
+      _result = recovering ? const WifiConnectResult(WifiConnectStatus.requested) : result;
       _verifying = verify;
     });
+    void remember() => unawaited(
+          (widget.historyStore ?? wifiHistoryStore).save(
+            SavedWifi(ssid: ssid, password: password, savedAt: DateTime.now()),
+          ),
+        );
     if (result.isSuccess) {
       HapticFeedback.lightImpact();
       // OS가 요청을 받아들였으면 기록에 남긴다 (Keychain/Keystore).
-      unawaited(
-        (widget.historyStore ?? wifiHistoryStore).save(
-          SavedWifi(ssid: ssid, password: password, savedAt: DateTime.now()),
-        ),
-      );
+      remember();
     }
     if (!verify) return;
 
@@ -139,9 +143,17 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
     if (!mounted || attempt != _attempt) return;
     setState(() {
       _verifying = false;
-      _check = check;
+      if (recovering) {
+        _result = check.connected ? const WifiConnectResult(WifiConnectStatus.connected) : result;
+        _check = null;
+      } else {
+        _check = check;
+      }
     });
-    if (check.connected) HapticFeedback.lightImpact();
+    if (check.connected) {
+      HapticFeedback.lightImpact();
+      if (recovering) remember();
+    }
   }
 
   void _close() => Navigator.of(context).maybePop();

@@ -206,6 +206,47 @@ void main() {
     expect(find.text('다시 시도'), findsOneWidget);
   });
 
+  testWidgets('OS가 원인 모를 실패를 돌려줘도 실제로 연결됐으면 연결됨으로 보여주고 기록한다', (tester) async {
+    final service = FakeWifiService(const WifiConnectResult.failed(WifiConnectFailure.unknown));
+    final history = await pumpResult(tester, found, service: service);
+
+    await tester.tap(find.text('Wi-Fi 연결'));
+    await tester.pumpAndSettle();
+
+    expect(service.awaited, ['TestCafe']);
+    expect(find.text('Wi-Fi에 연결되었습니다.'), findsOneWidget);
+    expect(find.text('Wi-Fi에 연결하지 못했습니다.'), findsNothing);
+    expect(find.text('다시 시도'), findsNothing);
+    expect((await history.load()).map((e) => e.ssid), ['TestCafe']);
+  });
+
+  testWidgets('원인 모를 실패 뒤 연결도 확인되지 않으면 실패 안내', (tester) async {
+    final service = FakeWifiService(
+      const WifiConnectResult.failed(WifiConnectFailure.unknown),
+      check: WifiConnectionCheck.unconfirmed,
+    );
+    final history = await pumpResult(tester, found, service: service);
+
+    await tester.tap(find.text('Wi-Fi 연결'));
+    await tester.pumpAndSettle();
+
+    expect(service.awaited, ['TestCafe']);
+    expect(find.text('Wi-Fi에 연결하지 못했습니다.'), findsOneWidget);
+    expect(find.text('다시 시도'), findsOneWidget);
+    expect(await history.load(), isEmpty);
+  });
+
+  testWidgets('비밀번호 형식 오류는 연결될 수 없으니 확인하지 않는다', (tester) async {
+    final service = FakeWifiService(const WifiConnectResult.failed(WifiConnectFailure.invalidPassword));
+    await pumpResult(tester, found, service: service);
+
+    await tester.tap(find.text('Wi-Fi 연결'));
+    await tester.pumpAndSettle();
+
+    expect(service.awaited, isEmpty);
+    expect(find.text('연결할 수 없습니다.'), findsOneWidget);
+  });
+
   testWidgets('값을 고치면 이전 결과 카드가 사라진다', (tester) async {
     final service = FakeWifiService(requested, check: WifiConnectionCheck.unconfirmed);
     await pumpResult(tester, found, service: service);

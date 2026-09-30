@@ -84,6 +84,57 @@ class WifiCredentialExtractor {
     );
   }
 
+  /// 알파벳 O와 숫자 0은 안내문 글꼴에서 거의 똑같아 OCR이 확신하고도 틀린다.
+  /// 선택된 이름·비밀번호의 O·0·o 자리를 서로 바꾼 값을 후보로 덧붙인다.
+  /// 선택된 값과 확신도는 바꾸지 않고, 결과 화면의 "후보" 칩에만 보이게 한다.
+  WifiCredential withLookalikes(WifiCredential credential) {
+    final extra = <WifiCandidate>[];
+
+    void expand(String? value, WifiCandidateType type) {
+      if (value == null || value.isEmpty) return;
+      final positions = [
+        for (var i = 0; i < value.length; i++)
+          if (_lookalikes.containsKey(value[i])) i,
+      ];
+      if (positions.isEmpty) return;
+      final top = credential.candidatesOf(type).firstOrNull?.score ?? 0;
+      var rank = 0;
+      void add(String v) => extra.add(WifiCandidate(
+            value: v,
+            type: type,
+            score: (top - 0.01 - 0.001 * rank++).clamp(0.0, 1.0),
+          ));
+      // 한 자리씩 바꾼 값 (앞에서부터 몇 자리만)
+      for (final i in positions.take(_maxLookalikePositions)) {
+        add(value.replaceRange(i, i + 1, _lookalikes[value[i]]!));
+      }
+      // 여러 자리면 모두 바꾼 값도 (0000 ↔ OOOO)
+      if (positions.length > 1) {
+        final all = StringBuffer();
+        for (var i = 0; i < value.length; i++) {
+          all.write(_lookalikes[value[i]] ?? value[i]);
+        }
+        add(all.toString());
+      }
+    }
+
+    expand(credential.ssid, WifiCandidateType.ssid);
+    expand(credential.password, WifiCandidateType.password);
+    if (extra.isEmpty) return credential;
+
+    final existing = {for (final c in credential.candidates) '${c.type.name}\u0000${c.value}'};
+    final candidates = [
+      ...credential.candidates,
+      ...extra.where((c) => existing.add('${c.type.name}\u0000${c.value}')),
+    ]..sort((a, b) => b.score.compareTo(a.score));
+    return credential.copyWith(candidates: candidates);
+  }
+
+  static const _maxLookalikePositions = 4;
+
+  /// 대문자 O ↔ 숫자 0, 소문자 o → 숫자 0.
+  static const _lookalikes = {'O': '0', '0': 'O', 'o': '0'};
+
   /// 불확실한 글자가 많으면 조합이 폭발하므로 앞에서부터 이만큼만 후보를 만든다.
   static const _maxSubstitutedChars = 2;
 

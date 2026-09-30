@@ -60,6 +60,11 @@ class WifiConnectResult {
       status == WifiConnectStatus.requested ||
       status == WifiConnectStatus.suggested;
 
+  /// OS가 원인을 밝히지 않고 실패를 돌려줬지만 실제로는 연결될 수 있는 상태.
+  /// iOS는 첫 접속 시도가 늦으면 "연결할 수 없음" 알림과 함께 실패를 알린 뒤
+  /// 저장된 설정으로 곧 다시 붙기도 한다. 형식 오류나 사용자 거절은 여기에 해당하지 않는다.
+  bool get mayStillConnect => status == WifiConnectStatus.failed && failure == WifiConnectFailure.unknown;
+
   /// 요청은 성공했지만 실제 연결은 따로 확인해야 하는 상태.
   bool get needsVerification =>
       status == WifiConnectStatus.requested || status == WifiConnectStatus.suggested;
@@ -119,7 +124,8 @@ class WifiService {
   Future<WifiConnectionCheck> awaitConnection({required String ssid, Duration? timeout}) async {
     // iOS의 apply()는 실제 접속 전에 돌아오는 경우가 많고, Android는 저장 후 OS가
     // 전환하는 데 시간이 걸린다. 둘 다 넉넉히 기다리되 붙는 즉시 끝난다.
-    final wait = timeout ?? const Duration(seconds: 20);
+    // iOS는 첫 시도가 실패해도 저장된 설정으로 다시 붙는 데 시간이 더 걸릴 수 있다.
+    final wait = timeout ?? const Duration(seconds: 30);
     try {
       final result = await platformChannel.invokeMapMethod<String, Object?>(
         'awaitConnection',

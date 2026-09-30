@@ -57,17 +57,38 @@ final class WifiConnectorPlugin: NSObject, FlutterPlugin {
     // joinOnce = true 이면 앱이 백그라운드로 갈 때 연결이 끊긴다. 카페에서 계속 쓰도록 저장한다.
     configuration.joinOnce = false
 
-    // 이 앱이 예전에 같은 SSID로 저장한 설정이 있으면 지우고 새로 적용한다.
-    // 비밀번호가 바뀐 경우 옛 설정으로 붙으려다 실패하는 것을 막는다.
-    NEHotspotConfigurationManager.shared.removeConfiguration(forSSID: ssid)
+    let manager = NEHotspotConfigurationManager.shared
+    let apply = {
+      manager.apply(configuration) { error in
+        DispatchQueue.main.async {
+          if let error = error as NSError? {
+            result(Self.map(error))
+          } else {
+            // apply()는 비밀번호가 틀려도 에러 없이 끝나는 경우가 있어 연결 여부는 awaitConnection에서 확인한다.
+            result(["status": "requested"])
+          }
+        }
+      }
+    }
 
-    NEHotspotConfigurationManager.shared.apply(configuration) { error in
-      DispatchQueue.main.async {
-        if let error = error as NSError? {
-          result(Self.map(error))
-        } else {
-          // apply()는 비밀번호가 틀려도 에러 없이 끝나는 경우가 있어 연결 여부는 awaitConnection에서 확인한다.
-          result(["status": "requested"])
+    // 이미 그 네트워크에 붙어 있으면 아무것도 하지 않는다. 설정을 지우고 다시 적용하면
+    // 연결이 잠깐 끊겼다 붙으면서 iOS가 "연결할 수 없음" 알림을 띄우기 때문이다.
+    NEHotspotNetwork.fetchCurrent { current in
+      if current?.ssid == ssid {
+        DispatchQueue.main.async { result(["status": "connected"]) }
+        return
+      }
+      // 이 앱이 예전에 같은 SSID로 저장한 설정이 있을 때만 지우고 새로 적용한다
+      // (비밀번호가 바뀐 경우 옛 설정으로 붙으려다 실패하는 것을 막는다).
+      // 삭제는 비동기로 끝나므로 잠깐 기다린 뒤 적용해 두 요청이 겹치지 않게 한다.
+      manager.getConfiguredSSIDs { configured in
+        DispatchQueue.main.async {
+          if configured.contains(ssid) {
+            manager.removeConfiguration(forSSID: ssid)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: apply)
+          } else {
+            apply()
+          }
         }
       }
     }
