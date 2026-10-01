@@ -456,6 +456,50 @@ void main() {
     });
   });
 
+  group('사용자가 보내준 실패 안내문 (1.0.1)', () {
+    const zoneHead = 'Wifi Zone\n병원에서는 내원하시는 분들의 편의를 위해\n무료와이파이를 운영하고 있습니다.\n';
+    const freeHead = 'CREE MIAY\n와이파이 이용방법\n';
+
+    test('Wifi Zone 안내문 (ID / PW 검은 상자)', () {
+      expectParsed('${zoneHead}ID\tatozpartners\nPW 123456789', ssid: 'atozpartners', password: '123456789');
+      expectParsed('${zoneHead}ID\natozpartners\nPW\n123456789', ssid: 'atozpartners', password: '123456789');
+    });
+
+    test('ID와 PW를 OCR이 비슷한 글자로 읽어도', () {
+      expectParsed('${zoneHead}IO\tatozpartners\nPW 123456789', ssid: 'atozpartners', password: '123456789');
+      expectParsed('${zoneHead}lD\tatozpartners\nPVV 123456789', ssid: 'atozpartners', password: '123456789');
+      expectParsed('${zoneHead}I.D\tatozpartners\nP.W 123456789', ssid: 'atozpartners', password: '123456789');
+    });
+
+    test('FREE WIFI 안내문: "와이파이 이용방법"은 이름이 아니다', () {
+      expectParsed('${freeHead}1D\tWINPT_PPT\nPW\t123456789*', ssid: 'WINPT_PPT', password: '123456789*');
+      expectParsed('${freeHead}ID | WINPT_PPT\nPW | 123456789*', ssid: 'WINPT_PPT', password: '123456789*');
+    });
+
+    test('글자 사이가 벌어진 I D / P W 이름표', () {
+      expectParsed('${freeHead}I D\tWINPT_PPT\nP W\t123456789*', ssid: 'WINPT_PPT', password: '123456789*');
+      expectParsed('${freeHead}I  D WINPT_PPT\nP  W 123456789*', ssid: 'WINPT_PPT', password: '123456789*');
+      expectParsed('S S I D : cafe_momo\nP A S S W O R D : momo1234', ssid: 'cafe_momo', password: 'momo1234');
+    });
+
+    test('이름표를 못 읽어도 숫자+기호 비밀번호는 추측한다', () {
+      expectParsed('${freeHead}WINPT_PPT\n123456789*', ssid: 'WINPT_PPT', password: '123456789*');
+    });
+
+    test('와이파이 다음에 오는 안내 문구는 이름으로 보지 않는다', () {
+      for (final phrase in ['이용방법', '사용방법', '접속방법', '연결방법', '이용 안내', '접속 안내', '이용 방법']) {
+        expectParsed('와이파이 $phrase\nID: cafe_momo\nPW: momo1234', ssid: 'cafe_momo', password: 'momo1234');
+      }
+    });
+
+    test('이름표 없는 일반 단어는 여전히 오탐하지 않는다', () {
+      expectParsed('WIFI\nWelcome to our cafe', ssid: null, password: null);
+      expectParsed('IO 단자 안내\n전원을 켜세요', ssid: null, password: null);
+      expectParsed('영업시간 10:00~22:00\nID: cafe_momo\nPW: momo1234', ssid: 'cafe_momo', password: 'momo1234');
+      expectParsed('영업시간 10:00~22:00', ssid: null, password: null);
+    });
+  });
+
   test('toString은 비밀번호를 노출하지 않는다', () {
     final result = parser.parse('SSID: cafe\nPassword: secret123');
     expect(result.toString(), isNot(contains('secret123')));

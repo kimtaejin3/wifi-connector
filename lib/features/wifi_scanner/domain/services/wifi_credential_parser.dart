@@ -320,7 +320,7 @@ class WifiCredentialParser {
     if (v.length < 8 || v.length > 63 || !_printableAscii.hasMatch(v)) return null;
     if (_contactLike.hasMatch(v)) return null;
     if (_digitsOnly.hasMatch(v)) return 0.4;
-    if (_hasDigit.hasMatch(v) && _hasLetter.hasMatch(v)) return 0.5;
+    if (_hasDigit.hasMatch(v) && (_hasLetter.hasMatch(v) || _hasSymbol.hasMatch(v))) return 0.5;
     return null;
   }
 
@@ -606,7 +606,7 @@ const _boundary = r'(?![\p{L}\p{N}_]|-[\p{L}\p{N}])';
 
 final _passwordLabel = RegExp(
   '$_free(?:(?:$_wifiWord|$_network)\\s*)?'
-  '(?:(?<strong>pass\\s?w[o0]r?d|passward|passwd|passcode|pwd|p\\s?/\\s?w|p\\.w\\.?|pw'
+  '(?:(?<strong>pass\\s?w[o0]r?d|p\\s?a\\s?s\\s?s\\s?w\\s?[o0]\\s?r\\s?d|passward|passwd|passcode|pwd|p\\s?/\\s?w|p\\.w\\.?|p\\s{0,2}(?:w|vv)'
   '|비밀\\s?번호|비번|암호|패스\\s?워드)|(?<weak>pass|key))'
   '$_particle$_boundary',
   caseSensitive: false,
@@ -615,10 +615,10 @@ final _passwordLabel = RegExp(
 
 final _ssidLabel = RegExp(
   '$_free(?:'
-  '(?<strong>s[s5][i1l]d|network\\s*name|네트\\s?워크\\s*(?:이름|명)'
+  '(?<strong>s\\s?[s5]\\s?[i1l]\\s?d|network\\s*name|네트\\s?워크\\s*(?:이름|명)'
   '|$_wifiWord\\s*(?:name|[il1]d|ssid|이름|명))'
   '|(?<medium>$_wifiWord)'
-  '|(?<weak>$_network|[il1]d)'
+  '|(?<weak>$_network|[il1|][\\s.]{0,2}d|[il|]\\.?[0o])'
   ')$_particle$_boundary',
   caseSensitive: false,
   unicode: true,
@@ -651,6 +651,7 @@ final _printableAscii = RegExp(r'^[\x20-\x7E]+$');
 final _digitsOnly = RegExp(r'^\d+$');
 final _hasDigit = RegExp(r'\d');
 final _hasLetter = RegExp(r'[A-Za-z]');
+final _hasSymbol = RegExp(r'[^A-Za-z0-9\s]');
 final _contactLike = RegExp(r'https?://|www\.|@\S+\.|\.(?:com|net|kr|co)\b', caseSensitive: false);
 final _ssidShape = RegExp(
   r'_|^(?:iptime|kt_|sk_|u\+|olleh|lgu|giga)|[_\-]?(?:2\.4g|5g|2g)(?:hz)?$',
@@ -670,4 +671,7 @@ const _greetingWords = {
 const _noiseWords = {
   'zone', 'free', 'available', 'spot', 'hotspot', 'area', 'here', 'service', 'info',
   'information', 'guide', '존', '무료', '가능', '사용가능', '이용가능', '제공', '서비스', '안내', '정보',
+  // "와이파이 이용방법", "와이파이 접속 안내" 같은 제목
+  '방법', '이용', '사용', '접속', '연결', '이용방법', '사용방법', '접속방법', '연결방법',
+  '이용안내', '사용안내', '접속안내', '연결안내', '안내문', '운영', '운영중', '구역',
 };
