@@ -462,7 +462,8 @@ class WifiCredentialParser {
     if (matches.isEmpty) return [_Segment(null, cell, cellIndex)];
 
     final segs = <_Segment>[];
-    final prefix = cell.substring(0, matches.first.start).replaceFirst(_trailingDelimiters, '');
+    // "KT_GIGA_E58D :: PW= ..." — 라벨 앞 값 뒤에 붙은 구분자도 뗀다.
+    final prefix = cell.substring(0, matches.first.start).replaceFirst(_prefixTrailing, '');
     if (prefix.trim().isNotEmpty) segs.add(_Segment(null, prefix.trim(), cellIndex));
 
     for (var k = 0; k < matches.length; k++) {
@@ -470,6 +471,8 @@ class WifiCredentialParser {
       final end = k + 1 < matches.length ? matches[k + 1].start : cell.length;
       var value = cell.substring(m.valueStart, end).trim();
       if (k + 1 < matches.length) value = value.replaceFirst(_trailingDelimiters, '');
+      // 따옴표로 감싼 값은 여러 단어여도 의도된 값이다 ('Connect to "Momo Guest"').
+      final quoted = _wrappingQuotes.hasMatch(value);
       // "cafe_momo 이고" 같은 문장 종결을 먼저 떼어내야 아래 여러 단어 판정에 걸리지 않는다.
       value = _cleanValue(value);
 
@@ -480,7 +483,7 @@ class WifiCredentialParser {
         header = true;
       }
       // 약한 라벨("ID", "Network", "Key"...) 뒤에 구분자 없이 여러 단어가 오면 라벨로 보지 않는다.
-      if (value.contains(_whitespace) && !m.hasSeparator && m.strength != _Strength.strong) {
+      if (value.contains(_whitespace) && !m.hasSeparator && m.strength != _Strength.strong && !quoted) {
         segs.add(_Segment(null, cell.substring(m.start, end).trim(), cellIndex));
         continue;
       }
@@ -529,6 +532,9 @@ class WifiCredentialParser {
     var v = value.trim().replaceFirst(_trailingNote, '').trim();
     final stripped = v.replaceFirst(_sentenceEnding, '').trim();
     if (stripped.isNotEmpty) v = stripped;
+    // 'Connect to "Momo Guest"' — 양쪽을 모두 감싼 따옴표만 벗긴다.
+    final quoted = _wrappingQuotes.firstMatch(v);
+    if (quoted != null) v = quoted.group(1)!;
     return v;
   }
 
@@ -594,12 +600,12 @@ class _Segment {
 
 /// "Wi-Fi", "WIFI", "Wl-Fi" 외에 OCR이 얇은 i를 빠뜨린 "W-Fi", "Wi-F"도 허용한다.
 const _wifi = r'w(?:[i1l][\s\-‐‑_.·]?|[\-‐‑_.·])f[i1l]?';
-const _wifiWord = '(?:$_wifi|wlan|와이\\s?파이|무선\\s*인터넷)';
+const _wifiWord = '(?:$_wifi|wlan|와이\\s?파이|무선\\s*(?:인터넷|랜)|인터넷|internet)';
 const _network = '(?:network|네트\\s?워크)';
 const _free = r'(?:(?:free|무료)\s*)?';
 
 /// "비밀번호는 abc" 처럼 한글 라벨 뒤에 붙는 조사.
-const _particle = r'(?:(?:는|은|이|가|를|을)(?=\s|[:=：;|]|$))?';
+const _particle = r'(?:(?:는|은|이|가|를|을)(?=\s|[:=：;|]|$)|\s+is(?=\s|[:=：;|]|$))?';
 
 /// 라벨 바로 뒤에 글자/숫자/밑줄이 붙으면 라벨이 아니다 ("WIFI_MOMO", "Keyboard").
 const _boundary = r'(?![\p{L}\p{N}_]|-[\p{L}\p{N}])';
@@ -615,10 +621,10 @@ final _passwordLabel = RegExp(
 
 final _ssidLabel = RegExp(
   '$_free(?:'
-  '(?<strong>s\\s?[s5]\\s?[i1l]\\s?d|network\\s*name|네트\\s?워크\\s*(?:이름|명)'
+  '(?<strong>s\\s?[s5]\\s?[i1l]\\s?d|network\\s*name|user\\s?name|네트\\s?워크\\s*(?:이름|명)'
   '|$_wifiWord\\s*(?:name|[il1]d|ssid|이름|명))'
-  '|(?<medium>$_wifiWord)'
-  '|(?<weak>$_network|[il1|][\\s.]{0,2}d|[il|]\\.?[0o])'
+  '|(?<medium>$_wifiWord|connect\\s+to|join|아이디)'
+  '|(?<weak>$_network|[il1|][\\s.]{0,2}d|[il|]\\.?[0o]|name|이름)'
   ')$_particle$_boundary',
   caseSensitive: false,
   unicode: true,
@@ -626,7 +632,7 @@ final _ssidLabel = RegExp(
 
 final _freePrefix = RegExp(r'^(?:free|무료)', caseSensitive: false);
 // OCR은 ':'를 ';'로, 표의 세로선을 '|'로 읽기도 한다.
-final _separator = RegExp(r'\s*(?:[:=：;|]|[-–—>](?=\s))\s*');
+final _separator = RegExp(r'\s*(?:[:=：;|]{1,3}>?|(?:[-–—>→➜➔⇒]|=>)(?=\s))\s*');
 final _bullet = RegExp(r'^(?:[•·▪▶►☞→■□●○◆◇✔✓※★☆*]+|-(?=\s))\s*');
 final _sentenceEnding = RegExp(
   r'\s*(?:입니다|이에요|예요|에요|이며|이고|이구요|이라고|이에용|입니당|임다|이야|이에요)[.!。]?$',
@@ -640,6 +646,9 @@ final _bandQualifier = RegExp(r'\s*(?:\d(?:\.\d)?\s*g(?:hz)?|\d)(?=\s*[:=：])',
 final _slash = RegExp(r'\s*/\s*');
 final _delimiter = RegExp(r'[\s/|,;·]');
 final _trailingDelimiters = RegExp(r'[\s/|,;·]+$');
+final _prefixTrailing = RegExp(r'[\s/|,;·:=：\-–—→]+$');
+/// 'Connect to "Momo Guest"' 처럼 값 전체를 감싼 따옴표.
+final _wrappingQuotes = RegExp('^["“”\'‘’「『]\\s*(.+?)\\s*["“”\'‘’」』]\$');
 final _trailingNote = RegExp(r'\s+[(\[（【][^)\]）】]*[)\]）】]$');
 final _valueSplitters = [RegExp(r'\s+/\s+'), RegExp(r'\s*\|\s*'), RegExp(r'\s*/\s*'), RegExp(r'\s+')];
 final _whitespace = RegExp(r'\s+');

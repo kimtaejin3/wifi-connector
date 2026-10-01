@@ -500,6 +500,63 @@ void main() {
     });
   });
 
+  group('검색으로 모은 실제 안내문 표기', () {
+    // 국내 카페 공개 목록과 해외 안내문 템플릿에서 모은 표기들.
+    const cases = <(String, String, String)>[
+      ('KT_GIGA_E58D :: PW= 5zeb0ek645', 'KT_GIGA_E58D', '5zeb0ek645'),
+      ('Wi-Fi :: BS5688\nPW :: gt_3393412', 'BS5688', 'gt_3393412'),
+      ('WIFI : Apple House\nPW : aaaaaaaa', 'Apple House', 'aaaaaaaa'),
+      ('Network Name: TheJohnsons\nPassword: password123', 'TheJohnsons', 'password123'),
+      ('Network ID: Stone Cottage\nPassword: 9475%ur@LBL', 'Stone Cottage', '9475%ur@LBL'),
+      ('NETWORK: sweethome123\nPASSWORD: airbnb1234', 'sweethome123', 'airbnb1234'),
+      ('WiFi Name\nSUGAR HIGH\nPassword\nsugarhigh1234', 'SUGAR HIGH', 'sugarhigh1234'),
+      ('Guest WiFi\nNetwork: Gallery Cafe\nPass: ncafe888', 'Gallery Cafe', 'ncafe888'),
+      ('Username: cafe_guest\nPassword: guest1234', 'cafe_guest', 'guest1234'),
+      ('SSID: Forest_Free_WiFi\nKey: 00000000', 'Forest_Free_WiFi', '00000000'),
+      ('Network: Smith_Home\nOur home wifi password is: welcome2024', 'Smith_Home', 'welcome2024'),
+      ('와이파이명: 겟인상북\n비밀번호: adbbkd4362', '겟인상북', 'adbbkd4362'),
+      ('아이디 : tiede\n비번 : tiede12345', 'tiede', 'tiede12345'),
+      ('무선랜 : BunHong\n암호 : aaaaafffff', 'BunHong', 'aaaaafffff'),
+      ('고객용 와이파이 : KT_GiGA_2G_ruhencoffee\n비밀번호 : a1234567890', 'KT_GiGA_2G_ruhencoffee', 'a1234567890'),
+      ('WiFi Password Is\ncoffee2024\nNetwork: Bean_Guest', 'Bean_Guest', 'coffee2024'),
+      ('SCAN TO CONNECT\nNETWORK\nmomo_guest\nPASSWORD\nmomo1234', 'momo_guest', 'momo1234'),
+      ('Wi-Fi 이름 / Name : cafe_momo\n비밀번호 / Password : momo1234', 'cafe_momo', 'momo1234'),
+      ('ID: cafe_momo  PW: momo1234', 'cafe_momo', 'momo1234'),
+      ('Wifi: cafe_momo, Password: momo1234', 'cafe_momo', 'momo1234'),
+      ('ＷＩＦＩ：cafe_momo ＰＷ：momo1234', 'cafe_momo', 'momo1234'),
+      ('Free Wi-Fi\nConnect to "Momo Guest"\nPassword: momo1234', 'Momo Guest', 'momo1234'),
+      ('Join "Momo_Guest"\nPW: momo1234', 'Momo_Guest', 'momo1234'),
+      ('WIFI | cafe_momo\nPW | momo1234', 'cafe_momo', 'momo1234'),
+      ('Network → cafe_momo\nPassword → momo1234', 'cafe_momo', 'momo1234'),
+      ('WLAN : cafe_momo\nWPA2 Key : momo1234', 'cafe_momo', 'momo1234'),
+      ('와이파이 : cafe_momo\n와이파이 비밀번호는 momo1234 입니다', 'cafe_momo', 'momo1234'),
+      ('인터넷 : cafe_momo\n인터넷 비밀번호 : momo1234', 'cafe_momo', 'momo1234'),
+      ('WiFi ID : cafe_momo\nWiFi PASS : momo1234', 'cafe_momo', 'momo1234'),
+    ];
+    for (final (text, ssid, password) in cases) {
+      test(text.replaceAll('\n', ' / '), () => expectParsed(text, ssid: ssid, password: password));
+    }
+
+    test('비밀번호 없음 표기', () {
+      expectParsed('WIFI : KT_starbucks (비밀번호 없음)', ssid: 'KT_starbucks', password: null);
+      expect(parser.parse('WIFI : KT_starbucks\nPW : 없음').isOpenNetwork, isTrue);
+    });
+
+    test('공백 있는 이름은 밑줄 버전이 1순위여도 원래 값이 후보에 남는다', () {
+      final r = parser.parse('Wi-Fi Network: Momo 5G\nWi-Fi Password: Momo#2024');
+      expect(r.candidatesOf(WifiCandidateType.ssid).map((c) => c.value), containsAll(['Momo_5G', 'Momo 5G']));
+    });
+
+    test('새 이름표 단어가 다른 문구를 잡지 않는다', () {
+      expectParsed('쿠폰 Code: SUMMER2024\nWIFI: cafe_momo\nPW: momo1234', ssid: 'cafe_momo', password: 'momo1234');
+      expectParsed('Join our membership today!\nWIFI: cafe_momo\nPW: momo1234', ssid: 'cafe_momo', password: 'momo1234');
+      expectParsed('인터넷 사용 가능\nWIFI: cafe_momo\nPW: momo1234', ssid: 'cafe_momo', password: 'momo1234');
+      expectParsed('Name your price\nWIFI: cafe_momo\nPW: momo1234', ssid: 'cafe_momo', password: 'momo1234');
+      expectParsed('Join our membership today!', ssid: null, password: null);
+      expectParsed('Scan to connect', ssid: null, password: null);
+    });
+  });
+
   test('toString은 비밀번호를 노출하지 않는다', () {
     final result = parser.parse('SSID: cafe\nPassword: secret123');
     expect(result.toString(), isNot(contains('secret123')));
