@@ -462,7 +462,7 @@ class WifiCredentialParser {
     if (matches.isEmpty) return [_Segment(null, cell, cellIndex)];
 
     final segs = <_Segment>[];
-    // "KT_GIGA_E58D :: PW= ..." — 라벨 앞 값 뒤에 붙은 구분자도 뗀다.
+    // "KT_GIGA_A1B2 :: PW= ..." — 라벨 앞 값 뒤에 붙은 구분자도 뗀다.
     final prefix = cell.substring(0, matches.first.start).replaceFirst(_prefixTrailing, '');
     if (prefix.trim().isNotEmpty) segs.add(_Segment(null, prefix.trim(), cellIndex));
 

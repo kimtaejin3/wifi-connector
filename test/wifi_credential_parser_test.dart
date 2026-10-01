@@ -501,23 +501,23 @@ void main() {
   });
 
   group('검색으로 모은 실제 안내문 표기', () {
-    // 국내 카페 공개 목록과 해외 안내문 템플릿에서 모은 표기들.
+    // 국내 카페 공개 목록과 해외 안내문 템플릿에서 모은 표기 형식. 값은 모두 가상이다.
     const cases = <(String, String, String)>[
-      ('KT_GIGA_E58D :: PW= 5zeb0ek645', 'KT_GIGA_E58D', '5zeb0ek645'),
-      ('Wi-Fi :: BS5688\nPW :: gt_3393412', 'BS5688', 'gt_3393412'),
-      ('WIFI : Apple House\nPW : aaaaaaaa', 'Apple House', 'aaaaaaaa'),
-      ('Network Name: TheJohnsons\nPassword: password123', 'TheJohnsons', 'password123'),
-      ('Network ID: Stone Cottage\nPassword: 9475%ur@LBL', 'Stone Cottage', '9475%ur@LBL'),
-      ('NETWORK: sweethome123\nPASSWORD: airbnb1234', 'sweethome123', 'airbnb1234'),
-      ('WiFi Name\nSUGAR HIGH\nPassword\nsugarhigh1234', 'SUGAR HIGH', 'sugarhigh1234'),
-      ('Guest WiFi\nNetwork: Gallery Cafe\nPass: ncafe888', 'Gallery Cafe', 'ncafe888'),
+      ('KT_GIGA_A1B2 :: PW= 3xyz0ab123', 'KT_GIGA_A1B2', '3xyz0ab123'),
+      ('Wi-Fi :: AB1234\nPW :: zz_1112223', 'AB1234', 'zz_1112223'),
+      ('WIFI : Lemon House\nPW : bbbbbbbb', 'Lemon House', 'bbbbbbbb'),
+      ('Network Name: TheParks\nPassword: sample123', 'TheParks', 'sample123'),
+      ('Network ID: Blue Cabin\nPassword: 1234%ab@XYZ', 'Blue Cabin', '1234%ab@XYZ'),
+      ('NETWORK: myhome123\nPASSWORD: guest5678', 'myhome123', 'guest5678'),
+      ('WiFi Name\nMINT BAR\nPassword\nmintbar1234', 'MINT BAR', 'mintbar1234'),
+      ('Guest WiFi\nNetwork: Sample Cafe\nPass: scafe777', 'Sample Cafe', 'scafe777'),
       ('Username: cafe_guest\nPassword: guest1234', 'cafe_guest', 'guest1234'),
-      ('SSID: Forest_Free_WiFi\nKey: 00000000', 'Forest_Free_WiFi', '00000000'),
+      ('SSID: Momo_Free_WiFi\nKey: 00000000', 'Momo_Free_WiFi', '00000000'),
       ('Network: Smith_Home\nOur home wifi password is: welcome2024', 'Smith_Home', 'welcome2024'),
-      ('와이파이명: 겟인상북\n비밀번호: adbbkd4362', '겟인상북', 'adbbkd4362'),
-      ('아이디 : tiede\n비번 : tiede12345', 'tiede', 'tiede12345'),
-      ('무선랜 : BunHong\n암호 : aaaaafffff', 'BunHong', 'aaaaafffff'),
-      ('고객용 와이파이 : KT_GiGA_2G_ruhencoffee\n비밀번호 : a1234567890', 'KT_GiGA_2G_ruhencoffee', 'a1234567890'),
+      ('와이파이명: 모모책방\n비밀번호: momo4321', '모모책방', 'momo4321'),
+      ('아이디 : momo\n비번 : momo12345', 'momo', 'momo12345'),
+      ('무선랜 : MomoTea\n암호 : aaaaabbbbb', 'MomoTea', 'aaaaabbbbb'),
+      ('고객용 와이파이 : KT_GiGA_2G_momocoffee\n비밀번호 : a1234567890', 'KT_GiGA_2G_momocoffee', 'a1234567890'),
       ('WiFi Password Is\ncoffee2024\nNetwork: Bean_Guest', 'Bean_Guest', 'coffee2024'),
       ('SCAN TO CONNECT\nNETWORK\nmomo_guest\nPASSWORD\nmomo1234', 'momo_guest', 'momo1234'),
       ('Wi-Fi 이름 / Name : cafe_momo\n비밀번호 / Password : momo1234', 'cafe_momo', 'momo1234'),
@@ -538,8 +538,8 @@ void main() {
     }
 
     test('비밀번호 없음 표기', () {
-      expectParsed('WIFI : KT_starbucks (비밀번호 없음)', ssid: 'KT_starbucks', password: null);
-      expect(parser.parse('WIFI : KT_starbucks\nPW : 없음').isOpenNetwork, isTrue);
+      expectParsed('WIFI : KT_momo_free (비밀번호 없음)', ssid: 'KT_momo_free', password: null);
+      expect(parser.parse('WIFI : KT_momo_free\nPW : 없음').isOpenNetwork, isTrue);
     });
 
     test('공백 있는 이름은 밑줄 버전이 1순위여도 원래 값이 후보에 남는다', () {
