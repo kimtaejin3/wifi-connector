@@ -35,6 +35,18 @@ class WifiCredentialParser {
         found.add(WifiCandidate(value: '', type: label.type, score: (base * 0.95).clamp(0.0, 1.0)));
         return;
       }
+      // "KT WIFI 5G F3D6" — 공유기 이름의 밑줄을 OCR이 공백으로 읽은 경우.
+      // 밑줄로 이은 값을 1순위로 두되, 추측이므로 확신도는 낮추고 원래 값도 후보로 남긴다.
+      if (label.type == WifiCandidateType.ssid && cleaned.contains(_whitespace) && _machineLikeSsid(cleaned)) {
+        final joined = cleaned.replaceAll(_whitespace, '_');
+        found.add(WifiCandidate(
+          value: joined,
+          type: label.type,
+          score: (base * _ssidFactor(joined, isolated: true) * 0.9).clamp(0.0, 1.0),
+        ));
+        found.add(WifiCandidate(value: cleaned, type: label.type, score: (base * 0.7).clamp(0.0, 1.0)));
+        return;
+      }
       final factor = label.type == WifiCandidateType.ssid
           ? _ssidFactor(cleaned, isolated: isolated)
           : _passwordFactor(cleaned, isolated: isolated);
@@ -230,6 +242,15 @@ class WifiCredentialParser {
     // "FREE WI-FI" 같은 제목 다음 줄은 장식이나 다른 문구인 경우가 많다.
     if (seg.header) base -= 0.25;
     return base;
+  }
+
+  /// 사람이 지은 가게 이름("Lemon House")이 아니라 공유기가 만든 이름처럼 보이는지.
+  /// 이미 밑줄이 섞여 있거나, 통신사·공유기 이름으로 시작하거나, 세 단어 이상에 숫자 섞인 토큰이 있다.
+  bool _machineLikeSsid(String v) {
+    if (v.contains('_')) return true;
+    if (_ispPrefix.hasMatch(v)) return true;
+    final words = v.split(_whitespace);
+    return words.length >= 3 && words.where((w) => _hasDigit.hasMatch(w)).length >= 2;
   }
 
   double _ssidFactor(String v, {required bool isolated}) {
@@ -661,6 +682,7 @@ final _digitsOnly = RegExp(r'^\d+$');
 final _hasDigit = RegExp(r'\d');
 final _hasLetter = RegExp(r'[A-Za-z]');
 final _hasSymbol = RegExp(r'[^A-Za-z0-9\s]');
+final _ispPrefix = RegExp(r'^(?:kt|skt?|lgu?|u\+|olleh|iptime|giga|anygate|netis|tp-?link)(?=[\s_]|net|wifi|giga|$)', caseSensitive: false);
 final _contactLike = RegExp(r'https?://|www\.|@\S+\.|\.(?:com|net|kr|co)\b', caseSensitive: false);
 final _ssidShape = RegExp(
   r'_|^(?:iptime|kt_|sk_|u\+|olleh|lgu|giga)|[_\-]?(?:2\.4g|5g|2g)(?:hz)?$',

@@ -557,6 +557,43 @@ void main() {
     });
   });
 
+  group('밑줄을 공백으로 읽은 공유기 이름 (1.0.2 실패 사례)', () {
+    const tail = '\nPW : 0123456789';
+
+    test('밑줄을 모두 공백으로 읽어도 밑줄 이름을 1순위로', () {
+      final r = parser.parse('Free Wi-Fi\nID : KT WIFI 5G F3D6$tail');
+      expect(r.ssid, 'KT_WIFI_5G_F3D6');
+      expect(r.password, '0123456789');
+      // 추측한 값이니 확인하도록 한다. 공백 버전은 후보에 남긴다.
+      expect(r.ssidConfidence, lessThan(WifiCredential.confidentThreshold));
+      expect(r.candidatesOf(WifiCandidateType.ssid).map((c) => c.value), contains('KT WIFI 5G F3D6'));
+    });
+
+    test('밑줄을 일부만 공백으로 읽어도 밑줄 이름이 이긴다', () {
+      for (final id in ['KT_WIFI 5G_F3D6', 'KT WIFI_5G_F3D6', 'KT_WIFI_5G F3D6']) {
+        expectParsed('Free Wi-Fi\nID : $id$tail', ssid: 'KT_WIFI_5G_F3D6', password: '0123456789');
+        expectParsed('Free Wi-Fi\nID :\t$id$tail', ssid: 'KT_WIFI_5G_F3D6', password: '0123456789');
+      }
+    });
+
+    test('다른 통신사·공유기 이름도', () {
+      expectParsed('WIFI : SK WiFiGIGA 3A2B\nPW : 1234567890', ssid: 'SK_WiFiGIGA_3A2B', password: '1234567890');
+      expectParsed('SSID : U+Net 4C1D 5G\nPW : abcd1234', ssid: 'U+Net_4C1D_5G', password: 'abcd1234');
+      expectParsed('Wi-Fi : iptime 5G 2F\nPW : abcd1234', ssid: 'iptime_5G_2F', password: 'abcd1234');
+    });
+
+    test('일반 가게 이름의 공백은 그대로 둔다', () {
+      expectParsed('WIFI : Lemon House\nPW : bbbbbbbb', ssid: 'Lemon House', password: 'bbbbbbbb');
+      expectParsed('WiFi Name\nMINT BAR\nPassword\nmintbar1234', ssid: 'MINT BAR', password: 'mintbar1234');
+    });
+
+    test('밑줄이 제대로 읽힌 이름은 확신한다', () {
+      final r = parser.parse('Free Wi-Fi\nID : KT_WIFI_5G_F3D6$tail');
+      expect(r.ssid, 'KT_WIFI_5G_F3D6');
+      expect(r.ssidConfidence, greaterThanOrEqualTo(WifiCredential.confidentThreshold));
+    });
+  });
+
   test('toString은 비밀번호를 노출하지 않는다', () {
     final result = parser.parse('SSID: cafe\nPassword: secret123');
     expect(result.toString(), isNot(contains('secret123')));
