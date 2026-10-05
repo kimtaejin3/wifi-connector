@@ -62,7 +62,7 @@ Play Console에 그대로 붙여 넣을 수 있게 정리한 문구예요. 글�
 
 | 항목 | 답 |
 |---|---|
-| 개인정보처리방침 | https://github.com/kimtaejin3/wifi-connector/blob/main/docs/privacy.md |
+| 개인정보처리방침 | https://wifi-lens.vercel.app/privacy |
 | 앱 액세스 권한 | 모든 기능을 특별한 액세스 권한 없이 사용 가능 |
 | 광고 | 광고 없음 |
 | 콘텐츠 등급 | 카테고리 "유틸리티, 생산성, 커뮤니케이션 또는 기타", 모든 질문 "아니요" |

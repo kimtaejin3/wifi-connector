@@ -27,6 +27,6 @@ void main() {
   });
 
   test('링크는 스토어에 등록한 개인정보 처리방침 주소다', () {
-    expect(privacyPolicyUrl.toString(), 'https://github.com/kimtaejin3/wifi-connector/blob/main/docs/privacy.md');
+    expect(privacyPolicyUrl.toString(), 'https://wifi-lens.vercel.app/privacy');
   });
 }

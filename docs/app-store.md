@@ -12,7 +12,7 @@ App Store Connect에 그대로 붙여 넣을 수 있게 정리한 문구입니�
 | 보조 카테고리 | 생산성 |
 | 저작권 | 2026 Taejin Kim |
 | 지원 URL | https://github.com/kimtaejin3/wifi-connector |
-| 개인정보 처리방침 URL | https://github.com/kimtaejin3/wifi-connector/blob/main/docs/privacy.md |
+| 개인정보 처리방침 URL | https://wifi-lens.vercel.app/privacy |
 | 마케팅 URL | 비워 둠 |
 
 ## 프로모션 텍스트 (170자, 심사 없이 수정 가능)

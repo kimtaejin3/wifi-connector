@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>와이파이 렌즈 개인정보 처리방침</title>
+<meta name="description" content="와이파이 렌즈 앱의 개인정보 처리방침입니다.">
+<link rel="icon" href="/icon.png">
+<style>
+:root{--bg:#fff;--card:#f5f6fa;--ink:#1f2333;--muted:#6b7190;--line:#e9ebf2;--accent:#5b67f1}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1220;--card:#171b2c;--ink:#f2f3fa;--muted:#9aa0bc;--line:#262b44;--accent:#8a93ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;line-height:1.7;-webkit-text-size-adjust:100%}
+main{max-width:720px;margin:0 auto;padding:40px 20px 80px}
+.brand{display:flex;align-items:center;gap:12px;color:inherit;text-decoration:none;font-weight:700}
+.brand img{width:40px;height:40px;border-radius:10px}
+h1{font-size:28px;line-height:1.3;letter-spacing:-.5px;margin:36px 0 4px}
+.date{color:var(--muted);font-size:14px;margin:0 0 28px}
+h2{font-size:19px;margin:40px 0 10px;letter-spacing:-.2px}
+p,li{font-size:16px}
+ul{padding-left:20px}
+a{color:var(--accent)}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14px}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--card);font-weight:600;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<main>
+  <a class="brand" href="/"><img src="/icon.png" alt="">와이파이 렌즈</a>
+
+  <h1>개인정보 처리방침</h1>
+  <p class="date">시행일: 2026년 10월 6일</p>
+
+  <p>와이파이 렌즈(이하 "앱")는 Wi-Fi 안내문을 카메라로 인식해 Wi-Fi 연결을 돕는 앱입니다. 앱은 회원가입, 로그인, 서버가 없으며 개발자는 사용자의 정보를 수집하거나 전송받지 않습니다.</p>
+
+  <h2>1. 처리하는 정보와 목적</h2>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>정보</th><th>목적</th><th>처리 위치</th><th>보관</th></tr></thead>
+    <tbody>
+      <tr><td>카메라 영상, 사진</td><td>안내문의 Wi-Fi 이름과 비밀번호 인식</td><td>기기 안</td><td>인식 직후 삭제하며 저장하지 않습니다.</td></tr>
+      <tr><td>갤러리에서 고른 사진</td><td>위와 같음</td><td>기기 안</td><td>인식 직후 사본을 삭제합니다.</td></tr>
+      <tr><td>Wi-Fi 이름, 비밀번호</td><td>Wi-Fi 연결 요청, 기록 화면 표시</td><td>기기 안</td><td>기록 탭에서 지울 때까지 iOS 키체인 또는 Android Keystore에만 암호화해 저장합니다.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>글자 인식은 Google ML Kit의 온디바이스 모델로 기기 안에서 처리하며, 사진과 인식된 글자는 기기 밖으로 전송되지 않습니다.</p>
+
+  <h2>2. 제3자 제공 및 외부 전송</h2>
+  <p>개발자는 어떤 정보도 제3자에게 제공하지 않습니다. 다만 앱에 포함된 Google ML Kit 라이브러리는 기능 개선을 위해 API 사용량과 성능 같은 진단 정보를 Google에 보낼 수 있습니다. 이 정보에는 사진, 인식된 글자, Wi-Fi 이름이나 비밀번호가 포함되지 않습니다. 자세한 내용은 <a href="https://developers.google.com/ml-kit/terms" rel="noopener">Google ML Kit 약관</a>을 참고하세요.</p>
+
+  <h2>3. 권한</h2>
+  <ul>
+    <li>카메라: 안내문 촬영에 사용합니다.</li>
+    <li>사진(갤러리): 사용자가 직접 고른 사진 한 장만 읽습니다.</li>
+    <li>위치 권한은 요청하지 않습니다.</li>
+  </ul>
+
+  <h2>4. 정보 삭제</h2>
+  <ul>
+    <li>기록 탭에서 항목을 밀어서 지우거나 "모두 지우기"를 누르면 저장된 Wi-Fi 이름과 비밀번호가 기기에서 삭제됩니다.</li>
+    <li>Android에서는 앱을 삭제하면 기록도 함께 삭제됩니다.</li>
+    <li>iPhone에서는 앱을 삭제해도 기록이 기기의 키체인에 남을 수 있습니다. 완전히 지우려면 앱을 삭제하기 전에 기록 탭에서 "모두 지우기"를 눌러 주세요.</li>
+    <li>앱이 요청해 기기에 추가된 Wi-Fi 네트워크는 기기의 설정 앱에서 지울 수 있습니다.</li>
+  </ul>
+
+  <h2>5. 아동의 개인정보</h2>
+  <p>앱은 누구의 개인정보도 수집하지 않으므로 아동의 개인정보도 수집하지 않습니다.</p>
+
+  <h2>6. 문의</h2>
+  <p>이 처리방침에 대한 문의는 <a href="mailto:ktj3727@gmail.com">ktj3727@gmail.com</a>으로 보내 주세요.</p>
+
+  <footer>© 2026 Taejin Kim</footer>
+</main>
+</body>
+</html>

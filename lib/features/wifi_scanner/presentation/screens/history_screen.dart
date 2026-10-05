@@ -8,7 +8,7 @@ import '../../data/services/wifi_history_store.dart';
 import 'wifi_result_screen.dart';
 
 /// 스토어에 등록한 것과 같은 개인정보 처리방침. 앱 안에서도 볼 수 있어야 한다 (Google Play 정책).
-final privacyPolicyUrl = Uri.parse('https://github.com/kimtaejin3/wifi-connector/blob/main/docs/privacy.md');
+final privacyPolicyUrl = Uri.parse('https://wifi-lens.vercel.app/privacy');
 
 /// 인식해서 연결한 Wi-Fi 목록. 항목을 누르면 다시 연결할 수 있다.
 class HistoryScreen extends StatefulWidget {
