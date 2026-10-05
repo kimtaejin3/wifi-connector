@@ -99,11 +99,24 @@ class WifiService {
   const WifiService();
 
   /// [password]가 비어 있으면 공개(Open) 네트워크로 연결한다.
-  Future<WifiConnectResult> connect({required String ssid, required String password}) async {
+  ///
+  /// iOS 전용 힌트 (Android는 무시한다):
+  /// - [replaceExisting]: 이 앱이 같은 SSID로 저장해 둔 설정을 지우고 새로 적용할지.
+  ///   비밀번호가 전과 같으면 false로 줘서, 지우고 다시 넣는 사이 요청이 겹쳐
+  ///   "연결할 수 없음"이 뜨는 일을 피한다.
+  /// - [retry]: 직전 시도에서 연결을 확인하지 못해 같은 값으로 다시 시도하는 경우.
+  ///   iOS가 주변 스캔에서 네트워크를 놓쳤거나 숨김 네트워크일 수 있으므로,
+  ///   이름을 지정해 직접 찾는 방식(hidden)으로 요청한다.
+  Future<WifiConnectResult> connect({
+    required String ssid,
+    required String password,
+    bool replaceExisting = true,
+    bool retry = false,
+  }) async {
     try {
       final result = await platformChannel.invokeMapMethod<String, Object?>(
         'connectWifi',
-        {'ssid': ssid, 'password': password},
+        {'ssid': ssid, 'password': password, 'replaceExisting': replaceExisting, 'retry': retry},
       );
       return WifiConnectResult.fromMap(result ?? const {});
     } on MissingPluginException {

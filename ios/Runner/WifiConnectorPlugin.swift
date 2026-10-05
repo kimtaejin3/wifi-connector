@@ -22,6 +22,8 @@ final class WifiConnectorPlugin: NSObject, FlutterPlugin {
       connect(
         ssid: args?["ssid"] as? String ?? "",
         password: args?["password"] as? String ?? "",
+        replaceExisting: args?["replaceExisting"] as? Bool ?? true,
+        retry: args?["retry"] as? Bool ?? false,
         result: result
       )
     case "awaitConnection":
@@ -44,7 +46,17 @@ final class WifiConnectorPlugin: NSObject, FlutterPlugin {
     }
   }
 
-  private func connect(ssid: String, password: String, result: @escaping FlutterResult) {
+  /// - replaceExisting: 이 앱이 같은 SSID로 저장한 설정을 지우고 새로 적용할지.
+  ///   비밀번호가 전과 같으면 지울 필요가 없다 (apply가 기존 설정을 갱신한다).
+  /// - retry: 직전 시도에서 연결을 확인하지 못한 재시도. iOS가 스캔에서 네트워크를 놓쳤거나
+  ///   숨김 네트워크일 수 있으므로 이름을 지정해 직접 찾도록 hidden으로 요청한다.
+  private func connect(
+    ssid: String,
+    password: String,
+    replaceExisting: Bool,
+    retry: Bool,
+    result: @escaping FlutterResult
+  ) {
     guard !ssid.isEmpty else {
       result(Self.failure("invalid_ssid"))
       return
@@ -56,6 +68,9 @@ final class WifiConnectorPlugin: NSObject, FlutterPlugin {
       : NEHotspotConfiguration(ssid: ssid, passphrase: password, isWEP: false)
     // joinOnce = true 이면 앱이 백그라운드로 갈 때 연결이 끊긴다. 카페에서 계속 쓰도록 저장한다.
     configuration.joinOnce = false
+    if retry {
+      configuration.hidden = true
+    }
 
     let manager = NEHotspotConfigurationManager.shared
     let apply = {
@@ -78,16 +93,36 @@ final class WifiConnectorPlugin: NSObject, FlutterPlugin {
         DispatchQueue.main.async { result(["status": "connected"]) }
         return
       }
-      // 이 앱이 예전에 같은 SSID로 저장한 설정이 있을 때만 지우고 새로 적용한다
-      // (비밀번호가 바뀐 경우 옛 설정으로 붙으려다 실패하는 것을 막는다).
-      // 삭제는 비동기로 끝나므로 잠깐 기다린 뒤 적용해 두 요청이 겹치지 않게 한다.
+      // 비밀번호가 바뀌었을 수 있을 때만 이 앱이 저장한 옛 설정을 지우고 새로 적용한다
+      // (옛 비밀번호로 붙으려다 실패하는 것을 막는다). 비밀번호가 같으면 그대로 적용한다.
+      guard replaceExisting else {
+        DispatchQueue.main.async(execute: apply)
+        return
+      }
       manager.getConfiguredSSIDs { configured in
         DispatchQueue.main.async {
           if configured.contains(ssid) {
             manager.removeConfiguration(forSSID: ssid)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: apply)
+            // 삭제는 비동기로 끝난다. 실제로 사라진 것을 확인한 뒤 적용해 두 요청이 겹치지 않게 한다.
+            self.waitUntilRemoved(ssid: ssid, remainingChecks: 15, then: apply)
           } else {
             apply()
+          }
+        }
+      }
+    }
+  }
+
+  /// 저장된 설정 목록에서 [ssid]가 사라질 때까지 0.2초 간격으로 확인한다 (최대 3초).
+  /// 끝까지 남아 있어도 더 기다리지 않고 진행한다.
+  private func waitUntilRemoved(ssid: String, remainingChecks: Int, then apply: @escaping () -> Void) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+      NEHotspotConfigurationManager.shared.getConfiguredSSIDs { configured in
+        DispatchQueue.main.async {
+          if !configured.contains(ssid) || remainingChecks <= 1 {
+            apply()
+          } else {
+            self.waitUntilRemoved(ssid: ssid, remainingChecks: remainingChecks - 1, then: apply)
           }
         }
       }

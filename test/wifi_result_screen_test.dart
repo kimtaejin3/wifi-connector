@@ -1,29 +1,44 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wifi_connector/core/theme/app_theme.dart';
+import 'package:wifi_connector/features/wifi_scanner/data/models/saved_wifi.dart';
 import 'package:wifi_connector/features/wifi_scanner/data/models/wifi_credential.dart';
 import 'package:wifi_connector/features/wifi_scanner/data/services/wifi_history_store.dart';
 import 'package:wifi_connector/features/wifi_scanner/data/services/wifi_service.dart';
 import 'package:wifi_connector/features/wifi_scanner/presentation/screens/wifi_result_screen.dart';
 
 class FakeWifiService extends WifiService {
-  FakeWifiService(this.result, {this.check = const WifiConnectionCheck(connected: true)});
+  FakeWifiService(this.result, {this.check = const WifiConnectionCheck(connected: true), this.laterChecks = const []});
 
   final WifiConnectResult result;
   final WifiConnectionCheck check;
+
+  /// 두 번째 확인부터 차례로 돌려줄 결과. 다 쓰면 [check]를 돌려준다.
+  final List<WifiConnectionCheck> laterChecks;
   final calls = <(String, String)>[];
+  final replaceFlags = <bool>[];
+  final retryFlags = <bool>[];
   final awaited = <String>[];
 
   @override
-  Future<WifiConnectResult> connect({required String ssid, required String password}) async {
+  Future<WifiConnectResult> connect({
+    required String ssid,
+    required String password,
+    bool replaceExisting = true,
+    bool retry = false,
+  }) async {
     calls.add((ssid, password));
+    replaceFlags.add(replaceExisting);
+    retryFlags.add(retry);
     return result;
   }
 
   @override
   Future<WifiConnectionCheck> awaitConnection({required String ssid, Duration? timeout}) async {
     awaited.add(ssid);
-    return check;
+    final n = awaited.length - 2;
+    return n >= 0 && n < laterChecks.length ? laterChecks[n] : check;
   }
 }
 
@@ -45,8 +60,12 @@ Future<WifiHistoryStore> pumpResult(
   WifiCredential credential, {
   WifiService service = const WifiService(),
   String? retakeLabel = '다시 촬영',
+  List<SavedWifi> saved = const [],
 }) async {
   final history = WifiHistoryStore(store: InMemoryStore());
+  for (final e in saved) {
+    await history.save(e);
+  }
   await tester.pumpWidget(MaterialApp(
     theme: AppTheme.light(),
     home: WifiResultScreen(
@@ -245,6 +264,99 @@ void main() {
 
     expect(service.awaited, isEmpty);
     expect(find.text('연결할 수 없습니다.'), findsOneWidget);
+  });
+
+  group('연결할 수 없음 알림 줄이기', () {
+    testWidgets('처음 연결하는 네트워크는 기존 설정 교체로 요청한다', (tester) async {
+      final service = FakeWifiService(requested);
+      await pumpResult(tester, found, service: service);
+      await tester.tap(find.text('Wi-Fi 연결'));
+      await tester.pumpAndSettle();
+      expect(service.replaceFlags, [true]);
+      expect(service.retryFlags, [false]);
+    });
+
+    testWidgets('기록과 비밀번호가 같으면 기존 설정을 지우지 않는다', (tester) async {
+      final service = FakeWifiService(requested);
+      await pumpResult(tester, found, service: service, saved: [
+        SavedWifi(ssid: 'TestCafe', password: 'Test12345', savedAt: DateTime(2026, 10, 1)),
+      ]);
+      await tester.tap(find.text('Wi-Fi 연결'));
+      await tester.pumpAndSettle();
+      expect(service.replaceFlags, [false]);
+    });
+
+    testWidgets('기록과 비밀번호가 다르면 기존 설정을 교체한다', (tester) async {
+      final service = FakeWifiService(requested);
+      await pumpResult(tester, found, service: service, saved: [
+        SavedWifi(ssid: 'TestCafe', password: 'OldPass999', savedAt: DateTime(2026, 10, 1)),
+      ]);
+      await tester.tap(find.text('Wi-Fi 연결'));
+      await tester.pumpAndSettle();
+      expect(service.replaceFlags, [true]);
+    });
+
+    testWidgets('연결을 확인하지 못한 뒤 같은 값으로 다시 시도하면 재시도로 요청한다', (tester) async {
+      final service = FakeWifiService(requested, check: WifiConnectionCheck.unconfirmed);
+      await pumpResult(tester, found, service: service);
+      await tester.tap(find.text('Wi-Fi 연결'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('다시 시도'));
+      await tester.pumpAndSettle();
+      expect(service.retryFlags, [false, true]);
+      // 첫 요청에서 기록에 남았으므로 설정을 지우지 않고 그대로 다시 요청한다.
+      expect(service.replaceFlags, [true, false]);
+    });
+
+    testWidgets('값을 고쳐서 다시 시도하면 재시도로 보지 않는다', (tester) async {
+      final service = FakeWifiService(requested, check: WifiConnectionCheck.unconfirmed);
+      await pumpResult(tester, found, service: service);
+      await tester.tap(find.text('Wi-Fi 연결'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('수정'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, 'Fixed12345');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(FilledButton).last);
+      await tester.pumpAndSettle();
+      expect(service.retryFlags, [false, false]);
+    });
+
+    testWidgets('iOS: 확인하지 못한 뒤에도 계속 지켜보다 늦게 붙으면 연결됨으로 바꾼다', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      final service = FakeWifiService(
+        requested,
+        check: WifiConnectionCheck.unconfirmed,
+        laterChecks: const [WifiConnectionCheck(connected: true)],
+      );
+      await pumpResult(tester, found, service: service);
+      await tester.tap(find.text('Wi-Fi 연결'));
+      await tester.pumpAndSettle();
+      expect(service.awaited, ['TestCafe', 'TestCafe']);
+      expect(find.text('Wi-Fi에 연결되었습니다.'), findsOneWidget);
+      expect(find.text('다시 시도'), findsNothing);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    testWidgets('iOS: 늦게도 붙지 않으면 안내와 다시 시도 버튼을 유지한다', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      final service = FakeWifiService(requested, check: WifiConnectionCheck.unconfirmed);
+      await pumpResult(tester, found, service: service);
+      await tester.tap(find.text('Wi-Fi 연결'));
+      await tester.pumpAndSettle();
+      expect(find.text('아직 연결을 확인하지 못했어요.'), findsOneWidget);
+      expect(find.textContaining('자동으로 연결'), findsOneWidget);
+      expect(find.text('다시 시도'), findsOneWidget);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    testWidgets('Android: 확인은 한 번만 한다 (기존 동작 유지)', (tester) async {
+      final service = FakeWifiService(requested, check: WifiConnectionCheck.unconfirmed);
+      await pumpResult(tester, found, service: service);
+      await tester.tap(find.text('Wi-Fi 연결'));
+      await tester.pumpAndSettle();
+      expect(service.awaited, ['TestCafe']);
+    });
   });
 
   testWidgets('값을 고치면 이전 결과 카드가 사라진다', (tester) async {

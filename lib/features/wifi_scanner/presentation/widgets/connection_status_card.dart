@@ -193,6 +193,10 @@ class ConnectionStatusCard extends StatelessWidget {
               'Wi-Fi 설정에서 이 네트워크를 지운 뒤 다시 시도해주세요.';
         } else if (suggested) {
           why = '알림에서 허용했는지 확인해주세요. 그래도 연결되지 않으면 Wi-Fi 이름의 대소문자와 비밀번호를 확인해주세요.';
+        } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+          // iOS는 주변에서 네트워크를 바로 찾지 못하면 값이 맞아도 "연결할 수 없음"을 띄운다.
+          why = "iPhone이 '연결할 수 없음'을 띄웠어도 잠시 뒤 자동으로 연결되는 경우가 있어요. "
+              '바로 연결하려면 다시 시도를 눌러주세요. 계속 안 되면 Wi-Fi 이름의 대소문자와 비밀번호를 확인해주세요.';
         } else {
           why = '잠시 후에도 연결되지 않으면 Wi-Fi 이름의 대소문자와 비밀번호를 확인해주세요.';
         }

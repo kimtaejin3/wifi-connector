@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -64,6 +65,12 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
 
   /// 값을 고치거나 다시 요청하면 이전 확인 결과를 버리기 위한 일련번호.
   int _attempt = 0;
+
+  /// 직전 시도에서 연결을 확인하지 못한 (SSID, 비밀번호). 같은 값으로 다시 시도하면 재시도로 요청한다.
+  (String, String)? _unconfirmedFor;
+
+  /// iOS는 "연결할 수 없음"을 띄운 뒤에도 저장된 설정으로 늦게 붙는 일이 있어 더 지켜본다.
+  static const _lateJoinWatch = Duration(seconds: 60);
   String? _ssidError;
   String? _passwordError;
 
@@ -113,7 +120,22 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
 
     final attempt = ++_attempt;
     setState(() => _connecting = true);
-    final result = await widget.wifiService.connect(ssid: ssid, password: password);
+    final history = widget.historyStore ?? wifiHistoryStore;
+    // 기록에 같은 비밀번호로 남아 있으면 OS에 저장된 설정도 같으므로 지우지 않고 그대로 요청한다.
+    var samePasswordAsBefore = false;
+    try {
+      samePasswordAsBefore = (await history.load()).any((e) => e.ssid == ssid && e.password == password);
+    } on Exception {
+      // 기록을 못 읽으면 모르는 것으로 보고 설정을 교체한다.
+    }
+    if (!mounted || attempt != _attempt) return;
+    final retry = _unconfirmedFor == (ssid, password);
+    final result = await widget.wifiService.connect(
+      ssid: ssid,
+      password: password,
+      replaceExisting: !samePasswordAsBefore,
+      retry: retry,
+    );
     if (!mounted || attempt != _attempt) return;
     // 이미 저장된 네트워크는 OS가 새로 연결을 시도하지 않으므로 기다리지 않는다
     // (이미 붙어 있거나, 설정에서 직접 골라야 한다).
@@ -127,7 +149,7 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
       _verifying = verify;
     });
     void remember() => unawaited(
-          (widget.historyStore ?? wifiHistoryStore).save(
+          history.save(
             SavedWifi(ssid: ssid, password: password, savedAt: DateTime.now()),
           ),
         );
@@ -151,9 +173,30 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
       }
     });
     if (check.connected) {
+      _unconfirmedFor = null;
       HapticFeedback.lightImpact();
       if (recovering) remember();
+      return;
     }
+    _unconfirmedFor = (ssid, password);
+
+    // iOS는 주변 스캔에서 네트워크를 놓치면 비밀번호가 맞아도 "연결할 수 없음"을 띄우지만,
+    // 설정은 저장돼 있어 잠시 뒤 스스로 붙는 일이 많다. 화면은 그대로 두고 조용히 더 지켜보다가
+    // 붙으면 연결됨으로 바꾼다. Android는 확인 방식이 달라 기존대로 한 번만 확인한다.
+    if (defaultTargetPlatform != TargetPlatform.iOS) return;
+    final shown = _result;
+    final late = await widget.wifiService.awaitConnection(ssid: ssid, timeout: _lateJoinWatch);
+    if (!mounted || attempt != _attempt || !identical(_result, shown) || !late.connected) return;
+    setState(() {
+      if (recovering) {
+        _result = const WifiConnectResult(WifiConnectStatus.connected);
+      } else {
+        _check = late;
+      }
+    });
+    _unconfirmedFor = null;
+    HapticFeedback.lightImpact();
+    if (recovering) remember();
   }
 
   void _close() => Navigator.of(context).maybePop();
