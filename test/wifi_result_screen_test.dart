@@ -359,6 +359,68 @@ void main() {
     });
   });
 
+  group('연결 실패 후 의심 글자 안내', () {
+    const tricky = WifiCredential(
+      ssid: 'MOMO_5G',
+      password: 'coffee2O24',
+      ssidConfidence: 0.95,
+      passwordConfidence: 0.97,
+    );
+
+    testWidgets('연결 전과 연결 성공 뒤에는 보이지 않는다', (tester) async {
+      final service = FakeWifiService(requested);
+      await pumpResult(tester, tricky, service: service);
+      expect(find.text('헷갈리기 쉬운 글자를 확인해 보세요'), findsNothing);
+      await tester.tap(find.text('Wi-Fi 연결'));
+      await tester.pumpAndSettle();
+      expect(find.text('Wi-Fi에 연결되었습니다.'), findsOneWidget);
+      expect(find.text('헷갈리기 쉬운 글자를 확인해 보세요'), findsNothing);
+    });
+
+    testWidgets('연결을 확인하지 못하면 바꿔 볼 글자를 설명과 함께 보여준다', (tester) async {
+      final service = FakeWifiService(requested, check: WifiConnectionCheck.unconfirmed);
+      await pumpResult(tester, tricky, service: service);
+      await tester.tap(find.text('Wi-Fi 연결'));
+      await tester.pumpAndSettle();
+      expect(find.text('헷갈리기 쉬운 글자를 확인해 보세요'), findsOneWidget);
+      expect(find.text('O(대문자 오) → 0(숫자 0)'), findsWidgets);
+      expect(find.byKey(const ValueKey('suspect-password-7-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('suspect-ssid-1-0')), findsOneWidget);
+    });
+
+    testWidgets('후보를 누르면 그 값으로 바로 다시 연결한다', (tester) async {
+      final service = FakeWifiService(requested, check: WifiConnectionCheck.unconfirmed);
+      await pumpResult(tester, tricky, service: service);
+      await tester.tap(find.text('Wi-Fi 연결'));
+      await tester.pumpAndSettle();
+      final row = find.byKey(const ValueKey('suspect-password-7-0'));
+      await tester.ensureVisible(row);
+      await tester.pumpAndSettle();
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(service.calls, [('MOMO_5G', 'coffee2O24'), ('MOMO_5G', 'coffee2024')]);
+      // 값이 바뀌었으므로 같은 값 재시도가 아니다.
+      expect(service.retryFlags, [false, false]);
+    });
+
+    testWidgets('헷갈리는 글자가 없으면 안내를 보여주지 않는다', (tester) async {
+      const plain = WifiCredential(ssid: 'cafe_mmm', password: 'abcdefgh', ssidConfidence: 0.95, passwordConfidence: 0.97);
+      final service = FakeWifiService(requested, check: WifiConnectionCheck.unconfirmed);
+      await pumpResult(tester, plain, service: service);
+      await tester.tap(find.text('Wi-Fi 연결'));
+      await tester.pumpAndSettle();
+      expect(find.text('헷갈리기 쉬운 글자를 확인해 보세요'), findsNothing);
+    });
+
+    testWidgets('사용자가 거절한 경우에는 보여주지 않는다', (tester) async {
+      final service = FakeWifiService(const WifiConnectResult(WifiConnectStatus.cancelled));
+      await pumpResult(tester, tricky, service: service);
+      await tester.tap(find.text('Wi-Fi 연결'));
+      await tester.pumpAndSettle();
+      expect(find.text('헷갈리기 쉬운 글자를 확인해 보세요'), findsNothing);
+    });
+  });
+
   testWidgets('값을 고치면 이전 결과 카드가 사라진다', (tester) async {
     final service = FakeWifiService(requested, check: WifiConnectionCheck.unconfirmed);
     await pumpResult(tester, found, service: service);

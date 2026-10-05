@@ -9,6 +9,7 @@ import '../../data/models/saved_wifi.dart';
 import '../../data/models/wifi_credential.dart';
 import '../../data/services/wifi_history_store.dart';
 import '../../data/services/wifi_service.dart';
+import '../../domain/services/confusable_chars.dart';
 import '../../domain/services/wifi_input_validator.dart';
 import '../widgets/connection_status_card.dart';
 import '../widgets/flat_card.dart' show FieldRow;
@@ -327,6 +328,12 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
                         ),
                       ),
               ),
+              if (_connectionDoubtful)
+                _SuspectChars(
+                  ssid: confusableVariants(_ssid.text.trim()),
+                  password: confusableVariants(_password.text.trim()),
+                  onSelected: _retryWith,
+                ),
             ],
           ),
         ),
@@ -350,6 +357,25 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
     if (result == null || !result.isSuccess) return false;
     final check = _check;
     return check == null || check.connected;
+  }
+
+  /// 연결이 안 됐을 가능성이 있는 상태. 이름이나 비밀번호의 한 글자가 다를 때도 iOS는
+  /// 똑같이 "연결할 수 없음"만 띄우므로, 헷갈리기 쉬운 글자를 확인하도록 안내한다.
+  bool get _connectionDoubtful {
+    final result = _result;
+    if (result == null || _verifying || _connecting) return false;
+    if (result.status == WifiConnectStatus.failed) {
+      return result.failure == WifiConnectFailure.unknown || result.failure == WifiConnectFailure.invalidPassword;
+    }
+    final check = _check;
+    return result.needsVerification && check != null && !check.connected;
+  }
+
+  /// 의심 글자를 바꾼 값으로 곧바로 다시 연결한다.
+  void _retryWith(WifiCandidateType type, String value) {
+    (type == WifiCandidateType.ssid ? _ssid : _password).text = value;
+    _onEdited(value);
+    _connect();
   }
 
   bool get _canConnect => !_connecting && _ssid.text.trim().isNotEmpty;
@@ -540,5 +566,88 @@ class _CandidateChips extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// 연결을 확인하지 못했을 때, 눈으로 구분하기 어려운 글자(l·I·1, O·0 …)를 바꾼 값을 보여준다.
+/// 누르면 그 값으로 바로 다시 연결한다. 글자 모양이 구분되도록 고정폭 글꼴을 쓴다.
+class _SuspectChars extends StatelessWidget {
+  const _SuspectChars({required this.ssid, required this.password, required this.onSelected});
+
+  final List<ConfusableVariant> ssid;
+  final List<ConfusableVariant> password;
+  final void Function(WifiCandidateType type, String value) onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    if (ssid.isEmpty && password.isEmpty) return const SizedBox.shrink();
+    final p = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '헷갈리기 쉬운 글자를 확인해 보세요',
+            style: TextStyle(color: p.ink, fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '한 글자만 달라도 연결되지 않아요. 안내문과 비교해서 아래 값이 맞으면 눌러 주세요. 바꿔서 바로 다시 연결해요.',
+            style: TextStyle(color: p.muted, fontSize: 13, height: 1.5),
+          ),
+          if (ssid.isNotEmpty) ..._rows(context, '네트워크', WifiCandidateType.ssid, ssid),
+          if (password.isNotEmpty) ..._rows(context, '비밀번호', WifiCandidateType.password, password),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _rows(BuildContext context, String label, WifiCandidateType type, List<ConfusableVariant> variants) {
+    final p = AppPalette.of(context);
+    const mono = TextStyle(fontFamily: 'Menlo', fontFamilyFallback: ['Courier', 'monospace'], fontSize: 16);
+    return [
+      const SizedBox(height: 16),
+      Text(label, style: TextStyle(color: p.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+      for (final v in variants)
+        InkWell(
+          key: ValueKey('suspect-${type.name}-${v.index}-${v.to}'),
+          onTap: () => onSelected(type, v.value),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text.rich(
+                        TextSpan(
+                          style: mono.copyWith(color: p.ink),
+                          children: [
+                            TextSpan(text: v.value.substring(0, v.index)),
+                            TextSpan(
+                              text: v.to,
+                              style: TextStyle(
+                                color: p.accent,
+                                fontWeight: FontWeight.w700,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                            TextSpan(text: v.value.substring(v.index + 1)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(v.description, style: TextStyle(color: p.muted, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.refresh_rounded, color: p.accent, size: 20),
+              ],
+            ),
+          ),
+        ),
+    ];
   }
 }
