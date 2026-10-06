@@ -287,25 +287,45 @@ class WifiCredentialParser {
   // 라벨 없는 값
 
   void _addUnlabeledFallbacks(List<List<_Segment>> rows, List<WifiCandidate> found) {
-    // 이름표 없이 "MomoCafe" 다음 줄에 "coffee2024!"가 오면 앞줄을 네트워크 이름으로 본다.
+    // 이름표 없이 윗줄에 이름, 아랫줄에 비밀번호만 적힌 안내문 ("katszen01" / "a024026055").
+    // 윗줄도 영문+숫자라 비밀번호처럼 보일 수 있으므로, 이름으로 본 값은 비밀번호 후보에서 뺀다.
     // 모양만 보고 추측한 값이라 점수를 낮게 둬서 사용자가 확인하게 한다.
+    final claimedAsName = <String>{};
     for (var r = 0; r + 1 < rows.length; r++) {
       final name = _loneValue(rows[r]);
       final next = _loneValue(rows[r + 1]);
-      if (name == null || next == null || _looksLikeSsid(name)) continue;
+      if (name == null || next == null) continue;
       if (_fallbackPasswordScore(next) == null || !_plausibleBareSsid(name)) continue;
-      found.add(WifiCandidate(value: name, type: WifiCandidateType.ssid, score: 0.45));
+      claimedAsName.add(name);
+      if (!_looksLikeSsid(name)) {
+        found.add(WifiCandidate(value: name, type: WifiCandidateType.ssid, score: 0.45));
+      }
+      r++; // 아랫줄은 비밀번호이므로 다시 이름 후보로 보지 않는다.
     }
 
     for (final row in rows) {
       for (final seg in row) {
         if (seg.isLabel || seg.consumed) continue;
         final v = seg.value.trim();
-        if (v.isEmpty || v.contains(_whitespace)) continue;
+        if (v.isEmpty) continue;
+        if (v.contains(_whitespace)) {
+          // OCR이 두 줄을 한 줄로 붙여 읽은 경우: "katszen01 a024026055"
+          final parts = v.split(_whitespace);
+          if (row.length == 1 &&
+              parts.length == 2 &&
+              (_hasDigit.hasMatch(parts[0]) || _looksLikeSsid(parts[0])) &&
+              _plausibleBareSsid(parts[0]) &&
+              _fallbackPasswordScore(parts[1]) != null) {
+            found.add(WifiCandidate(value: parts[0], type: WifiCandidateType.ssid, score: 0.42));
+            found.add(WifiCandidate(value: parts[1], type: WifiCandidateType.password, score: 0.42));
+          }
+          continue;
+        }
         if (_looksLikeSsid(v)) {
           found.add(WifiCandidate(value: v, type: WifiCandidateType.ssid, score: 0.5));
           continue;
         }
+        if (claimedAsName.contains(v)) continue;
         final score = _fallbackPasswordScore(v);
         if (score != null) {
           found.add(WifiCandidate(value: v, type: WifiCandidateType.password, score: score));
@@ -328,6 +348,7 @@ class WifiCredentialParser {
       v.length >= 2 &&
       !_digitsOnly.hasMatch(v) &&
       !_contactLike.hasMatch(v) &&
+      !_phoneLike.hasMatch(v) &&
       !_noiseWords.contains(v.toLowerCase().replaceAll(_noisePunctuation, '')) &&
       !_greetingWords.contains(v.toLowerCase().replaceAll(_noisePunctuation, ''));
 
@@ -339,7 +360,7 @@ class WifiCredentialParser {
 
   double? _fallbackPasswordScore(String v) {
     if (v.length < 8 || v.length > 63 || !_printableAscii.hasMatch(v)) return null;
-    if (_contactLike.hasMatch(v)) return null;
+    if (_contactLike.hasMatch(v) || _phoneLike.hasMatch(v)) return null;
     if (_digitsOnly.hasMatch(v)) return 0.4;
     if (_hasDigit.hasMatch(v) && (_hasLetter.hasMatch(v) || _hasSymbol.hasMatch(v))) return 0.5;
     return null;
@@ -682,6 +703,8 @@ final _digitsOnly = RegExp(r'^\d+$');
 final _hasDigit = RegExp(r'\d');
 final _hasLetter = RegExp(r'[A-Za-z]');
 final _hasSymbol = RegExp(r'[^A-Za-z0-9\s]');
+/// 02-1234-5678, 010.1234.5678, +82-10-1234-5678 같은 전화번호 모양.
+final _phoneLike = RegExp(r'^\+?\d[\d().]*[-.)][\d\-.()]*\d$');
 final _ispPrefix = RegExp(r'^(?:kt|skt?|lgu?|u\+|olleh|iptime|giga|anygate|netis|tp-?link)(?=[\s_]|net|wifi|giga|$)', caseSensitive: false);
 final _contactLike = RegExp(r'https?://|www\.|@\S+\.|\.(?:com|net|kr|co)\b', caseSensitive: false);
 final _ssidShape = RegExp(

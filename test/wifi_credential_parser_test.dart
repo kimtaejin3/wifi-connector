@@ -594,6 +594,54 @@ void main() {
     });
   });
 
+  group('이름표 없이 이름과 비밀번호 두 줄만 있는 안내문 (1.0.8 실패 사례)', () {
+    test('둘 다 영문+숫자여도 윗줄이 이름, 아랫줄이 비밀번호', () {
+      expectParsed('katszen01\na024026055', ssid: 'katszen01', password: 'a024026055');
+      expectParsed('MomoCafe2F\nmomo2024!', ssid: 'MomoCafe2F', password: 'momo2024!');
+      expectParsed('cafe1234\ncafe1234!', ssid: 'cafe1234', password: 'cafe1234!');
+      expectParsed('abc12345\nxyz98765', ssid: 'abc12345', password: 'xyz98765');
+    });
+
+    test('아이콘 글자나 가게 이름 줄이 섞여도', () {
+      expectParsed('令\nkatszen01\na024026055', ssid: 'katszen01', password: 'a024026055');
+      expectParsed('令 katszen01\na024026055', ssid: 'katszen01', password: 'a024026055');
+      expectParsed('CAFE KATSZEN\nkatszen01\na024026055', ssid: 'katszen01', password: 'a024026055');
+      expectParsed('katszen01\na024026055\n영업시간 10:00~22:00', ssid: 'katszen01', password: 'a024026055');
+    });
+
+    test('OCR이 두 줄을 한 줄로 붙여 읽어도', () {
+      expectParsed('katszen01 a024026055', ssid: 'katszen01', password: 'a024026055');
+    });
+
+    test('세 줄이 이어지면 앞의 두 줄을 이름과 비밀번호로 본다', () {
+      expectParsed('katszen01\na024026055\nevent2024', ssid: 'katszen01', password: 'a024026055');
+    });
+
+    test('추측이므로 확신하지 않는다 (사용자가 확인)', () {
+      final r = parser.parse('katszen01\na024026055');
+      expect(r.ssidConfidence, lessThan(WifiCredential.confidentThreshold));
+      expect(r.passwordConfidence, lessThan(WifiCredential.confidentThreshold));
+    });
+
+    test('전화번호는 비밀번호로 추측하지 않는다', () {
+      expectParsed('MomoCafe\n02-1234-5678', ssid: null, password: null);
+      expectParsed('Tel 010-1234-5678', ssid: null, password: null);
+      expectParsed('katszen01\na024026055\n02-1234-5678', ssid: 'katszen01', password: 'a024026055');
+      // 숫자와 기호가 섞였어도 전화번호 모양이 아니면 비밀번호 후보다.
+      expectParsed('CREE MIAY\nWINPT_PPT\n123456789*', ssid: 'WINPT_PPT', password: '123456789*');
+    });
+
+    test('이름표가 있으면 이름표를 따른다', () {
+      expectParsed('katszen01\nSSID: real_cafe\nPW: real12345', ssid: 'real_cafe', password: 'real12345');
+      expectParsed('ID: katszen01\nPW: a024026055', ssid: 'katszen01', password: 'a024026055');
+    });
+
+    test('한 줄 문장은 이름과 비밀번호로 쪼개지 않는다', () {
+      expectParsed('Enjoy coffee2024', ssid: null, password: null);
+      expectParsed('Welcome to cafe1234', ssid: null, password: null);
+    });
+  });
+
   test('toString은 비밀번호를 노출하지 않는다', () {
     final result = parser.parse('SSID: cafe\nPassword: secret123');
     expect(result.toString(), isNot(contains('secret123')));
