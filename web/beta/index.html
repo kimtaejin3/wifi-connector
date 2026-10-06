@@ -37,6 +37,8 @@ button{width:100%;margin-top:16px;font:inherit;font-size:17px;font-weight:700;pa
 button:active{transform:scale(.99)}
 button:disabled{opacity:.6;cursor:default}
 .err{display:none;color:#d6455d;font-size:14px;margin-top:10px}
+.check{display:flex;align-items:flex-start;gap:10px;margin-top:16px;font-size:14px;font-weight:500;color:var(--ink);cursor:pointer;line-height:1.5}
+.check input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--accent);flex:none;cursor:pointer}
 .hp{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
 /* 완료 화면 */
 .done{display:none}
@@ -62,6 +64,7 @@ footer a{color:inherit}
       <label for="email">Google 계정 이메일</label>
       <input id="email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="name@gmail.com" required>
       <p class="hint">휴대폰의 Play 스토어에 로그인된 계정과 같아야 설치할 수 있어요.</p>
+      <label class="check"><input id="notify" name="notify" type="checkbox"><span>테스터 명단에 추가되면 이메일로 알려 주세요</span></label>
       <div class="hp" aria-hidden="true"><label>website<input name="website" tabindex="-1" autocomplete="off"></label></div>
       <button id="btn" type="submit">베타 참여 신청</button>
       <p id="err" class="err"></p>
@@ -71,12 +74,12 @@ footer a{color:inherit}
   <section id="done-view" class="done">
     <span class="eyebrow">신청 완료</span>
     <h1>감사합니다!</h1>
-    <p class="lead"><span id="done-email" class="email-badge"></span> 로 신청됐어요. 아래 순서대로 하면 베타 버전을 설치할 수 있어요.</p>
+    <p class="lead"><span id="done-email" class="email-badge"></span> 로 신청됐어요. <span id="done-notify"></span>아래 순서대로 하면 베타 버전을 설치할 수 있어요.</p>
     <ol class="steps">
       <li>
         <b>테스터 명단 추가를 기다려 주세요</b>
         신청한 이메일을 테스터 명단에 추가해 드려요. 보통 하루 안에 처리돼요.
-        <small>명단에 추가되기 전에는 아래 링크에서 "앱을 찾을 수 없음"이 나올 수 있어요.</small>
+        <small id="step1-note">명단에 추가되기 전에는 아래 링크에서 "앱을 찾을 수 없음"이 나올 수 있어요.</small>
       </li>
       <li>
         <b>신청한 Google 계정으로 로그인한 브라우저에서 아래 링크를 열고 "테스터 되기"를 눌러 주세요</b>
@@ -107,10 +110,15 @@ footer a{color:inherit}
     btn.disabled=true;btn.textContent='신청하는 중…';
     try{
       var r=await fetch('/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({email:email,website:f.website.value,source:new URLSearchParams(location.search).get('from')||'web'})});
+        body:JSON.stringify({email:email,notify:document.getElementById('notify').checked,website:f.website.value,source:new URLSearchParams(location.search).get('from')||'web'})});
       var d=await r.json().catch(function(){return {};});
       if(!r.ok||!d.ok) throw new Error(d.error||'fail');
       document.getElementById('done-email').textContent=email;
+      var notify=document.getElementById('notify').checked;
+      document.getElementById('done-notify').textContent=notify?'명단에 추가되면 이 주소로 알려 드릴게요. ':'';
+      document.getElementById('step1-note').textContent=notify
+        ?'알림 메일이 오면 2번부터 진행해 주세요. 그 전에는 아래 링크에서 "앱을 찾을 수 없음"이 나올 수 있어요.'
+        :'명단에 추가되기 전에는 아래 링크에서 "앱을 찾을 수 없음"이 나올 수 있어요.';
       document.getElementById('form-view').style.display='none';
       document.getElementById('done-view').style.display='block';
       window.scrollTo(0,0);

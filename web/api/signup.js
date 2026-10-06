@@ -34,21 +34,30 @@ module.exports = async (req, res) => {
 
   const row = {
     email,
+    // 명단에 추가되면 메일로 알려 달라는 동의. 발송 기능은 아직 없고 동의만 저장한다.
+    notify_consent: body.notify === true,
     source: String(body.source || 'web').slice(0, 40),
     user_agent: String(req.headers['user-agent'] || '').slice(0, 300),
   };
 
-  // 같은 이메일이 이미 있으면 그대로 두고 성공으로 처리한다 (중복 등록 허용).
-  const r = await fetch(`${url}/rest/v1/beta_testers?on_conflict=email`, {
+  // 같은 이메일이 이미 있으면 동의 여부만 최신 값으로 바꾼다 (중복 등록 허용).
+  const insert = (data) => fetch(`${url}/rest/v1/beta_testers?on_conflict=email`, {
     method: 'POST',
     headers: {
       apikey: key,
       Authorization: `Bearer ${key}`,
       'Content-Type': 'application/json',
-      Prefer: 'resolution=ignore-duplicates,return=minimal',
+      Prefer: 'resolution=merge-duplicates,return=minimal',
     },
-    body: JSON.stringify(row),
+    body: JSON.stringify(data),
   });
+
+  let r = await insert(row);
+  // notify_consent 칸이 아직 없는 DB라면 동의 값만 빼고 다시 저장한다 (신청이 막히지 않게).
+  if (r.status === 400) {
+    const { notify_consent: _omit, ...withoutConsent } = row;
+    r = await insert(withoutConsent);
+  }
 
   if (!r.ok) {
     res.statusCode = 502;
