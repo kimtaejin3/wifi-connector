@@ -289,6 +289,22 @@ class WifiConnectorPlugin :
             private set
 
         fun start() {
+            // 지금 붙어 있는 Wi-Fi 네트워크를 먼저 기억해 두고, 콜백을 등록하는 즉시 감시를 시작한다.
+            // 예전에는 승인 결과(onActivityResult)를 받은 뒤에야 감시를 켰는데, 승인 화면이 닫히기 전에
+            // OS가 이미 새 네트워크에 붙는 경우가 있어 그 연결을 "원래 있던 네트워크"로 오인했다.
+            // 그러면 실제로는 연결됐는데 "아직 연결을 확인하지 못했어요"가 나온다.
+            try {
+                @Suppress("DEPRECATION")
+                for (network in cm.allNetworks) {
+                    val caps = cm.getNetworkCapabilities(network) ?: continue
+                    if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) continue
+                    known.add(network)
+                    cm.getLinkProperties(network)?.let { knownGateways.addAll(gatewaysOf(it)) }
+                }
+            } catch (e: RuntimeException) {
+                // 못 읽으면 콜백으로 들어오는 기존 네트워크만으로 구분한다.
+            }
+            armed = true
             val request = NetworkRequest.Builder()
                 .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
                 .build()
@@ -300,6 +316,7 @@ class WifiConnectorPlugin :
             }
         }
 
+        /** 감시는 [start]에서 바로 켜진다. 승인 뒤에 한 번 더 불러도 무방하다. */
         fun arm() {
             armed = true
         }
@@ -343,6 +360,8 @@ class WifiConnectorPlugin :
         }
 
         override fun onAvailable(network: Network) {
+            // 등록 직후 콜백으로 들어오는 기존 네트워크는 start()에서 이미 known에 넣었다.
+            // 그 뒤에 새로 나타나는 네트워크는 onLinkPropertiesChanged에서 게이트웨이로 판정한다.
             if (!armed) known.add(network)
         }
 
