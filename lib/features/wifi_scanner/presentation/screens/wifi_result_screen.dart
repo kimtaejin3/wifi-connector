@@ -60,6 +60,9 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
   /// 인식한 값은 언제든 그 자리에서 바로 고칠 수 있다. 연결이 끝났거나 요청 중일 때만 잠근다.
   bool get _fieldsEditable => !_succeeded && !_connecting;
 
+  final _ssidFocus = FocusNode();
+  final _passwordFocus = FocusNode();
+
   bool _connecting = false;
   WifiConnectResult? _result;
 
@@ -83,6 +86,8 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
 
   @override
   void dispose() {
+    _ssidFocus.dispose();
+    _passwordFocus.dispose();
     _ssid.dispose();
     _password.dispose();
     super.dispose();
@@ -272,11 +277,12 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
             children: [
               _Heading(title: _title, subtitle: _subtitle),
               const SizedBox(height: 40),
-              _SectionLabel('네트워크', trailing: _fieldsEditable ? const _EditHint() : null),
+              _SectionLabel('네트워크', trailing: _fieldTrailing(_ssid, _ssidFocus)),
               const SizedBox(height: 8),
               FieldRow(
                 label: null,
                 controller: _ssid,
+                focusNode: _ssidFocus,
                 editable: _fieldsEditable,
                 large: true,
                 autofocus: _editable && (_isManual || ssidMissing),
@@ -290,11 +296,12 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
                 onSelected: (v) => _useCandidate(_ssid, v),
               ),
               Padding(padding: const EdgeInsets.symmetric(vertical: 24), child: Divider(color: p.hairline)),
-              _SectionLabel('비밀번호', trailing: _fieldsEditable ? const _EditHint() : null),
+              _SectionLabel('비밀번호', trailing: _fieldTrailing(_password, _passwordFocus)),
               const SizedBox(height: 8),
               FieldRow(
                 label: null,
                 controller: _password,
+                focusNode: _passwordFocus,
                 editable: _fieldsEditable,
                 autofocus: _editable && passwordMissing,
                 hint: _fieldsEditable ? '없으면 비워두세요' : '비밀번호 없음',
@@ -365,6 +372,16 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
     }
     final check = _check;
     return result.needsVerification && check != null && !check.connected;
+  }
+
+  /// 칸 제목 오른쪽의 "탭해서 수정". 누르면 그 칸에 커서를 둔다.
+  /// 값을 고치면 처음 인식한 값은 아래 후보 칩에 남으므로 따로 되돌리기 버튼은 두지 않는다.
+  Widget? _fieldTrailing(TextEditingController controller, FocusNode focus) {
+    if (!_fieldsEditable) return null;
+    return _EditHint(onTap: () {
+      focus.requestFocus();
+      controller.selection = TextSelection.collapsed(offset: controller.text.length);
+    });
   }
 
   /// 의심 글자를 바꾼 값으로 곧바로 다시 연결한다.
@@ -443,12 +460,16 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
 
   List<String> _alternatives(WifiCandidateType type, String current) {
     final candidates = _found.candidatesOf(type);
-    if (candidates.isEmpty) return const [];
-    final floor = candidates.first.score - _chipScoreMargin;
-    return candidates
-        .where((c) => c.score >= floor)
-        .map((c) => c.value)
-        .where((v) => v.isNotEmpty && v != current.trim())
+    final floor = candidates.isEmpty ? 0.0 : candidates.first.score - _chipScoreMargin;
+    // 값을 고치면 처음 인식한 값을 맨 앞 후보로 남겨 한 번에 되돌릴 수 있게 한다.
+    final original = type == WifiCandidateType.ssid ? _found.ssid : _found.password;
+    final values = [
+      if (original != null && original.isNotEmpty) original,
+      ...candidates.where((c) => c.score >= floor).map((c) => c.value),
+    ];
+    final seen = <String>{};
+    return values
+        .where((v) => v.isNotEmpty && v != current.trim() && seen.add(v))
         .take(3)
         .toList();
   }
@@ -498,23 +519,33 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-/// 값을 그 자리에서 바로 고칠 수 있다는 표시. 입력창에 테두리가 없어 글로 알려준다.
+/// 값을 그 자리에서 바로 고칠 수 있다는 표시. 입력창에 테두리가 없어 글로 알려주고, 누르면 커서를 둔다.
 class _EditHint extends StatelessWidget {
-  const _EditHint();
+  const _EditHint({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.edit_outlined, size: 13, color: p.muted),
-        const SizedBox(width: 4),
-        Text('탭해서 수정', style: TextStyle(fontSize: 12, color: p.muted, fontWeight: FontWeight.w500)),
-      ],
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.edit_outlined, size: 13, color: p.muted),
+            const SizedBox(width: 4),
+            Text('탭해서 수정', style: TextStyle(fontSize: 12, color: p.muted, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
     );
   }
 }
+
 
 class _ErrorText extends StatelessWidget {
   const _ErrorText(this.text);

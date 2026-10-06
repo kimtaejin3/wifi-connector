@@ -46,6 +46,7 @@ class FieldRow extends StatelessWidget {
     this.editable = false,
     this.autofocus = false,
     this.hint,
+    this.focusNode,
     this.textInputAction,
     this.onChanged,
     this.onSubmitted,
@@ -59,6 +60,9 @@ class FieldRow extends StatelessWidget {
   final bool editable;
   final bool autofocus;
   final String? hint;
+
+  /// 바깥에서 "탭해서 수정" 같은 글자를 눌러도 이 칸에 커서를 둘 수 있게 한다.
+  final FocusNode? focusNode;
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
@@ -85,6 +89,7 @@ class FieldRow extends StatelessWidget {
         if (editable)
           TextField(
             controller: controller,
+            focusNode: focusNode,
             autofocus: autofocus,
             autocorrect: false,
             enableSuggestions: false,

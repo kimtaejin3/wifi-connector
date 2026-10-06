@@ -142,6 +142,36 @@ void main() {
     expect(find.text('Typed12345'), findsNothing);
   });
 
+  testWidgets("'탭해서 수정'을 누르면 그 칸에 커서가 간다", (tester) async {
+    await pumpResult(tester, found);
+    await tester.tap(find.text('탭해서 수정').last);
+    await tester.pumpAndSettle();
+    final password = tester.widget<TextField>(find.byType(TextField).last);
+    expect(password.focusNode?.hasFocus, isTrue);
+    final ssid = tester.widget<TextField>(find.byType(TextField).first);
+    expect(ssid.focusNode?.hasFocus, isFalse);
+  });
+
+  testWidgets('값을 고치면 처음 인식한 값이 후보 칩으로 남아 되돌릴 수 있다', (tester) async {
+    final service = FakeWifiService(requested);
+    await pumpResult(tester, found, service: service);
+    expect(find.text('후보'), findsNothing);
+
+    await tester.enterText(find.byType(TextField).last, 'Changed123');
+    await tester.pumpAndSettle();
+    expect(find.text('후보'), findsOneWidget);
+    expect(find.widgetWithText(ActionChip, 'Test12345'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ActionChip, 'Test12345'));
+    await tester.pumpAndSettle();
+    expect(find.text('Changed123'), findsNothing);
+    expect(find.text('후보'), findsNothing);
+
+    await tester.tap(find.text('Wi-Fi 연결'));
+    await tester.pumpAndSettle();
+    expect(service.calls.single, ('TestCafe', 'Test12345'));
+  });
+
   testWidgets('기록에서 열면 닫기 버튼만 있고 제목이 바뀐다', (tester) async {
     await tester.pumpWidget(MaterialApp(
       theme: AppTheme.light(),
