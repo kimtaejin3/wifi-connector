@@ -424,6 +424,9 @@ void main() {
       await pumpResult(tester, tricky, service: service);
       await tester.tap(find.text('Wi-Fi 연결'));
       await tester.pumpAndSettle();
+      // 안내 문구가 길어 섹션이 화면 아래로 밀리므로 스크롤해서 만든다.
+      await tester.drag(find.byType(ListView), const Offset(0, -800));
+      await tester.pumpAndSettle();
       expect(find.text('헷갈리기 쉬운 글자를 확인해 보세요'), findsOneWidget);
       expect(find.text('O(대문자 오) → 0(숫자 0)'), findsWidgets);
       expect(find.byKey(const ValueKey('suspect-password-7-0')), findsOneWidget);
@@ -434,6 +437,8 @@ void main() {
       final service = FakeWifiService(requested, check: WifiConnectionCheck.unconfirmed);
       await pumpResult(tester, tricky, service: service);
       await tester.tap(find.text('Wi-Fi 연결'));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView), const Offset(0, -800));
       await tester.pumpAndSettle();
       final row = find.byKey(const ValueKey('suspect-password-7-0'));
       await tester.ensureVisible(row);
