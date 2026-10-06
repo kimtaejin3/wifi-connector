@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>와이파이 렌즈 안드로이드 베타</title>
+<meta name="description" content="와이파이 렌즈 안드로이드 베타 테스터 모집. 이메일을 남기면 Play 스토어 테스트 링크를 안내해 드려요.">
+<meta property="og:title" content="와이파이 렌즈 안드로이드 베타 테스터 모집">
+<meta property="og:description" content="Wi-Fi 안내문을 비추면 바로 연결. 안드로이드 베타에 참여해 보세요.">
+<meta property="og:image" content="https://wifi-lens.vercel.app/icon.png">
+<link rel="icon" href="/icon.png">
+<style>
+:root{
+  --bg:#f3f1ff;--bg2:#fff6ef;--card:#fff;--ink:#1d2030;--muted:#6d7190;--line:#e6e4f3;
+  --accent:#5b67f1;--accent2:#7e4df6;--on:#fff;--field:#f7f6fc;--ok:#1f9d6a
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#12142a;--bg2:#1b1530;--card:#1a1d33;--ink:#f1f2fa;--muted:#9ea3c2;--line:#2b2f4b;
+  --accent:#8089ff;--accent2:#a98bff;--on:#111327;--field:#232746;--ok:#45c48c
+}}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{
+  background:linear-gradient(160deg,var(--bg) 0%,var(--bg2) 100%);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+  line-height:1.6;-webkit-text-size-adjust:100%;display:flex;align-items:center;justify-content:center;padding:28px 16px
+}
+.card{width:100%;max-width:440px;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:36px 28px 32px;box-shadow:0 24px 60px rgba(60,50,140,.10)}
+.eyebrow{display:inline-block;font-size:13px;font-weight:700;letter-spacing:.3px;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);padding:6px 12px;border-radius:999px}
+h1{font-size:26px;line-height:1.3;letter-spacing:-.6px;margin:18px 0 10px}
+.lead{color:var(--muted);font-size:15px;margin:0 0 26px}
+label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px}
+input[type=email]{width:100%;font:inherit;font-size:17px;padding:15px 16px;border-radius:14px;border:1.5px solid var(--line);background:var(--field);color:var(--ink);outline:none;transition:border-color .15s}
+input[type=email]:focus{border-color:var(--accent)}
+.hint{font-size:13px;color:var(--muted);margin:10px 0 0}
+button{width:100%;margin-top:16px;font:inherit;font-size:17px;font-weight:700;padding:16px;border:0;border-radius:14px;color:var(--on);cursor:pointer;background:linear-gradient(135deg,var(--accent),var(--accent2));transition:transform .08s,opacity .15s}
+button:active{transform:scale(.99)}
+button:disabled{opacity:.6;cursor:default}
+.err{display:none;color:#d6455d;font-size:14px;margin-top:10px}
+.hp{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
+/* 완료 화면 */
+.done{display:none}
+.done .mark{color:var(--ok);font-weight:700;font-size:14px}
+.steps{list-style:none;counter-reset:s;padding:0;margin:20px 0 0}
+.steps li{counter-increment:s;position:relative;padding:14px 0 14px 44px;border-top:1px solid var(--line);font-size:15px}
+.steps li::before{content:counter(s);position:absolute;left:0;top:14px;width:28px;height:28px;border-radius:50%;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
+.steps li b{display:block;font-size:16px;margin-bottom:2px}
+.steps li small{display:block;color:var(--muted);font-size:13px;margin-top:4px}
+.link{display:block;margin-top:10px;padding:14px 16px;border-radius:12px;background:var(--field);color:var(--accent);text-decoration:none;font-weight:600;word-break:break-all;font-size:14px}
+.email-badge{display:inline-block;background:var(--field);border-radius:8px;padding:2px 8px;font-weight:600}
+footer{margin-top:28px;text-align:center;font-size:12px;color:var(--muted)}
+footer a{color:inherit}
+</style>
+</head>
+<body>
+<main class="card">
+  <section id="form-view">
+    <span class="eyebrow">안드로이드 베타</span>
+    <h1>와이파이 렌즈<br>안드로이드 테스터 모집</h1>
+    <p class="lead">Wi-Fi 안내문을 비추면 이름과 비밀번호를 읽어 바로 연결해 주는 앱이에요. 안드로이드 베타에 참여하실 분은 Play 스토어에 로그인하는 Google 이메일을 남겨 주세요.</p>
+    <form id="f" novalidate>
+      <label for="email">Google 계정 이메일</label>
+      <input id="email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="name@gmail.com" required>
+      <p class="hint">휴대폰의 Play 스토어에 로그인된 계정과 같아야 설치할 수 있어요.</p>
+      <div class="hp" aria-hidden="true"><label>website<input name="website" tabindex="-1" autocomplete="off"></label></div>
+      <button id="btn" type="submit">베타 참여 신청</button>
+      <p id="err" class="err"></p>
+    </form>
+  </section>
+
+  <section id="done-view" class="done">
+    <span class="eyebrow">신청 완료</span>
+    <h1>감사합니다!</h1>
+    <p class="lead"><span id="done-email" class="email-badge"></span> 로 신청됐어요. 아래 순서대로 하면 베타 버전을 설치할 수 있어요.</p>
+    <ol class="steps">
+      <li>
+        <b>테스터 명단 추가를 기다려 주세요</b>
+        신청한 이메일을 테스터 명단에 추가해 드려요. 보통 하루 안에 처리돼요.
+        <small>명단에 추가되기 전에는 아래 링크에서 "앱을 찾을 수 없음"이 나올 수 있어요.</small>
+      </li>
+      <li>
+        <b>신청한 Google 계정으로 로그인한 브라우저에서 아래 링크를 열고 "테스터 되기"를 눌러 주세요</b>
+        <a class="link" href="https://play.google.com/apps/testing/com.kimtaejin.wifi_connector" target="_blank" rel="noopener">play.google.com/apps/testing/com.kimtaejin.wifi_connector</a>
+      </li>
+      <li>
+        <b>Play 스토어에서 설치해 주세요</b>
+        같은 계정으로 로그인된 안드로이드 휴대폰에서 아래 링크를 열면 설치할 수 있어요.
+        <a class="link" href="https://play.google.com/store/apps/details?id=com.kimtaejin.wifi_connector" target="_blank" rel="noopener">play.google.com/store/apps/details?id=com.kimtaejin.wifi_connector</a>
+      </li>
+    </ol>
+    <p class="hint">다른 이메일로 신청하려면 <a href="/beta" style="color:var(--accent)">여기</a>를 눌러 주세요.</p>
+  </section>
+
+  <footer><a href="/privacy">개인정보 처리방침</a> · 이메일은 베타 테스터 명단 등록에만 쓰고, 끝나면 지워요.</footer>
+</main>
+
+<script>
+(function(){
+  var f=document.getElementById('f'), btn=document.getElementById('btn'), err=document.getElementById('err'), input=document.getElementById('email');
+  var EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  function showError(m){err.textContent=m;err.style.display='block';}
+  f.addEventListener('submit', async function(e){
+    e.preventDefault();
+    err.style.display='none';
+    var email=input.value.trim();
+    if(!EMAIL.test(email)){showError('이메일 주소를 다시 확인해 주세요.');input.focus();return;}
+    btn.disabled=true;btn.textContent='신청하는 중…';
+    try{
+      var r=await fetch('/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:email,website:f.website.value,source:new URLSearchParams(location.search).get('from')||'web'})});
+      var d=await r.json().catch(function(){return {};});
+      if(!r.ok||!d.ok) throw new Error(d.error||'fail');
+      document.getElementById('done-email').textContent=email;
+      document.getElementById('form-view').style.display='none';
+      document.getElementById('done-view').style.display='block';
+      window.scrollTo(0,0);
+    }catch(e){
+      showError(e.message==='invalid_email'?'이메일 주소를 다시 확인해 주세요.':'잠시 후 다시 시도해 주세요.');
+      btn.disabled=false;btn.textContent='베타 참여 신청';
+    }
+  });
+})();
+</script>
+</body>
+</html>
