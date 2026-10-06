@@ -97,9 +97,9 @@ void main() {
     expect(find.text('Wi-Fi를 찾았어요'), findsOneWidget);
     expect(find.text('TestCafe'), findsOneWidget);
     expect(find.text('Test12345'), findsOneWidget);
-    // 인식 결과는 읽기 전용(입력창 없음)으로 시작한다.
-    expect(find.byType(TextField), findsNothing);
-    expect(find.text('수정'), findsOneWidget);
+    // 인식한 값은 테두리 없는 입력창에 바로 놓여 그 자리에서 고칠 수 있고, 그 사실을 글로 알려준다.
+    expect(find.byType(TextField), findsNWidgets(2));
+    expect(find.text('탭해서 수정'), findsNWidgets(2));
 
     await tester.tap(find.text('Wi-Fi 연결'));
     await tester.pumpAndSettle();
@@ -108,22 +108,38 @@ void main() {
     expect(service.awaited, ['TestCafe']);
     expect(find.text('Wi-Fi에 연결되었습니다.'), findsOneWidget);
     expect(find.text('완료'), findsNothing);
-    expect(find.text('수정'), findsNothing);
+    // 연결이 끝나면 더 고칠 수 없게 잠근다.
+    expect(find.text('탭해서 수정'), findsNothing);
+    expect(find.byType(TextField), findsNothing);
 
     final saved = await history.load();
     expect(saved.single.ssid, 'TestCafe');
     expect(saved.single.password, 'Test12345');
   });
 
-  testWidgets('수정하기를 누르면 편집할 수 있다', (tester) async {
-    await pumpResult(tester, found);
-    expect(find.byType(TextField), findsNothing);
-
-    await tester.tap(find.text('수정'));
-    await tester.pumpAndSettle();
-
+  testWidgets('입력창을 눌러 바로 고칠 수 있고, 후보 칩도 그대로 쓸 수 있다', (tester) async {
+    const withCandidates = WifiCredential(
+      ssid: 'TestCafe',
+      password: 'Test12345',
+      ssidConfidence: 0.95,
+      passwordConfidence: 0.9,
+      candidates: [
+        WifiCandidate(value: 'Test12345', type: WifiCandidateType.password, score: 0.9),
+        WifiCandidate(value: 'TestI2345', type: WifiCandidateType.password, score: 0.85),
+      ],
+    );
+    await pumpResult(tester, withCandidates);
     expect(find.byType(TextField), findsNWidgets(2));
-    expect(find.text('수정'), findsNothing);
+    expect(find.text('후보'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).last, 'Typed12345');
+    await tester.pumpAndSettle();
+    expect(find.text('Typed12345'), findsOneWidget);
+
+    await tester.tap(find.text('TestI2345'));
+    await tester.pumpAndSettle();
+    expect(find.text('TestI2345'), findsOneWidget);
+    expect(find.text('Typed12345'), findsNothing);
   });
 
   testWidgets('기록에서 열면 닫기 버튼만 있고 제목이 바뀐다', (tester) async {
@@ -139,7 +155,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('저장된 Wi-Fi'), findsOneWidget);
     expect(find.text('다시 촬영'), findsNothing);
-    expect(find.text('수정'), findsOneWidget);
+    expect(find.text('탭해서 수정'), findsNWidgets(2));
   });
 
   testWidgets('연결을 확인하지 못하면 안내와 다시 시도 버튼', (tester) async {
@@ -168,7 +184,7 @@ void main() {
     expect(find.textContaining('확인하고 있어요'), findsNothing);
     expect(service.awaited, isEmpty);
     expect(find.text('완료'), findsNothing);
-    expect(find.text('수정'), findsNothing);
+    expect(find.text('탭해서 수정'), findsNothing);
   });
 
   testWidgets('캡티브 포털이면 로그인 안내', (tester) async {
@@ -189,8 +205,6 @@ void main() {
     final service = FakeWifiService(requested);
     await pumpResult(tester, found, service: service);
 
-    await tester.tap(find.text('수정'));
-    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, 'Fixed12345');
     await tester.tap(find.text('Wi-Fi 연결'));
     await tester.pumpAndSettle();
@@ -313,8 +327,6 @@ void main() {
       await pumpResult(tester, found, service: service);
       await tester.tap(find.text('Wi-Fi 연결'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('수정'));
-      await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).last, 'Fixed12345');
       await tester.pumpAndSettle();
       await tester.tap(find.byType(FilledButton).last);
@@ -429,8 +441,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('아직 연결을 확인하지 못했어요.'), findsOneWidget);
 
-    await tester.tap(find.text('수정'));
-    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, 'Other12345');
     await tester.pumpAndSettle();
     expect(find.text('아직 연결을 확인하지 못했어요.'), findsNothing);

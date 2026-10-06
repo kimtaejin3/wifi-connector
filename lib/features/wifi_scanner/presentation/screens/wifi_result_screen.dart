@@ -54,8 +54,11 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
   /// OCR로 아무것도 찾지 못했을 때 사용자가 "직접 입력"을 눌렀는지.
   late bool _showForm = widget.manualEntry || !widget.credential.isEmpty;
 
-  /// 값을 고칠 수 있는 상태. 직접 입력이거나 빠진 값이 있으면 바로 편집 상태로 시작한다.
+  /// 직접 입력이거나 빠진 값이 있어 처음부터 키보드를 띄워야 하는 상태.
   late bool _editable = _isManual || !widget.credential.hasSsid || !widget.credential.hasPassword;
+
+  /// 인식한 값은 언제든 그 자리에서 바로 고칠 수 있다. 연결이 끝났거나 요청 중일 때만 잠근다.
+  bool get _fieldsEditable => !_succeeded && !_connecting;
 
   bool _connecting = false;
   WifiConnectResult? _result;
@@ -100,8 +103,6 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
     controller.text = value;
     _onEdited(value);
   }
-
-  void _startEditing() => setState(() => _editable = true);
 
   Future<void> _connect() async {
     FocusScope.of(context).unfocus();
@@ -271,17 +272,12 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
             children: [
               _Heading(title: _title, subtitle: _subtitle),
               const SizedBox(height: 40),
-              _SectionLabel(
-                '네트워크',
-                trailing: !_editable && !_succeeded && !_connecting
-                    ? _EditLink(onTap: _startEditing)
-                    : null,
-              ),
+              _SectionLabel('네트워크', trailing: _fieldsEditable ? const _EditHint() : null),
               const SizedBox(height: 8),
               FieldRow(
                 label: null,
                 controller: _ssid,
-                editable: _editable,
+                editable: _fieldsEditable,
                 large: true,
                 autofocus: _editable && (_isManual || ssidMissing),
                 hint: 'Wi-Fi 이름',
@@ -294,14 +290,14 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
                 onSelected: (v) => _useCandidate(_ssid, v),
               ),
               Padding(padding: const EdgeInsets.symmetric(vertical: 24), child: Divider(color: p.hairline)),
-              const _SectionLabel('비밀번호'),
+              _SectionLabel('비밀번호', trailing: _fieldsEditable ? const _EditHint() : null),
               const SizedBox(height: 8),
               FieldRow(
                 label: null,
                 controller: _password,
-                editable: _editable,
+                editable: _fieldsEditable,
                 autofocus: _editable && passwordMissing,
-                hint: _editable ? '없으면 비워두세요' : '비밀번호 없음',
+                hint: _fieldsEditable ? '없으면 비워두세요' : '비밀번호 없음',
                 textInputAction: TextInputAction.done,
                 onChanged: _onEdited,
                 onSubmitted: (_) {
@@ -502,21 +498,20 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-class _EditLink extends StatelessWidget {
-  const _EditLink({required this.onTap});
-
-  final VoidCallback onTap;
+/// 값을 그 자리에서 바로 고칠 수 있다는 표시. 입력창에 테두리가 없어 글로 알려준다.
+class _EditHint extends StatelessWidget {
+  const _EditHint();
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Text('수정', style: TextStyle(fontSize: 14, color: p.accent, fontWeight: FontWeight.w600)),
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.edit_outlined, size: 13, color: p.muted),
+        const SizedBox(width: 4),
+        Text('탭해서 수정', style: TextStyle(fontSize: 12, color: p.muted, fontWeight: FontWeight.w500)),
+      ],
     );
   }
 }
