@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:io';
 
 import 'package:camera/camera.dart';
@@ -64,6 +65,12 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   /// 탭 초점 위치 표시.
   Offset? _focusRing;
   Timer? _focusRingTimer;
+
+  /// 두 손가락 확대·축소. 작은 안내문이나 멀리 붙은 안내문을 가이드에 맞출 때 쓴다.
+  double _minZoom = 1;
+  double _maxZoom = 1;
+  double _zoom = 1;
+  double _zoomAtGestureStart = 1;
 
   /// 실시간 인식 상태.
   bool _streaming = false;
@@ -155,10 +162,26 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         await controller.dispose();
         return;
       }
+      var minZoom = 1.0;
+      var maxZoom = 1.0;
+      try {
+        minZoom = await controller.getMinZoomLevel();
+        // 너무 크게 확대하면 화질이 떨어져 인식이 나빠지므로 5배까지만 허용한다.
+        maxZoom = math.min(await controller.getMaxZoomLevel(), 5.0);
+      } on CameraException {
+        // 확대를 지원하지 않는 기기
+      }
+      if (!mounted || _resultOpen) {
+        await controller.dispose();
+        return;
+      }
       setState(() {
         _controller = controller;
         _torchOn = false;
         _status = _CameraStatus.ready;
+        _minZoom = minZoom;
+        _maxZoom = maxZoom;
+        _zoom = minZoom;
       });
       // 초점과 노출을 안내문이 놓일 가이드 중앙에 맞춘다.
       final view = _viewSize;
@@ -174,6 +197,19 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       });
     } finally {
       _initializing = false;
+    }
+  }
+
+  Future<void> _setZoom(double zoom) async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+    final clamped = zoom.clamp(_minZoom, _maxZoom);
+    if ((clamped - _zoom).abs() < 0.01) return;
+    setState(() => _zoom = clamped);
+    try {
+      await controller.setZoomLevel(clamped);
+    } on CameraException {
+      // 확대를 지원하지 않는 기기
     }
   }
 
@@ -492,13 +528,25 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
             processing: _processing,
             reading: !_processing && _voter.count > 0 && !vote.isStable,
           ),
-          // 탭한 곳에 초점을 맞춘다 (글자가 흐리면 인식률이 크게 떨어진다).
+          // 탭한 곳에 초점을 맞추고(글자가 흐리면 인식률이 크게 떨어진다), 두 손가락으로 확대·축소한다.
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
               onTapDown: ready && !_processing ? (d) => _setFocus(d.localPosition) : null,
+              onScaleStart: ready ? (_) => _zoomAtGestureStart = _zoom : null,
+              onScaleUpdate: ready ? (d) => _setZoom(_zoomAtGestureStart * d.scale) : null,
             ),
           ),
+          if (ready && _zoom > _minZoom + 0.05)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: Center(child: _ZoomBadge(zoom: _zoom)),
+              ),
+            ),
           if (ring != null)
             Positioned(
               left: ring.dx - 32,
@@ -590,6 +638,29 @@ class _FocusRing extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
         boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 6)],
+      ),
+    );
+  }
+}
+
+/// 확대 중일 때 화면 위에 배율을 보여준다.
+class _ZoomBadge extends StatelessWidget {
+  const _ZoomBadge({required this.zoom});
+
+  final double zoom;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '${zoom.toStringAsFixed(1)}x',
+        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
       ),
     );
   }

@@ -97,6 +97,8 @@ class FieldRow extends StatelessWidget {
             textInputAction: textInputAction,
             style: valueStyle,
             cursorColor: p.accent,
+            // 테두리와 안쪽 여백이 없어 맨 앞에 둔 커서가 왼쪽 가장자리에서 잘려 보이지 않는다.
+            clipBehavior: Clip.none,
             decoration: InputDecoration(
               isDense: true,
               isCollapsed: true,
