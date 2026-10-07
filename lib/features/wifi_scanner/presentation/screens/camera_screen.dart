@@ -12,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/utils/platform_channel.dart';
 import '../../data/models/wifi_credential.dart';
 import '../../data/services/camera_frame.dart';
+import '../../data/services/frame_quality.dart';
 import '../../data/services/image_cropper.dart';
 import '../../data/services/ocr_service.dart';
 import '../../domain/services/credential_voter.dart';
@@ -47,9 +48,14 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   /// 실시간 인식 프레임 간격. 두 인식기를 함께 돌리므로 너무 촘촘하면 발열만 늘어난다.
   static const _liveInterval = Duration(milliseconds: 350);
 
+  /// 이름표로 찾은 값의 최소 점수. 이름표 없이 추측한 값은 0.55 이하다.
+  static const _labeledScore = 0.6;
+
   final _ocr = OcrService();
   final _extractor = const WifiCredentialExtractor();
   final _voter = CredentialVoter();
+  final _sharpness = SharpnessGate();
+  final _script = ScriptPreference();
   final _picker = ImagePicker();
 
   CameraController? _controller;
@@ -220,6 +226,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     _torchOn = false;
     _streaming = false;
     _voter.clear();
+    _sharpness.clear();
+    _script.clear();
     _liveVote = const VoteResult();
     if (mounted) setState(() {});
     controller.dispose();
@@ -289,15 +297,27 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     final input = inputImageFromFrame(image, controller);
     final rotation = frameRotation(controller);
     if (input == null || rotation == null) return;
+    // 손떨림으로 흐려진 프레임은 글자를 다르게 읽어 다수결을 흔드므로 건너뛰고 다음 프레임을 본다.
+    final now = DateTime.now();
+    if (!_sharpness.shouldProcess(frameSharpness(image), now: now, lastProcessed: _lastFrameAt)) return;
 
     _frameBusy = true;
-    _lastFrameAt = DateTime.now();
+    _lastFrameAt = now;
     try {
       final results = await _ocr.recognizeImage(input);
-      final credential = _extractor.fromOcrResults(_insideGuide(results, image, rotation));
+      final inside = _insideGuide(results, image, rotation);
+      final preferred = _script.update(inside);
+      var credential = _extractor.fromOcrResults(inside, preferred: preferred);
+      // 안내문이 가이드보다 커서 한 줄이 밖으로 나간 경우: 가이드 밖에서 이름표로 찾은 값으로만
+      // 빠진 쪽을 채운다. 이름표 없이 모양만 보고 추측한 값은 주변 글자일 수 있어 쓰지 않는다.
+      if (!identical(inside, results) && !credential.isEmpty && (!credential.hasSsid || !credential.hasPassword)) {
+        final whole = _extractor.fromOcrResults(results, preferred: preferred);
+        credential = _extractor.fillMissing(credential, whole, minScore: _labeledScore);
+      }
       _voter.add(credential);
-      final vote = _voter.vote();
-      if (mounted && _streaming) setState(() => _liveVote = vote);
+      // 한 번 안정된 결과는 카메라가 흔들려도 유지한다. 다른 값이 안정되면 그때 바뀐다.
+      final vote = _voter.vote().heldOver(_liveVote);
+      if (mounted && _streaming && vote != _liveVote) setState(() => _liveVote = vote);
     } on Exception {
       // 프레임 하나의 실패는 무시한다.
     } finally {
@@ -524,10 +544,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         fit: StackFit.expand,
         children: [
           if (ready) CoverCameraPreview(controller: controller),
-          ScanGuideOverlay(
-            processing: _processing,
-            reading: !_processing && _voter.count > 0 && !vote.isStable,
-          ),
+          ScanGuideOverlay(processing: _processing),
           // 탭한 곳에 초점을 맞추고(글자가 흐리면 인식률이 크게 떨어진다), 두 손가락으로 확대·축소한다.
           Positioned.fill(
             child: GestureDetector(

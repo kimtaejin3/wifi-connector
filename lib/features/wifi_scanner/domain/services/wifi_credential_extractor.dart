@@ -14,12 +14,18 @@ class WifiCredentialExtractor {
   final WifiCredentialParser parser;
 
   /// 한글이 보이면 한국어 인식기 결과를, 아니면 라틴 인식기 결과를 우선한다.
-  /// 좌표 기반 행 재구성 텍스트로 먼저 시도하고, 아무것도 못 찾으면 원문으로 다시 시도한다.
-  WifiCredential fromOcrResults(List<OcrResult> results) {
-    final ordered = [...results]..sort((a, b) => _priority(a, results).compareTo(_priority(b, results)));
+  /// [preferred]를 주면 이 사진의 한글 여부 대신 그 인식기를 우선한다 (실시간 인식에서
+  /// 프레임마다 우선 인식기가 바뀌어 결과가 왔다 갔다 하지 않게 하려고).
+  ///
+  /// 좌표 기반 행 재구성 텍스트로 먼저 시도하고, 아무것도 못 찾았거나 이름·비밀번호 중
+  /// 하나만 찾았으면 원문으로 다시 읽어 빠진 쪽을 채운다.
+  WifiCredential fromOcrResults(List<OcrResult> results, {TextRecognitionScript? preferred}) {
+    final first = preferred ?? preferredScript(results);
+    final ordered = [...results]..sort((a, b) => (a.script == first ? 0 : 1).compareTo(b.script == first ? 0 : 1));
     var credential = parser.merge([for (final r in ordered) parser.parse(r.layoutText)]);
-    if (credential.isEmpty) {
-      credential = parser.merge([for (final r in ordered) parser.parse(r.text)]);
+    if (!credential.hasSsid || !credential.hasPassword) {
+      final raw = parser.merge([for (final r in ordered) parser.parse(r.text)]);
+      credential = credential.isEmpty ? raw : fillMissing(credential, raw);
     }
     final lines = [for (final r in ordered) ...r.lines];
     return withSubstitutions(credential.withUncertainIndexes(
@@ -29,7 +35,7 @@ class WifiCredentialExtractor {
   }
 
   /// 인식기가 자신 없어 한 글자 자리에 OCR이 자주 혼동하는 글자를 넣은 값을 후보로 덧붙인다
-  /// (`0kim54796`의 첫 글자가 불확실하면 `@kim54796`, `Okim54796` …).
+  /// (`0cat54796`의 첫 글자가 불확실하면 `@cat54796`, `Ocat54796` …).
   /// 원래 값은 그대로 두고, 해당 항목은 "확인 필요"가 뜨도록 신뢰도를 낮춘다.
   @visibleForTesting
   WifiCredential withSubstitutions(WifiCredential credential) {
@@ -179,9 +185,11 @@ class WifiCredentialExtractor {
 
   /// [base]에서 못 찾은 항목만 [other]의 후보로 채운다. 이미 찾은 항목은 건드리지 않는다.
   /// 가이드 밖(전체 사진)의 인식 결과가 안에서 찾은 값을 뒤집거나 잡음을 섞지 않게 하기 위해서다.
-  WifiCredential fillMissing(WifiCredential base, WifiCredential other) {
+  /// [minScore]보다 낮은 후보(이름표 없이 모양만 보고 추측한 값)는 쓰지 않을 수 있다.
+  WifiCredential fillMissing(WifiCredential base, WifiCredential other, {double minScore = 0}) {
     final extra = other.candidates
         .where((c) => c.type == WifiCandidateType.ssid ? !base.hasSsid : !base.hasPassword)
+        .where((c) => c.score >= minScore)
         .toList();
     if (extra.isEmpty) return base;
     final merged = parser.merge([
@@ -200,9 +208,43 @@ class WifiCredentialExtractor {
     );
   }
 
-  static int _priority(OcrResult r, List<OcrResult> all) {
-    final anyHangul = all.any((o) => o.hasHangul);
-    final preferred = anyHangul ? TextRecognitionScript.korean : TextRecognitionScript.latin;
-    return r.script == preferred ? 0 : 1;
+  /// 이 사진 한 장만 보고 정한 우선 인식기. 한글이 보이면 한국어, 아니면 라틴.
+  static TextRecognitionScript preferredScript(List<OcrResult> results) =>
+      results.any((r) => r.hasHangul) ? TextRecognitionScript.korean : TextRecognitionScript.latin;
+}
+
+/// 실시간 인식에서 우선할 인식기를 최근 여러 프레임을 보고 정한다.
+///
+/// 두 인식기가 같은 점수로 다른 글자를 읽으면 우선 인식기의 값이 뽑힌다. 프레임마다 한글이
+/// 한 글자라도 보였는지로 정하면 "비밀번호" 이름표가 읽힌 프레임과 안 읽힌 프레임에서 서로 다른
+/// 인식기의 값이 번갈아 뽑혀 다수결이 갈린다. 그래서 최근 프레임의 다수로 정하고 쉽게 바꾸지 않는다.
+class ScriptPreference {
+  ScriptPreference({this.window = 8});
+
+  final int window;
+  final List<bool> _hangul = [];
+  TextRecognitionScript? _current;
+
+  TextRecognitionScript update(List<OcrResult> results) {
+    final sawHangul = results.any((r) => r.hasHangul);
+    _hangul.add(sawHangul);
+    while (_hangul.length > window) {
+      _hangul.removeAt(0);
+    }
+    final ratio = _hangul.where((h) => h).length / _hangul.length;
+    final current = _current;
+    if (current == null) {
+      _current = sawHangul ? TextRecognitionScript.korean : TextRecognitionScript.latin;
+    } else if (current == TextRecognitionScript.latin && ratio >= 0.6) {
+      _current = TextRecognitionScript.korean;
+    } else if (current == TextRecognitionScript.korean && ratio <= 0.3) {
+      _current = TextRecognitionScript.latin;
+    }
+    return _current!;
+  }
+
+  void clear() {
+    _hangul.clear();
+    _current = null;
   }
 }

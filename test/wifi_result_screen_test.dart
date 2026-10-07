@@ -549,16 +549,16 @@ void main() {
     await pumpResult(
       tester,
       const WifiCredential(
-        ssid: 'kkk_5G',
+        ssid: 'momo_5G',
         ssidConfidence: 0.75,
         candidates: [
-          WifiCandidate(value: 'kkk_5G', type: WifiCandidateType.ssid, score: 0.86),
-          WifiCandidate(value: 'kkk 5G', type: WifiCandidateType.ssid, score: 0.85),
+          WifiCandidate(value: 'momo_5G', type: WifiCandidateType.ssid, score: 0.86),
+          WifiCandidate(value: 'momo 5G', type: WifiCandidateType.ssid, score: 0.85),
           WifiCandidate(value: '들니다', type: WifiCandidateType.ssid, score: 0.6),
         ],
       ),
     );
-    expect(find.text('kkk 5G'), findsOneWidget);
+    expect(find.text('momo 5G'), findsOneWidget);
     expect(find.text('들니다'), findsNothing);
   });
 

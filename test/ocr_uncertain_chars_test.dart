@@ -32,9 +32,9 @@ void main() {
 
   test('파서가 공백을 밑줄로 바꾼 값도 원래 줄과 맞춘다', () {
     final lines = [
-      line('Wi-Fi : kkk 5G', [...List.filled(8, 0.99), 0.9, 0.9, 0.9, 0.99, 0.4, 0.9]),
+      line('Wi-Fi : momo 5G', [...List.filled(8, 0.99), 0.9, 0.9, 0.9, 0.9, 0.99, 0.4, 0.9]),
     ];
-    expect(uncertainCharIndexes('kkk_5G', lines), {4});
+    expect(uncertainCharIndexes('momo_5G', lines), {5});
   });
 
   test('전각 문자는 정규화해서 맞춘다', () {

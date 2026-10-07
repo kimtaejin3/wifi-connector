@@ -17,7 +17,9 @@ const _deviceRotations = {
 
 /// 프리뷰 프레임을 ML Kit 입력으로 바꾼다. 형식이 맞지 않으면 null.
 ///
-/// Android는 NV21 단일 평면, iOS는 BGRA8888. 회전은 센서 방향과 기기 방향으로 계산한다.
+/// Android는 NV21 단일 평면이고 센서 방향 그대로(가로) 오므로 회전 값을 함께 준다.
+/// iOS는 BGRA8888이고 camera 플러그인이 기기 방향으로 이미 돌려서 주며, iOS ML Kit 플러그인은
+/// 회전 값을 읽지 않는다. 그래서 iOS는 회전 없음으로 다루고 프레임 크기도 그대로 쓴다.
 InputImage? inputImageFromFrame(CameraImage image, CameraController controller) {
   if (image.planes.isEmpty) return null;
   final rotation = frameRotation(controller);
@@ -35,8 +37,8 @@ InputImage? inputImageFromFrame(CameraImage image, CameraController controller) 
 }
 
 InputImageRotation? frameRotation(CameraController controller) {
+  if (Platform.isIOS) return InputImageRotation.rotation0deg;
   final sensor = controller.description.sensorOrientation;
-  if (Platform.isIOS) return InputImageRotationValue.fromRawValue(sensor);
   final device = _deviceRotations[controller.value.deviceOrientation] ?? 0;
   final degrees = controller.description.lensDirection == CameraLensDirection.front
       ? (sensor + device) % 360
@@ -44,11 +46,12 @@ InputImageRotation? frameRotation(CameraController controller) {
   return InputImageRotationValue.fromRawValue(degrees);
 }
 
-/// 회전을 반영한(화면에 보이는 방향의) 프레임 크기.
-Size uprightFrameSize(CameraImage image, InputImageRotation rotation) {
+/// 회전을 반영한(화면에 보이는 방향의) 프레임 크기. ML Kit이 돌려주는 글자 상자의 좌표계다.
+Size uprightFrameSize(CameraImage image, InputImageRotation rotation) =>
+    uprightSize(Size(image.width.toDouble(), image.height.toDouble()), rotation);
+
+Size uprightSize(Size frame, InputImageRotation rotation) {
   final rotated =
       rotation == InputImageRotation.rotation90deg || rotation == InputImageRotation.rotation270deg;
-  return rotated
-      ? Size(image.height.toDouble(), image.width.toDouble())
-      : Size(image.width.toDouble(), image.height.toDouble());
+  return rotated ? Size(frame.height, frame.width) : frame;
 }

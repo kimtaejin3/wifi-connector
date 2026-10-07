@@ -7,23 +7,23 @@ void main() {
 
   test('불확실한 첫 글자 0은 @ 후보를 가장 앞에 둔다', () {
     final result = extractor.withSubstitutions(const WifiCredential(
-      ssid: 'kkk_5G',
-      password: '0kim54796',
+      ssid: 'momo_5G',
+      password: '0cat54796',
       ssidConfidence: 0.95,
       passwordConfidence: 0.97,
       candidates: [
-        WifiCandidate(value: 'kkk_5G', type: WifiCandidateType.ssid, score: 0.95),
-        WifiCandidate(value: '0kim54796', type: WifiCandidateType.password, score: 0.97),
+        WifiCandidate(value: 'momo_5G', type: WifiCandidateType.ssid, score: 0.95),
+        WifiCandidate(value: '0cat54796', type: WifiCandidateType.password, score: 0.97),
       ],
       passwordUncertainIndexes: {0},
     ));
 
-    expect(result.password, '0kim54796');
+    expect(result.password, '0cat54796');
     expect(result.passwordConfidence, lessThan(WifiCredential.confidentThreshold));
     expect(result.ssidConfidence, 0.95);
     final passwords = result.candidatesOf(WifiCandidateType.password).map((c) => c.value).toList();
-    expect(passwords.first, '0kim54796');
-    expect(passwords.sublist(1, 4), ['@kim54796', 'Okim54796', 'okim54796']);
+    expect(passwords.first, '0cat54796');
+    expect(passwords.sublist(1, 4), ['@cat54796', 'Ocat54796', 'ocat54796']);
   });
 
   test('불확실한 글자가 없으면 그대로', () {

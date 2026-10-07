@@ -4,13 +4,10 @@ import 'package:flutter/material.dart';
 
 /// 카메라 프리뷰 위에 안내문을 맞출 영역을 표시한다. 영역 밖은 어둡게 처리.
 class ScanGuideOverlay extends StatelessWidget {
-  const ScanGuideOverlay({super.key, this.processing = false, this.reading = false});
+  const ScanGuideOverlay({super.key, this.processing = false});
 
   /// 인식 중이면 영역 안에 진행 표시를 띄운다.
   final bool processing;
-
-  /// 실시간 인식이 글자를 읽는 중 (아직 결과가 안정되지 않음).
-  final bool reading;
 
   /// 화면 크기에 맞춘 정사각형 가이드 영역. 촬영 버튼 공간을 위해 중앙보다 약간 위.
   static Rect guideRect(Size size) {
@@ -34,11 +31,7 @@ class ScanGuideOverlay extends StatelessWidget {
             right: 24,
             bottom: constraints.maxHeight - rect.top + 28,
             child: Text(
-              processing
-                  ? 'Wi-Fi 정보를 찾고 있어요'
-                  : reading
-                      ? '글자를 읽고 있어요\n잠시 그대로 비춰주세요'
-                      : 'Wi-Fi 안내문을\n영역 안에 맞춰주세요',
+              processing ? 'Wi-Fi 정보를 찾고 있어요' : 'Wi-Fi 안내문을\n영역 안에 맞춰주세요',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,

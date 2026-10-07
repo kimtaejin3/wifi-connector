@@ -33,6 +33,16 @@ class VoteResult {
 
   /// 셔터 없이 결과를 보여줘도 될 만큼 두 항목 모두 여러 프레임에서 일치함.
   bool get isStable => (ssid?.isStable ?? false) && (password?.isStable ?? false);
+
+  /// 화면에 유지할 결과. 손이 흔들리거나 안내문이 잠시 벗어나 투표가 불안정해져도
+  /// [shown]을 그대로 두고, 다른 값이 안정되게 읽혔을 때만 바꾸거나 지운다.
+  VoteResult heldOver(VoteResult shown) {
+    if (isStable) return this;
+    bool differs(VotedField? held, VotedField? now) =>
+        held != null && now != null && now.isStable && now.value != held.value;
+    if (differs(shown.ssid, ssid) || differs(shown.password, password)) return const VoteResult();
+    return shown;
+  }
 }
 
 /// 연속된 프레임의 인식 결과를 모아 글자 단위 다수결로 값을 정한다.

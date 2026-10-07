@@ -70,10 +70,27 @@ class OcrService {
   /// 카메라 프리뷰 프레임 등 이미 만들어진 [InputImage]를 인식한다.
   Future<List<OcrResult>> recognizeImage(InputImage image) => _recognizeAll(image);
 
-  Future<List<OcrResult>> _recognizeAll(InputImage image) => Future.wait([
-        _recognize(_korean, TextRecognitionScript.korean, image),
-        _recognize(_latin, TextRecognitionScript.latin, image),
-      ]);
+  /// 한 인식기가 실패해도 다른 인식기의 결과는 버리지 않는다.
+  Future<List<OcrResult>> _recognizeAll(InputImage image) async {
+    final results = await Future.wait([
+      _recognizeOrEmpty(_korean, TextRecognitionScript.korean, image),
+      _recognizeOrEmpty(_latin, TextRecognitionScript.latin, image),
+    ]);
+    if (results.every((r) => r == null)) throw Exception('text recognition failed');
+    return [for (final r in results) ?r];
+  }
+
+  Future<OcrResult?> _recognizeOrEmpty(
+    TextRecognizer recognizer,
+    TextRecognitionScript script,
+    InputImage image,
+  ) async {
+    try {
+      return await _recognize(recognizer, script, image);
+    } on Exception {
+      return null;
+    }
+  }
 
   Future<OcrResult> _recognize(
     TextRecognizer recognizer,
