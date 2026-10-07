@@ -1,6 +1,8 @@
 // 베타 테스터 이메일 등록. Supabase의 beta_testers 테이블에 저장한다.
 // 서비스 키는 Vercel 환경변수에만 있고 브라우저에는 내려가지 않는다.
 
+const { sendWelcome } = require('./_mail');
+
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 module.exports = async (req, res) => {
@@ -63,5 +65,29 @@ module.exports = async (req, res) => {
     res.statusCode = 502;
     return res.json({ ok: false, error: 'storage' });
   }
-  return res.json({ ok: true });
+
+  // 아직 안내 메일을 받지 않은 신청자에게만 한 번 보낸다 (같은 이메일로 다시 신청해도 중복 발송 안 함).
+  let mailed = false;
+  try {
+    const headers = { apikey: key, Authorization: `Bearer ${key}` };
+    const q = await fetch(
+      `${url}/rest/v1/beta_testers?email=eq.${encodeURIComponent(email)}&select=notified_at`,
+      { headers },
+    );
+    const rows = q.ok ? await q.json() : [];
+    if (rows.length && !rows[0].notified_at) {
+      mailed = await sendWelcome(email);
+      if (mailed) {
+        await fetch(`${url}/rest/v1/beta_testers?email=eq.${encodeURIComponent(email)}`, {
+          method: 'PATCH',
+          headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ notified_at: new Date().toISOString() }),
+        });
+      }
+    }
+  } catch {
+    // 메일 실패는 신청 자체를 막지 않는다. 화면에서는 링크를 그대로 안내한다.
+    mailed = false;
+  }
+  return res.json({ ok: true, mailed });
 };

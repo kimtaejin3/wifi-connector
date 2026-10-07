@@ -1,5 +1,8 @@
 {
   "name": "wifi-lens-web",
   "private": true,
-  "engines": { "node": "22.x" }
+  "engines": { "node": "22.x" },
+  "dependencies": {
+    "nodemailer": "^6.9.16"
+  }
 }
