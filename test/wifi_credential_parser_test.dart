@@ -504,7 +504,8 @@ void main() {
   group('검색으로 모은 실제 안내문 표기', () {
     // 국내 카페 공개 목록과 해외 안내문 템플릿에서 모은 표기 형식. 값은 모두 가상이다.
     const cases = <(String, String, String)>[
-      ('KT_GIGA_A1B2 :: PW= 3xyz0ab123', 'KT_GIGA_A1B2', '3xyz0ab123'),
+      // KT 공유기 이름은 실제로 GiGA라 안내문이 대문자로 써도 GiGA를 1순위로 둔다 (아래 KT GiGA 테스트).
+      ('KT_GIGA_A1B2 :: PW= 3xyz0ab123', 'KT_GiGA_A1B2', '3xyz0ab123'),
       ('Wi-Fi :: AB1234\nPW :: zz_1112223', 'AB1234', 'zz_1112223'),
       ('WIFI : Lemon House\nPW : bbbbbbbb', 'Lemon House', 'bbbbbbbb'),
       ('Network Name: TheParks\nPassword: sample123', 'TheParks', 'sample123'),
@@ -732,6 +733,38 @@ void main() {
       expectParsed('cafe_momo\nmomo12345', ssid: 'cafe_momo', password: 'momo12345');
       expectParsed('GiGA5G4021\n3kd82mz550', ssid: 'GiGA5G4021', password: '3kd82mz550');
       expectParsed('네트워크 이름 : HOME_NET', ssid: 'HOME_NET');
+    });
+  });
+
+  group('KT GiGA 이름의 소문자 i', () {
+    const parser = WifiCredentialParser();
+
+    test('OCR이 GIGA로 읽어도 GiGA를 1순위로, 읽은 값은 후보로 남긴다', () {
+      for (final (text, fixed, read) in [
+        ('Wi-Fi : GIGA5G7888\n비번 : 7ba19kx719', 'GiGA5G7888', 'GIGA5G7888'),
+        ('WIFI : KT_GIGA_5G_F3D6\nPW : momo12345', 'KT_GiGA_5G_F3D6', 'KT_GIGA_5G_F3D6'),
+        ('WIFI : KT GIGA 2G Wave2 1A2B\nPW : momo12345', 'KT_GiGA_2G_Wave2_1A2B', 'KT_GIGA_2G_Wave2_1A2B'),
+        ('WIFI : olleh_GIGA_WiFi_1234\nPW : momo12345', 'olleh_GiGA_WiFi_1234', 'olleh_GIGA_WiFi_1234'),
+        ('WIFI : Giga_5G_1234\nPW : momo12345', 'GiGA_5G_1234', 'Giga_5G_1234'),
+        ('Wi-Fi : GlGA5G7888\nPW : momo12345', 'GiGA5G7888', 'GlGA5G7888'),
+        ('Wi-Fi : G1GA5G7888\nPW : momo12345', 'GiGA5G7888', 'G1GA5G7888'),
+      ]) {
+        final c = parser.parse(text);
+        expect(c.ssid, fixed, reason: text);
+        expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), contains(read), reason: text);
+      }
+    });
+
+    test('제대로 읽은 GiGA는 그대로', () {
+      final c = parser.parse('Wi-Fi : GiGA5G7888\n비번 : 7ba19kx719');
+      expect(c.ssid, 'GiGA5G7888');
+      expect(c.password, '7ba19kx719');
+    });
+
+    test('SK WiFiGIGA와 단어 속 giga는 건드리지 않는다', () {
+      expect(parser.parse('WIFI : SK_WiFiGIGA_3A2B\nPW : momo12345').ssid, 'SK_WiFiGIGA_3A2B');
+      expect(parser.parse('WIFI : GIGABYTE_5G\nPW : momo12345').ssid, 'GIGABYTE_5G');
+      expect(parser.parse('WIFI : MEGAGIGA2\nPW : momo12345').ssid, 'MEGAGIGA2');
     });
   });
 }

@@ -115,6 +115,7 @@ class WifiCredentialParser {
     final wifiContext = _wifiContext.hasMatch(normalizeOcrText(rawText));
     _addUnlabeledFallbacks(rows, found, wifiContext: wifiContext);
     _addSeparatorVariants(found);
+    _addKtGigaVariants(found);
     final result = _select(found);
 
     // Wi-Fi와 관계없는 글(메뉴판, 영수증, 명함, 포스터 ...)에서 엉뚱한 값을 고르지 않게 한다.
@@ -170,6 +171,19 @@ class WifiCredentialParser {
           score: (c.score + entry.value).clamp(0.0, 1.0),
         ));
       }
+    }
+  }
+
+  /// KT 공유기 이름은 항상 `GiGA`(가운데 i만 소문자)다 (`KT_GiGA_5G_1234`, `GiGA5G7888`).
+  /// 둥근 글꼴에서는 소문자 i가 대문자 I처럼 보여 OCR이 `GIGA`(또는 `GlGA`, `G1GA`)로 읽기 쉽다. Wi-Fi 이름은
+  /// 대소문자를 구분하므로 `GiGA`로 고친 값을 1순위로 두고, 읽은 그대로의 값도 후보로 남긴다.
+  /// SK의 `SK_WiFiGIGA`는 원래 대문자라 건드리지 않는다.
+  void _addKtGigaVariants(List<WifiCandidate> found) {
+    for (final c in found.toList()) {
+      if (c.type != WifiCandidateType.ssid) continue;
+      final fixed = c.value.replaceAllMapped(_ktGiga, (_) => 'GiGA');
+      if (fixed == c.value) continue;
+      found.add(WifiCandidate(value: fixed, type: c.type, score: (c.score + 0.01).clamp(0.0, 1.0)));
     }
   }
 
@@ -771,6 +785,8 @@ final _routerName = RegExp(
   r'^(?:kt|skt?|lgu?|u\+|olleh|iptime|giga|anygate|netis|tp-?link)(?=[\s_\-]|net|wifi|giga|$)|[_\-](?:2\.4|2|5)g(?:hz)?$',
   caseSensitive: false,
 );
+/// KT 공유기 이름의 `GiGA` 자리. 맨 앞이나 `_`, `KT`, `olleh` 뒤에 오고 뒤에는 구분자·숫자·끝이 온다.
+final _ktGiga = RegExp(r'(?<=^|[_\s\-]|kt|olleh)g[il1|]ga(?=[_\s\-]|\d|wifi|$)', caseSensitive: false);
 /// 날짜·시각 (20261007, 2026-10-07, 10:00, 09:00~22:00).
 final _dateOrTime = RegExp(
   r'^(?:(?:19|20)\d{2}[-./]?\d{2}[-./]?\d{2}|\d{1,2}:\d{2}(?:\s*[~\-–]\s*\d{1,2}:\d{2})?)$',
