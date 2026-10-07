@@ -115,9 +115,9 @@ footer a{color:inherit}
       if(!r.ok||!d.ok) throw new Error(d.error||'fail');
       document.getElementById('done-email').textContent=email;
       var notify=document.getElementById('notify').checked;
-      document.getElementById('done-notify').textContent=(d.mailed?'같은 내용을 이메일로도 보냈어요. 안 보이면 스팸함을 확인해 주세요. ':'')+(notify?'명단에 추가되면 이 주소로 다시 알려 드릴게요. ':'');
+      document.getElementById('done-notify').textContent=notify?'명단에 추가되면 이 주소로 설치 안내 메일을 보내 드릴게요. ':'';
       document.getElementById('step1-note').textContent=notify
-        ?'알림 메일이 오면 2번부터 진행해 주세요. 그 전에는 아래 링크에서 "앱을 찾을 수 없음"이 나올 수 있어요.'
+        ?'"테스터 명단에 추가됐어요" 메일이 오면 2번부터 진행해 주세요. 그 전에는 아래 링크에서 "앱을 찾을 수 없음"이 나올 수 있어요. 메일이 안 보이면 스팸함도 확인해 주세요.'
         :'명단에 추가되기 전에는 아래 링크에서 "앱을 찾을 수 없음"이 나올 수 있어요.';
       document.getElementById('form-view').style.display='none';
       document.getElementById('done-view').style.display='block';
