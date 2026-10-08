@@ -28,8 +28,22 @@ class WifiCredentialParser {
     final found = <WifiCandidate>[];
 
     void add(_LabelMatch label, String value, double base, {required bool isolated}) {
-      final cleaned = _cleanValue(value);
+      var cleaned = _cleanValue(value);
       if (cleaned.isEmpty) return;
+      // "d9ki88ec01 <=숫자 0" — 비밀번호 뒤에 붙은 메모는 떼고, 메모가 알려 주는 글자는 반영한다.
+      if (label.type == WifiCandidateType.password) {
+        final note = _passwordNote.firstMatch(cleaned);
+        if (note != null) {
+          cleaned = note.group(1)!;
+          final hinted = _applyNoteHint(cleaned, note.group(2)!);
+          if (hinted != cleaned) {
+            final factor = _passwordFactor(hinted, isolated: isolated);
+            found.add(WifiCandidate(value: hinted, type: label.type, score: (base * factor).clamp(0.0, 1.0)));
+            found.add(WifiCandidate(value: cleaned, type: label.type, score: (base * factor * 0.9).clamp(0.0, 1.0)));
+            return;
+          }
+        }
+      }
       // "비밀번호 : 없음" → 공개 네트워크. 빈 비밀번호 후보로 기록한다.
       if (label.type == WifiCandidateType.password && _openKeywords.hasMatch(cleaned)) {
         found.add(WifiCandidate(value: '', type: label.type, score: (base * 0.95).clamp(0.0, 1.0)));
@@ -182,6 +196,15 @@ class WifiCredentialParser {
         ));
       }
     }
+  }
+
+  /// 메모가 "숫자 0"이라고 알려 주면 O·o를 0으로, "영문 O"라고 알려 주면 0을 O로 바꾼다.
+  /// 안내문을 쓴 사람이 직접 적은 정보라 OCR보다 믿을 만하다.
+  String _applyNoteHint(String value, String note) {
+    final compact = note.replaceAll(_whitespace, '').toLowerCase();
+    if (_digitZeroNote.hasMatch(compact)) return value.replaceAll(RegExp('[Oo]'), '0');
+    if (_letterONote.hasMatch(compact)) return value.replaceAll('0', 'O');
+    return value;
   }
 
   /// 비밀번호로 쓸 수 없는 값. WPA 비밀번호는 ASCII라 한글이 들어가면 안내문의 다른 글귀다.
@@ -745,7 +768,7 @@ const _boundary = r'(?![\p{L}\p{N}_]|-[\p{L}\p{N}])';
 final _passwordLabel = RegExp(
   '$_free(?:(?:$_wifiWord|$_network)\\s*)?'
   '(?:(?<strong>pass\\s?w[o0]r?d|p\\s?a\\s?s\\s?s\\s?w\\s?[o0]\\s?r\\s?d|passward|passwd|passcode|pwd|p\\s?/\\s?w|p\\.w\\.?|p\\s{0,2}(?:w|vv)'
-  '|비[\\s|Il1]*밀[\\s|Il1]*번[\\s|Il1]*호|비\\s*번|암\\s*호|패\\s*스\\s*워\\s*드)|(?<weak>pass|key))'
+  '|비[\\s|Il1]*밀[\\s|Il1]*번[\\s|Il1]*호|비\\s*번|암\\s*호(?:\\s*키)?|보\\s*안\\s*키|네트\\s?워크\\s*키|패\\s*스\\s*워\\s*드)|(?<weak>pass|key))'
   '$_particle$_boundary',
   caseSensitive: false,
   unicode: true,
@@ -801,7 +824,7 @@ final _wifiContext = RegExp(
   '(?<![a-z])(?:$_wifi|wlan|s\\s?[s5]\\s?[i1l]\\s?d)'
   '|와\\s*이\\s*파\\s*이|무선\\s*(?:인터넷|랜)|네트\\s?워크\\s*(?:이름|명)|network\\s*name'
   '|(?<![a-z])(?:pass\\s?w[o0]r?d|passward|passwd|passcode|pwd|p\\s{0,2}/?\\s{0,2}(?:w|vv))(?![a-z])'
-  '|비\\s*밀\\s*번\\s*호|비\\s*번|암\\s*호|패\\s*스\\s*워\\s*드',
+  '|비\\s*밀\\s*번\\s*호|비\\s*번|암\\s*호|보\\s*안\\s*키|네트\\s?워크\\s*키|패\\s*스\\s*워\\s*드',
   caseSensitive: false,
   unicode: true,
 );
@@ -813,6 +836,13 @@ final _routerName = RegExp(
 /// KT 공유기 이름의 `GiGA` 자리. 맨 앞이나 `_`, `KT`, `olleh` 뒤에 오고 뒤에는 구분자·숫자·끝이 온다.
 final _ktGiga = RegExp(r'(?<=^|[_\s\-]|kt|olleh)g[il1|]ga(?=[_\s\-]|\d|wifi|$)', caseSensitive: false);
 final _hangulSyllable = RegExp(r'[가-힣]');
+/// 비밀번호 뒤의 메모. 공백 뒤 화살표로 시작하거나(`<=숫자 0`, `← zero`), 한글 설명이 오는 경우
+/// (`숫자 0`). 비밀번호에는 한글이 들어갈 수 없고, 공백 뒤 화살표가 비밀번호일 일도 없다.
+final _passwordNote = RegExp(r'^([^\s가-힣]+)\s+((?:<=|<-+|←|⇐|⟸|=>|->)\s*.*|[^\s]*[가-힣].*)$');
+/// "숫자0", "숫자 영", "zero", "<=0(숫자)".
+final _digitZeroNote = RegExp(r'숫자(?:0|영|제로)|(?:0|영)(?:은|는)?숫자|zero|number0|digit0');
+/// "영문 O", "알파벳 O", "대문자 O".
+final _letterONote = RegExp(r'(?:영문|알파벳|대문자|영어)(?:o|오)|(?:o|오)(?:은|는)?(?:영문|알파벳|대문자)');
 /// 작은 글씨의 "아이디"를 한국어 인식기가 깨뜨려 읽은 모양. 실기기에서 OFOII, OFOITI, OFOICA,
 /// OFOICI, OF0IC, OHOI, OFO1TA 등으로 읽혔다 (ㅇ→O, ㅏ→F/H, 이→OI, 디→C/T/I/A).
 /// 셀 전체가 이 모양일 때만 쓴다. "OFFICE" 같은 실제 이름은 셋째 글자가 O가 아니라 해당하지 않는다.

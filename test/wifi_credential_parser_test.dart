@@ -837,4 +837,52 @@ void main() {
       expect(parser.parse('WIFI : KT_GİGA_4F2A\nPW : momo12345').ssid, 'KT_GiGA_4F2A');
     });
   });
+
+  group('암호키 이름표와 비밀번호 뒤의 메모', () {
+    const parser = WifiCredentialParser();
+
+    test('암호키·보안키·네트워크 키 이름표', () {
+      for (final label in ['암호키', '암호 키', '보안키', '보안 키', '네트워크 키', '네트워크키']) {
+        final c = parser.parse('무선랜 : KT_GiGA_5G-A1B2\n$label : k3x9ab12cd');
+        expect(c.ssid, 'KT_GiGA_5G-A1B2', reason: label);
+        expect(c.password, 'k3x9ab12cd', reason: label);
+        expect(c.passwordConfidence, greaterThanOrEqualTo(WifiCredential.confidentThreshold), reason: label);
+      }
+    });
+
+    test('비밀번호 뒤 화살표·한글 메모는 뗀다', () {
+      for (final line in [
+        '암호키 : k3x9ab12cd <=확인',
+        '암호키 : k3x9ab12cd <- 소문자',
+        '암호키 : k3x9ab12cd ← 소문자',
+        '비밀번호 : k3x9ab12cd 소문자만',
+        'PW : k3x9ab12cd <= lowercase',
+      ]) {
+        expect(parser.parse('WIFI : cafe_momo\n$line').password, 'k3x9ab12cd', reason: line);
+      }
+    });
+
+    test('메모가 숫자 0이라고 알려 주면 O를 0으로, 원래 값은 후보로', () {
+      for (final line in ['암호키 : k3x9ab12cO <=숫자 0', '암호키 : k3x9ab12co <=숫자0', '암호키 : k3x9ab12cO <= zero', '암호키 : k3x9ab12cO ← 0은 숫자']) {
+        final c = parser.parse('무선랜 : KT_GiGA_5G-A1B2\n$line');
+        expect(c.password, 'k3x9ab12c0', reason: line);
+      }
+      final c = parser.parse('무선랜 : KT_GiGA_5G-A1B2\n암호키 : k3x9ab12cO <=숫자 0');
+      expect(c.candidatesOf(WifiCandidateType.password).map((e) => e.value), contains('k3x9ab12cO'));
+    });
+
+    test('메모가 이미 맞게 읽힌 값이면 그대로', () {
+      expect(parser.parse('무선랜 : KT_GiGA_5G-A1B2\n암호키 : k3x9ab12c0 <=숫자 0').password, 'k3x9ab12c0');
+    });
+
+    test('메모가 영문 O라고 알려 주면 0을 O로', () {
+      expect(parser.parse('WIFI : cafe_momo\nPW : m0m012345 <=영문 O').password, 'mOmO12345');
+    });
+
+    test('기호가 든 비밀번호와 공백이 든 비밀번호는 건드리지 않는다', () {
+      expect(parser.parse('WIFI : cafe_momo\nPW : ab<=cd1234').password, 'ab<=cd1234');
+      expect(parser.parse('Password: my secret pass').password, 'my secret pass');
+      expect(parser.parse('비밀번호 : 12345678 (숫자 8자리)').password, '12345678');
+    });
+  });
 }
