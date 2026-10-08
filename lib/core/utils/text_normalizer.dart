@@ -12,6 +12,10 @@ String normalizeOcrText(String text) {
       continue;
     }
     switch (rune) {
+      // İ (점 있는 대문자 I): 가운데만 소문자인 "GiGA"처럼 키가 큰 i를 OCR이 이렇게 읽는다.
+      // 점이 있으니 소문자 i다. 한국 안내문에 터키어 İ가 실제로 쓰일 일은 없다.
+      case 0x0130:
+        buffer.write('i');
       case 0x3000: // 전각 공백
       case 0x00A0: // NBSP
         buffer.write(' ');

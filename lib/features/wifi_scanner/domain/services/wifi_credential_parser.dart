@@ -96,17 +96,27 @@ class WifiCredentialParser {
           }
         }
 
+        // 비밀번호 이름표 옆이나 아래의 한글 글귀("물 마신 후")는 비밀번호일 수 없다. 옆 포스터 글자가
+        // 같은 행으로 묶인 경우라 값으로 쓰지 않고, 아래 행에서 진짜 값을 찾는다.
+        final passwordOnly = run.length == 1 && run.single.label!.type == WifiCandidateType.password;
+        final sameRowImpossible =
+            passwordOnly && j < segs.length && !segs[j].isLabel && _impossiblePassword(segs[j].value);
+
         // "Wi-Fi\tcafe_momo" — 같은 행의 다음 셀에 값
-        if (j < segs.length && !segs[j].isLabel && !segs[j].consumed) {
+        if (j < segs.length && !segs[j].isLabel && !segs[j].consumed && !sameRowImpossible) {
           final values = segs.sublist(j).takeWhile((s) => !s.isLabel && !s.consumed).toList();
           _assignValues(run, values, add, sameRow: true);
           i = j;
           continue;
         }
 
-        // "WIFI\nmomo_cafe" — 다음 행에 값
-        if (r + 1 < rows.length) {
-          _assignFromNextRow(run, i, segs, rows[r + 1], add);
+        // "WIFI\nmomo_cafe" — 다음 행에 값. 비밀번호는 한글 글귀만 있는 행을 몇 줄까지 건너뛴다.
+        var next = r + 1;
+        while (passwordOnly && next < rows.length && next <= r + 3 && _strayHangulRow(rows[next])) {
+          next++;
+        }
+        if (next < rows.length) {
+          _assignFromNextRow(run, i, segs, rows[next], add);
         }
         i = j;
       }
@@ -173,6 +183,15 @@ class WifiCredentialParser {
       }
     }
   }
+
+  /// 비밀번호로 쓸 수 없는 값. WPA 비밀번호는 ASCII라 한글이 들어가면 안내문의 다른 글귀다.
+  /// "없음"처럼 공개 네트워크를 뜻하는 말은 예외.
+  bool _impossiblePassword(String value) =>
+      _hangulSyllable.hasMatch(value) && !_openKeywords.hasMatch(_cleanValue(value));
+
+  /// 이름표 없이 한글 글귀로 시작하는 행 (옆 포스터의 "물컵은", "휴지통에" 같은 줄).
+  bool _strayHangulRow(List<_Segment> row) =>
+      row.isNotEmpty && !row.first.isLabel && _impossiblePassword(row.first.value);
 
   /// KT 공유기 이름은 항상 `GiGA`(가운데 i만 소문자)다 (`KT_GiGA_5G_1234`, `GiGA5G7888`).
   /// 둥근 글꼴에서는 소문자 i가 대문자 I처럼 보여 OCR이 `GIGA`(또는 `GlGA`, `G1GA`)로 읽기 쉽다. Wi-Fi 이름은
@@ -543,6 +562,12 @@ class WifiCredentialParser {
         final cell = cells[c].trim().replaceFirst(_bullet, '').trim().replaceFirst(_iconPrefix, '');
         // Wi-Fi·자물쇠 아이콘을 OCR이 "令", "?", "🔒" 같은 한두 글자로 읽은 셀은 버린다.
         if (cell.isEmpty || _iconOnly.hasMatch(cell)) continue;
+        // 작은 글씨의 "아이디"를 한국어 인식기가 영문처럼 깨뜨려 읽은 셀은 원래 이름표로 되돌린다.
+        // 그대로 두면 위의 "WIFI" 제목이 이 글자를 Wi-Fi 이름으로 가져간다.
+        if (_garbledIdLabel.hasMatch(cell)) {
+          segs.addAll(_segmentCell('아이디', c));
+          continue;
+        }
         segs.addAll(_segmentCell(cell, c));
       }
       if (segs.isNotEmpty) rows.add(segs);
@@ -720,7 +745,7 @@ const _boundary = r'(?![\p{L}\p{N}_]|-[\p{L}\p{N}])';
 final _passwordLabel = RegExp(
   '$_free(?:(?:$_wifiWord|$_network)\\s*)?'
   '(?:(?<strong>pass\\s?w[o0]r?d|p\\s?a\\s?s\\s?s\\s?w\\s?[o0]\\s?r\\s?d|passward|passwd|passcode|pwd|p\\s?/\\s?w|p\\.w\\.?|p\\s{0,2}(?:w|vv)'
-  '|비\\s*밀\\s*번\\s*호|비\\s*번|암\\s*호|패\\s*스\\s*워\\s*드)|(?<weak>pass|key))'
+  '|비[\\s|Il1]*밀[\\s|Il1]*번[\\s|Il1]*호|비\\s*번|암\\s*호|패\\s*스\\s*워\\s*드)|(?<weak>pass|key))'
   '$_particle$_boundary',
   caseSensitive: false,
   unicode: true,
@@ -787,6 +812,11 @@ final _routerName = RegExp(
 );
 /// KT 공유기 이름의 `GiGA` 자리. 맨 앞이나 `_`, `KT`, `olleh` 뒤에 오고 뒤에는 구분자·숫자·끝이 온다.
 final _ktGiga = RegExp(r'(?<=^|[_\s\-]|kt|olleh)g[il1|]ga(?=[_\s\-]|\d|wifi|$)', caseSensitive: false);
+final _hangulSyllable = RegExp(r'[가-힣]');
+/// 작은 글씨의 "아이디"를 한국어 인식기가 깨뜨려 읽은 모양. 실기기에서 OFOII, OFOITI, OFOICA,
+/// OFOICI, OF0IC, OHOI, OFO1TA 등으로 읽혔다 (ㅇ→O, ㅏ→F/H, 이→OI, 디→C/T/I/A).
+/// 셀 전체가 이 모양일 때만 쓴다. "OFFICE" 같은 실제 이름은 셋째 글자가 O가 아니라 해당하지 않는다.
+final _garbledIdLabel = RegExp(r'^[O0][FHE][O0][Il1|][CTIAl1|]{0,2}$');
 /// 날짜·시각 (20261007, 2026-10-07, 10:00, 09:00~22:00).
 final _dateOrTime = RegExp(
   r'^(?:(?:19|20)\d{2}[-./]?\d{2}[-./]?\d{2}|\d{1,2}:\d{2}(?:\s*[~\-–]\s*\d{1,2}:\d{2})?)$',

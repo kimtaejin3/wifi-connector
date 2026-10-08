@@ -377,7 +377,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
           );
         }
         final cropMs = stopwatch.elapsedMilliseconds;
-        final results = await _ocr.recognizeFileWithAllScripts(cropPath ?? file.path);
+        final results = await _ocr.recognizeFile(cropPath ?? file.path);
         credential = _extractor.fromOcrResults(results);
         // 시간만 기록한다. 인식된 내용(비밀번호 포함)은 절대 로그에 남기지 않는다.
         if (kDebugMode) {
@@ -388,7 +388,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         // 안내문이 가이드보다 크게 찍혀 글자가 잘렸을 수 있으니, 빠진 값이 있으면
         // 전체 사진으로 한 번 더 인식해 채운다. 가이드 안에서 찾은 값이 우선이다.
         if (cropPath != null && (!credential.hasSsid || !credential.hasPassword)) {
-          final full = await _ocr.recognizeFileWithAllScripts(file.path);
+          final full = await _ocr.recognizeFile(file.path);
           credential = _extractor.fillMissing(credential, _extractor.fromOcrResults(full));
         }
 
@@ -424,7 +424,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     await _stopLive();
     WifiCredential? credential;
     try {
-      final results = await _ocr.recognizeFileWithAllScripts(picked.path);
+      final results = await _ocr.recognizeFile(picked.path);
       credential = _extractor.fromOcrResults(results);
     } on Exception {
       _showMessage('사진에서 글자를 인식하지 못했어요.');

@@ -70,7 +70,7 @@ void main() {
   tearDownAll(() => ocr.close());
 
   Future<WifiCredential> recognize(String path) async {
-    final results = await ocr.recognizeFileWithAllScripts(path);
+    final results = await ocr.recognizeFile(path);
     return extractor.fromOcrResults(results);
   }
 

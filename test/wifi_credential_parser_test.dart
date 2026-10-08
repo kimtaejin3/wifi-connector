@@ -767,4 +767,74 @@ void main() {
       expect(parser.parse('WIFI : MEGAGIGA2\nPW : momo12345').ssid, 'MEGAGIGA2');
     });
   });
+
+  group('작은 글씨 한글 이름표를 OCR이 깨뜨려 읽은 안내문', () {
+    const parser = WifiCredentialParser();
+    // 실기기 로그의 줄 구성 그대로 (가게 이름·값은 가상).
+    String sign(String id, {String pwLabel = '비I밀번호'}) =>
+        '6041234567890\nSUN NYGYM\nWIFI\n$id\nKT_GiGA_4F2A\n$pwLabel\n7hq52kd81x';
+
+    test('아이디가 OFOI… 로 읽혀도 진짜 이름을 고른다', () {
+      for (final id in ['OFOII', 'OFOITI', 'OFOICA', 'OFOICI', 'OFOITA', 'OF0II', 'OF0IC', 'OFOIC', 'OHOI', 'OFO1TA']) {
+        final c = parser.parse(sign(id));
+        expect(c.ssid, 'KT_GiGA_4F2A', reason: id);
+        expect(c.password, '7hq52kd81x', reason: id);
+        expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), isNot(contains(id)), reason: id);
+      }
+    });
+
+    test('아이디를 제대로 읽은 경우도 그대로', () {
+      final c = parser.parse(sign('아이디', pwLabel: '비밀번호'));
+      expect(c.ssid, 'KT_GiGA_4F2A');
+      expect(c.password, '7hq52kd81x');
+    });
+
+    test('비밀번호 사이에 세로획이 끼어 읽혀도 이름표로 본다', () {
+      for (final label in ['비I밀번호', '비l밀번호', '비밀1번호', '비|밀번호']) {
+        final c = parser.parse('WIFI : cafe_momo\n$label : momo12345');
+        expect(c.password, 'momo12345', reason: label);
+        expect(c.passwordConfidence, greaterThanOrEqualTo(WifiCredential.confidentThreshold), reason: label);
+      }
+    });
+
+    test('비슷하지만 실제 이름인 값은 바꾸지 않는다', () {
+      for (final name in ['OFFICE', 'OFFICE_5G', 'OFOICAFE', 'OHIO', 'Office1']) {
+        expect(parser.parse('WIFI : $name\nPW : momo12345').ssid, name, reason: name);
+      }
+    });
+  });
+
+  group('옆 포스터 글귀가 비밀번호 줄에 섞인 경우', () {
+    const parser = WifiCredentialParser();
+
+    test('비밀번호 옆과 아래의 한글 글귀를 건너뛰고 진짜 값을 찾는다 (실기기 로그 모양)', () {
+      const text = '66439475-02abc\nSUN NYGYM\nWIFI\nOFOICA\nKT_GiGA_4F2A\n'
+          '비밀번호\t물 마신 후\n물컵은\n휴지통에\n7hq52kd81x\t넣어주세요';
+      final c = parser.parse(text);
+      expect(c.ssid, 'KT_GiGA_4F2A');
+      expect(c.password, '7hq52kd81x');
+    });
+
+    test('같은 행에 한글 글귀만 있고 다음 행이 값', () {
+      expect(parser.parse('WIFI : cafe_momo\n비밀번호\t물 마신 후\nmomo12345').password, 'momo12345');
+    });
+
+    test('비밀번호 없음은 그대로 공개 네트워크', () {
+      final c = parser.parse('WIFI : cafe_momo\n비밀번호\t없음');
+      expect(c.password, '');
+    });
+
+    test('표 형태는 그대로', () {
+      expectParsed('ID\tPW\ncafe_momo\tmomo12345', ssid: 'cafe_momo', password: 'momo12345');
+      expectParsed('와이파이\t비밀번호\n모모카페\tmomo12345', ssid: '모모카페', password: 'momo12345');
+    });
+
+    test('한글 이름은 이름표 옆이어도 그대로 이름', () {
+      expectParsed('와이파이\t모모카페\n비밀번호\tmomo12345', ssid: '모모카페', password: 'momo12345');
+    });
+
+    test('OCR이 i를 İ로 읽어도 i로 본다', () {
+      expect(parser.parse('WIFI : KT_GİGA_4F2A\nPW : momo12345').ssid, 'KT_GiGA_4F2A');
+    });
+  });
 }

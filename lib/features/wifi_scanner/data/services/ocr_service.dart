@@ -48,49 +48,24 @@ class OcrResult {
 
 /// ML Kit 온디바이스 텍스트 인식. 이미지는 기기 밖으로 나가지 않는다.
 ///
-/// 한국어 인식기는 한글과 라틴 문자를 모두 읽지만, 영문·숫자만 있는 안내문은
-/// 라틴 전용 인식기가 `l/1/I`, `O/0` 같은 글자를 더 정확히 구분한다.
-/// 그래서 두 인식기를 함께 돌리고 파서가 결과를 병합한다.
+/// 한국어 인식기 하나만 쓴다. 한국어 인식기는 한글과 라틴 문자를 모두 읽는다.
+///
+/// 예전에는 라틴 인식기도 함께 만들었지만, google_mlkit_text_recognition은 인식기를
+/// 만든 시각(마이크로초)을 id로 쓰고 iOS·Android 모두 id로 인식기를 재사용한다.
+/// 두 인식기를 연달아 만들면 id가 같아져 라틴 요청도 한국어 인식기가 처리했다
+/// (실기기 로그로 확인: 두 결과가 모든 프레임에서 똑같았다). 같은 인식을 두 번 하던 셈이라
+/// 실제로 쓰이던 한국어 인식기만 남겨 프레임당 인식 시간을 절반으로 줄인다.
 class OcrService {
-  OcrService()
-      : _korean = TextRecognizer(script: TextRecognitionScript.korean),
-        _latin = TextRecognizer(script: TextRecognitionScript.latin);
+  OcrService() : _korean = TextRecognizer(script: TextRecognitionScript.korean);
 
   final TextRecognizer _korean;
-  final TextRecognizer _latin;
 
-  /// 한국어 인식기 한 번만 실행한다.
-  Future<OcrResult> recognizeFile(String path) =>
-      _recognize(_korean, TextRecognitionScript.korean, InputImage.fromFilePath(path));
-
-  /// 한국어와 라틴 인식기를 동시에 실행한다. 순서는 [한국어, 라틴].
-  Future<List<OcrResult>> recognizeFileWithAllScripts(String path) =>
-      _recognizeAll(InputImage.fromFilePath(path));
+  /// 사진 파일을 인식한다.
+  Future<List<OcrResult>> recognizeFile(String path) => recognizeImage(InputImage.fromFilePath(path));
 
   /// 카메라 프리뷰 프레임 등 이미 만들어진 [InputImage]를 인식한다.
-  Future<List<OcrResult>> recognizeImage(InputImage image) => _recognizeAll(image);
-
-  /// 한 인식기가 실패해도 다른 인식기의 결과는 버리지 않는다.
-  Future<List<OcrResult>> _recognizeAll(InputImage image) async {
-    final results = await Future.wait([
-      _recognizeOrEmpty(_korean, TextRecognitionScript.korean, image),
-      _recognizeOrEmpty(_latin, TextRecognitionScript.latin, image),
-    ]);
-    if (results.every((r) => r == null)) throw Exception('text recognition failed');
-    return [for (final r in results) ?r];
-  }
-
-  Future<OcrResult?> _recognizeOrEmpty(
-    TextRecognizer recognizer,
-    TextRecognitionScript script,
-    InputImage image,
-  ) async {
-    try {
-      return await _recognize(recognizer, script, image);
-    } on Exception {
-      return null;
-    }
-  }
+  Future<List<OcrResult>> recognizeImage(InputImage image) async =>
+      [await _recognize(_korean, TextRecognitionScript.korean, image)];
 
   Future<OcrResult> _recognize(
     TextRecognizer recognizer,
@@ -130,7 +105,7 @@ class OcrService {
     return chars;
   }
 
-  Future<void> close() => Future.wait([_korean.close(), _latin.close()]);
+  Future<void> close() => _korean.close();
 }
 
 class OcrLine {
