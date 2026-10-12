@@ -32,6 +32,8 @@ class WifiCredentialParser {
       if (cleaned.isEmpty) return;
       // "d9ki88ec01 <=숫자 0" — 비밀번호 뒤에 붙은 메모는 떼고, 메모가 알려 주는 글자는 반영한다.
       if (label.type == WifiCandidateType.password) {
+        // "비밀번호. 46114124M#" — 콜론을 마침표로 읽은 경우
+        cleaned = cleaned.replaceFirst(_leadingDot, '');
         final note = _passwordNote.firstMatch(cleaned);
         if (note != null) {
           cleaned = note.group(1)!;
@@ -61,6 +63,15 @@ class WifiCredentialParser {
         found.add(WifiCandidate(value: cleaned, type: label.type, score: (base * 0.7).clamp(0.0, 1.0)));
         return;
       }
+      // "a 123456789" — 안내문 비밀번호에 띄어쓰기는 거의 없다. 스티커나 넓은 자간 때문에 OCR이
+      // 공백을 넣은 것으로 보이면 붙인 값을 1순위로 두고, 공백이 든 값은 후보로 남긴다.
+      if (label.type == WifiCandidateType.password && _ocrGapSpaces(cleaned)) {
+        final joined = cleaned.replaceAll(_whitespace, '');
+        final score = (base * _passwordFactor(joined, isolated: isolated)).clamp(0.0, 1.0);
+        found.add(WifiCandidate(value: joined, type: label.type, score: score));
+        found.add(WifiCandidate(value: cleaned, type: label.type, score: (score - 0.05).clamp(0.0, 1.0)));
+        return;
+      }
       final factor = label.type == WifiCandidateType.ssid
           ? _ssidFactor(cleaned, isolated: isolated)
           : _passwordFactor(cleaned, isolated: isolated);
@@ -83,6 +94,23 @@ class WifiCredentialParser {
 
         // "SSID: cafe" — 라벨 뒤에 값이 바로 있는 경우
         if (seg.value.isNotEmpty) {
+          // "PW : a ⇥ 123456789" — 비밀번호 앞부분만 이름표 칸에 붙고 나머지가 옆 칸으로 쪼개진 경우
+          final rest = seg.label!.type == WifiCandidateType.password && seg.value.trim().length < 8
+              ? segs
+                  .sublist(i + 1)
+                  .takeWhile((s) => !s.isLabel && !s.consumed && _printableAscii.hasMatch(s.value) && !s.value.contains(_whitespace))
+                  .toList()
+              : const <_Segment>[];
+          final joined = [seg.value.trim(), ...rest.map((s) => s.value.trim())].join();
+          if (rest.isNotEmpty && _printableAscii.hasMatch(seg.value) && joined.length >= 8 && joined.length <= 63) {
+            add(seg.label!, [seg.value.trim(), ...rest.map((s) => s.value.trim())].join(' '), _inlineBase(seg.label!),
+                isolated: seg.label!.hasSeparator);
+            for (final s in rest) {
+              s.consumed = true;
+            }
+            i += 1 + rest.length;
+            continue;
+          }
           add(seg.label!, seg.value, _inlineBase(seg.label!), isolated: seg.label!.hasSeparator);
           i++;
           continue;
@@ -119,6 +147,21 @@ class WifiCredentialParser {
         // "Wi-Fi\tcafe_momo" — 같은 행의 다음 셀에 값
         if (j < segs.length && !segs[j].isLabel && !segs[j].consumed && !sameRowImpossible) {
           final values = segs.sublist(j).takeWhile((s) => !s.isLabel && !s.consumed).toList();
+          // "PW : ⇥ a ⇥ 123456789" — 스티커로 덧붙인 글자처럼 비밀번호가 여러 칸으로 쪼개져 읽힌 경우.
+          // 첫 칸만으로는 비밀번호가 되기에 너무 짧으면 이어지는 영문·숫자 칸을 붙인다.
+          if (passwordOnly && values.length >= 2 && values.first.value.trim().length < 8) {
+            final parts = values.takeWhile((s) => _printableAscii.hasMatch(s.value) && !s.value.contains(_whitespace)).toList();
+            final joined = parts.map((s) => s.value.trim()).join();
+            if (parts.length >= 2 && joined.length >= 8 && joined.length <= 63) {
+              add(run.single.label!, parts.map((s) => s.value.trim()).join(' '), _detachedBase(run.single, sameRow: true),
+                  isolated: true);
+              for (final s in parts) {
+                s.consumed = true;
+              }
+              i = j;
+              continue;
+            }
+          }
           _assignValues(run, values, add, sameRow: true);
           i = j;
           continue;
@@ -205,6 +248,17 @@ class WifiCredentialParser {
     if (_digitZeroNote.hasMatch(compact)) return value.replaceAll(RegExp('[Oo]'), '0');
     if (_letterONote.hasMatch(compact)) return value.replaceAll('0', 'O');
     return value;
+  }
+
+  /// 비밀번호 안의 공백이 실제 띄어쓰기가 아니라 OCR이 넣은 틈으로 보이는지.
+  /// 조각에 숫자가 있거나 한 글자짜리 조각이 있으면 틈으로 본다 ("a 123456789", "Coffee! 123").
+  /// 글자로만 된 단어가 이어지면 실제 문구일 수 있어 그대로 둔다 ("my secret pass").
+  bool _ocrGapSpaces(String value) {
+    if (!value.contains(_whitespace) || !_printableAscii.hasMatch(value)) return false;
+    final parts = value.split(_whitespace);
+    final joined = parts.join();
+    if (joined.length < 8 || joined.length > 63) return false;
+    return parts.any((p) => p.length == 1 || _hasDigit.hasMatch(p));
   }
 
   /// 비밀번호로 쓸 수 없는 값. WPA 비밀번호는 ASCII라 한글이 들어가면 안내문의 다른 글귀다.
@@ -451,6 +505,7 @@ class WifiCredentialParser {
 
   bool _plausibleBareSsid(String v) =>
       utf8.encode(v).length <= 32 &&
+      !_bandOnly.hasMatch(v) &&
       v.length >= 2 &&
       !_digitsOnly.hasMatch(v) &&
       !_contactLike.hasMatch(v) &&
@@ -461,6 +516,7 @@ class WifiCredentialParser {
 
   bool _looksLikeSsid(String v) =>
       utf8.encode(v).length <= 32 &&
+      !_bandOnly.hasMatch(v) &&
       _ssidShape.hasMatch(v) &&
       !_digitsOnly.hasMatch(v) &&
       !_contactLike.hasMatch(v);
@@ -591,11 +647,57 @@ class WifiCredentialParser {
           segs.addAll(_segmentCell('아이디', c));
           continue;
         }
-        segs.addAll(_segmentCell(cell, c));
+        segs.addAll(_withoutBands(_segmentCell(cell, c)));
       }
       if (segs.isNotEmpty) rows.add(segs);
     }
     return rows;
+  }
+
+  /// "5G", "2.4G" 같은 대역 표시는 Wi-Fi 이름이 아니다 ("와이파이 이름 5G U+Net4661_5G",
+  /// "무선랜 2.4G" 다음 줄에 "U+NetD05C"). 이름 앞의 대역 표시는 떼고, 대역 표시만 있는 칸은 버리고,
+  /// 한 줄에 두 대역이 이어지면 ("5G U+Net4661_5G 2.4G U+Net4661") 칸을 나눈다.
+  List<_Segment> _withoutBands(List<_Segment> segs) {
+    final out = <_Segment>[];
+    for (final seg in segs) {
+      if (seg.isLabel && seg.label!.type != WifiCandidateType.ssid) {
+        out.add(seg);
+        continue;
+      }
+      final parts = _splitBands(seg.value.replaceFirst(_leadingBand, ''))
+          .map((v) => v.trim())
+          .where((v) => v.isNotEmpty && !_bandOnly.hasMatch(v))
+          .toList();
+      if (parts.length == 1 && parts.single == seg.value) {
+        out.add(seg);
+        continue;
+      }
+      if (seg.isLabel) {
+        out.add(_Segment(seg.label, parts.isEmpty ? '' : parts.first, seg.cellIndex, header: seg.header));
+        out.addAll([for (final v in parts.skip(1)) _Segment(null, v, seg.cellIndex)]);
+      } else {
+        out.addAll([for (final v in parts) _Segment(null, v, seg.cellIndex)]);
+      }
+    }
+    return out;
+  }
+
+  /// "U+Net1A2B_5G 2.4G U+Net1A2B"처럼 두 이름 사이에 대역 표시가 끼면 나눈다. 밑줄을 공백으로 읽은
+  /// 공유기 이름("KT WIFI 5G F3D6", "iptime 5G 2F")은 나누면 안 되므로, 양쪽이 모두 완성된 이름처럼
+  /// 보일 때만 나눈다 (앞쪽에 숫자가 있고, 뒤쪽이 5자 이상에 영문과 숫자가 섞임).
+  List<String> _splitBands(String value) {
+    final m = _innerBand.firstMatch(value);
+    if (m == null) return [value];
+    final left = value.substring(0, m.start);
+    final right = value.substring(m.end);
+    final rightName = right.split(_whitespace).first;
+    if (!_hasDigit.hasMatch(left) ||
+        rightName.length < 5 ||
+        !_hasDigit.hasMatch(rightName) ||
+        !_hasLetter.hasMatch(rightName)) {
+      return [value];
+    }
+    return [left, ..._splitBands(right)];
   }
 
   List<_Segment> _segmentCell(String cell, int cellIndex) {
@@ -638,7 +740,9 @@ class WifiCredentialParser {
         header = true;
       }
       // 약한 라벨("ID", "Network", "Key"...) 뒤에 구분자 없이 여러 단어가 오면 라벨로 보지 않는다.
-      if (value.contains(_whitespace) && !m.hasSeparator && m.strength != _Strength.strong && !quoted) {
+      // 대역 표시("무선랜 2.4G U+NetD05C")는 단어로 세지 않는다.
+      final words = m.type == WifiCandidateType.ssid ? value.replaceFirst(_leadingBand, '') : value;
+      if (words.contains(_whitespace) && !m.hasSeparator && m.strength != _Strength.strong && !quoted) {
         segs.add(_Segment(null, cell.substring(m.start, end).trim(), cellIndex));
         continue;
       }
@@ -809,6 +913,12 @@ final _valueSplitters = [RegExp(r'\s+/\s+'), RegExp(r'\s*\|\s*'), RegExp(r'\s*/\
 final _whitespace = RegExp(r'\s+');
 final _spaces = RegExp(r' +');
 final _separators = RegExp(r'[ _-]');
+/// 대역 표시만 있는 값, 값 앞의 대역 표시, 값 가운데의 다음 대역 표시.
+final _bandOnly = RegExp(r'^(?:2\.4|2|5|6)\s?g(?:hz)?$', caseSensitive: false);
+final _leadingBand = RegExp(r'^(?:2\.4|2|5|6)\s?g(?:hz)?\s*[:：]?\s+(?=\S)', caseSensitive: false);
+final _innerBand = RegExp(r'\s+(?:2\.4|2|5|6)\s?g(?:hz)?\s*[:：]?\s+(?=\S)', caseSensitive: false);
+/// 비밀번호 앞에 붙은 마침표·쉼표 (뒤에 8자 이상이 있을 때만).
+final _leadingDot = RegExp(r'^[.,·]\s*(?=\S{8})');
 final _bandSuffix = RegExp(r' \d(?:\.\d)?\s?g(?:hz)?$', caseSensitive: false);
 final _newline = RegExp(r'\r?\n');
 final _printableAscii = RegExp(r'^[\x20-\x7E]+$');

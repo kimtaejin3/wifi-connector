@@ -341,12 +341,12 @@ void main() {
       expect(result.ssidConfidence, lessThan(WifiCredential.confidentThreshold));
       expect(result.candidatesOf(WifiCandidateType.ssid).map((c) => c.value),
           containsAll(['My_Cafe', 'My-Cafe']));
-      expect(result.password, 'Coffee! 123');
+      // 비밀번호에 숫자 조각이 띄어져 있으면 OCR이 넣은 틈으로 보고 붙인 값을 1순위로 둔다.
+      expect(result.password, 'Coffee!123');
       expect(result.passwordConfidence, lessThan(WifiCredential.confidentThreshold));
       final passwords = result.candidatesOf(WifiCandidateType.password).map((c) => c.value).toList();
-      expect(passwords, containsAll(['Coffee!123', 'Coffee!_123', 'Coffee!-123']));
-      // 공백 제거 후보가 다른 변형보다 앞에 온다.
-      expect(passwords.indexOf('Coffee!123'), lessThan(passwords.indexOf('Coffee!_123')));
+      expect(passwords, containsAll(['Coffee! 123', 'Coffee!_123', 'Coffee!-123']));
+      expect(passwords.indexOf('Coffee!123'), lessThan(passwords.indexOf('Coffee! 123')));
     });
 
     test('한국어 인식기가 기호를 자모/한자로 읽은 경우', () {
@@ -883,6 +883,94 @@ void main() {
       expect(parser.parse('WIFI : cafe_momo\nPW : ab<=cd1234').password, 'ab<=cd1234');
       expect(parser.parse('Password: my secret pass').password, 'my secret pass');
       expect(parser.parse('비밀번호 : 12345678 (숫자 8자리)').password, '12345678');
+    });
+  });
+
+  group('비밀번호 사이에 OCR이 넣은 공백', () {
+    const parser = WifiCredentialParser();
+    const ssidLine = 'ID : 대전역 라운지뷰 별달5G';
+
+    test('붙인 값을 1순위로, 공백이 든 값은 후보로', () {
+      for (final line in ['PW : a 123456789', 'PW:a 123456789', 'PW : a12 3456789', 'PW : abc 123 456']) {
+        final c = parser.parse('$ssidLine\n$line');
+        expect(c.ssid, '대전역 라운지뷰 별달5G', reason: line);
+        expect(c.password, line.split(':').last.replaceAll(' ', ''), reason: line);
+        expect(c.candidatesOf(WifiCandidateType.password).map((e) => e.value), contains(line.split(':').last.trim()), reason: line);
+      }
+    });
+
+    test('스티커 글자가 다른 칸으로 쪼개져 읽혀도 이어 붙인다', () {
+      for (final line in ['PW :\ta\t123456789', 'PW : a\t123456789']) {
+        expect(parser.parse('$ssidLine\n$line').password, 'a123456789', reason: line);
+      }
+    });
+
+    test('글자로만 된 문구는 띄어쓰기를 유지한다', () {
+      expect(parser.parse('Password: my secret pass').password, 'my secret pass');
+      expect(parser.parse('WIFI : cafe_momo\nPW : hello world cafe').password, 'hello world cafe');
+    });
+
+    test('붙여도 8자가 안 되면 그대로', () {
+      expect(parser.parse('WIFI : cafe_momo\nPW : ab 12').password, isNot('ab12'));
+    });
+
+    test('Wi-Fi 이름의 띄어쓰기는 건드리지 않는다', () {
+      expect(parser.parse('$ssidLine\nPW : a123456789').ssid, '대전역 라운지뷰 별달5G');
+    });
+
+    test('표 형태와 칸이 하나인 경우는 그대로', () {
+      expectParsed('ID\tPW\ncafe_momo\tmomo12345', ssid: 'cafe_momo', password: 'momo12345');
+      expectParsed('WIFI : cafe_momo\nPW\tmomo12345', ssid: 'cafe_momo', password: 'momo12345');
+    });
+  });
+
+  group('5G·2.4G 대역 표시는 이름이 아니다', () {
+    const parser = WifiCredentialParser();
+
+    test('이름 앞의 대역 표시를 떼고, 대역만 있는 칸은 건너뛴다 (U+ 안내문)', () {
+      for (final text in [
+        '와이파이 이름 5G U+Net1A2B_5G\n2.4G U+Net1A2B\n비밀번호: 1A2B3C4D5E#',
+        '와이파이 이름\t5G U+Net1A2B_5G\n2.4G U+Net1A2B\n비밀번호:\t1A2B3C4D5E#',
+        '와이파이 이름\t5G\tU+Net1A2B_5G\n2.4G\tU+Net1A2B\n비밀번호:\t1A2B3C4D5E#',
+        '와이파이 이름 5G\tU+Net1A2B_5G\n2.4G U+Net1A2B\n비밀번호 : 1A2B3C4D5E#',
+        '와이파이 이름\n5G U+Net1A2B_5G\n2.4G U+Net1A2B\n비밀번호: 1A2B3C4D5E#',
+        '와이파이 이름 5G U+Net1A2B_5G 2.4G U+Net1A2B\n비밀번호: 1A2B3C4D5E#',
+      ]) {
+        final c = parser.parse(text);
+        expect(c.ssid, 'U+Net1A2B_5G', reason: text);
+        expect(c.password, '1A2B3C4D5E#', reason: text);
+        final ssids = c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value).toList();
+        expect(ssids, isNot(contains('5G')), reason: text);
+        expect(ssids, isNot(contains('2.4G')), reason: text);
+      }
+    });
+
+    test('다른 대역 이름도 후보로 남는다', () {
+      final c = parser.parse('와이파이 이름 5G U+Net1A2B_5G\n2.4G U+Net1A2B\n비밀번호: 1A2B3C4D5E#');
+      expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), contains('U+Net1A2B'));
+    });
+
+    test('무선랜 2.4G / 5G 라벨 (LG U+ 공유기)', () {
+      for (final text in [
+        '무선랜 2.4G\nU+NetD05C\n무선랜\n5G\nU+NetD05C_5G\n무선랜\n암호\nDDAE023378',
+        '무선랜 2.4G U+NetD05C\n무선랜 5G U+NetD05C_5G\n무선랜 암호 DDAE023378',
+      ]) {
+        final c = parser.parse(text);
+        expect(c.ssid, 'U+NetD05C', reason: text);
+        expect(c.password, 'DDAE023378', reason: text);
+        expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), containsAll(['U+NetD05C', 'U+NetD05C_5G']), reason: text);
+      }
+    });
+
+    test('이름 끝의 _5G, 콜론 앞 대역 표시는 그대로', () {
+      expectParsed('WIFI : cafe_5G\nPW : momo12345', ssid: 'cafe_5G', password: 'momo12345');
+      expectParsed('WIFI 5G : cafe_5G\nPW : momo12345', ssid: 'cafe_5G', password: 'momo12345');
+      expectParsed('SSID : 5G_cafe\nPW : momo12345', ssid: '5G_cafe', password: 'momo12345');
+    });
+
+    test('비밀번호 앞 마침표 (콜론을 마침표로 읽음)', () {
+      expect(parser.parse('WIFI : cafe_momo\n비밀번호. 46114124M#').password, '46114124M#');
+      expect(parser.parse('WIFI : cafe_momo\nPW : .ab12').password, '.ab12');
     });
   });
 }
