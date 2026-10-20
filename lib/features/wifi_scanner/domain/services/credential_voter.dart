@@ -166,11 +166,18 @@ class CredentialVoter {
       for (final (value, weight) in group) {
         weights.update(value[i], (w) => w + weight, ifAbsent: () => weight);
       }
-      final top = weights.entries.reduce((a, b) => b.value > a.value ? b : a);
+      var top = weights.entries.reduce((a, b) => b.value > a.value ? b : a);
+      // OCR은 `@`를 `0`·`O`로 자주 읽지만 `0`·`O`를 `@`로 읽는 일은 거의 없다. 한 프레임이라도
+      // `@`로 읽었고 나머지가 `0`·`O`뿐이면 `@`가 맞다고 보고, 자리는 불확실로 표시한다.
+      var agreed = top.value;
+      final at = weights['@'];
+      if (at != null && _atLookalikes.contains(top.key)) {
+        agreed = at + [for (final c in _atLookalikes) weights[c] ?? 0].fold(0, (a, b) => a + b);
+        top = MapEntry('@', at);
+      }
       buffer.write(top.key);
-      final ratio = top.value / support;
-      agreement = math.min(agreement, ratio);
-      if (ratio < uncertainBelow) uncertain.add(i);
+      agreement = math.min(agreement, agreed / support);
+      if (top.value / support < uncertainBelow) uncertain.add(i);
     }
 
     return VotedField(
@@ -181,6 +188,9 @@ class CredentialVoter {
     );
   }
 }
+
+/// `@`를 OCR이 대신 읽는 글자.
+const _atLookalikes = {'0', 'O', 'o'};
 
 class _Reading {
   const _Reading(this.credential, this.weight);

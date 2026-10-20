@@ -29,10 +29,23 @@ void main() {
     });
 
     test('일치율이 낮은 글자는 불확실로 표시한다', () {
-      final field = CredentialVoter.voteValues([('@kim', 1), ('0kim', 1), ('Okim', 1)])!;
+      final field = CredentialVoter.voteValues([('@kim', 1), ('5kim', 1), ('Skim', 1)])!;
       expect(field.uncertainIndexes, {0});
       expect(field.agreement, closeTo(1 / 3, 0.001));
       expect(field.isStable, isFalse);
+    });
+
+    test('@를 0·O로 읽은 프레임이 더 많아도 @를 고르고 그 자리는 불확실로 표시한다', () {
+      final field = CredentialVoter.voteValues([('AB6@2345', 1), ('AB602345', 2), ('AB6O2345', 1)])!;
+      expect(field.value, 'AB6@2345');
+      expect(field.uncertainIndexes, {3});
+      // 세 판독 모두 "@ 아니면 @처럼 생긴 글자"로 일치하므로 안정으로 본다.
+      expect(field.agreement, 1.0);
+      expect(field.isStable, isTrue);
+    });
+
+    test('@로 읽은 프레임이 없으면 0·O는 그대로 다수결', () {
+      expect(CredentialVoter.voteValues([('AB602345', 2), ('AB6O2345', 1)])!.value, 'AB602345');
     });
 
     test('길이가 다른 판독은 가장 흔한 길이끼리만 투표한다', () {

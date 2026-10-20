@@ -924,6 +924,30 @@ void main() {
     });
   });
 
+  group('통신사 공유기 이름의 16진수 꼬리', () {
+    test('16진수에 없는 O·I는 0·1로 고친 값을 1순위로 두고 읽은 값도 남긴다', () {
+      for (final (read, fixed) in [
+        ('SK_WiFiGIGA7COD_5G', 'SK_WiFiGIGA7C0D_5G'),
+        ('SK_WiFiGIGA1A2O', 'SK_WiFiGIGA1A20'),
+        ('SK_WIFiGIGA7COD_2.4G', 'SK_WIFiGIGA7C0D_2.4G'),
+        ('KT_GiGA_5G_F3DO', 'KT_GiGA_5G_F3D0'),
+        ('KT_GIGA_2G_I3D6', 'KT_GiGA_2G_13D6'),
+        ('U+NetDO5C', 'U+NetD05C'),
+        ('U+NetDO5C_5G', 'U+NetD05C_5G'),
+      ]) {
+        final c = parser.parse('Wi-Fi : $read\nPW : momo12345');
+        expect(c.ssid, fixed, reason: read);
+        expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), contains(read), reason: read);
+      }
+    });
+
+    test('16진수 꼬리가 아니거나 통신사 이름이 아니면 그대로', () {
+      expectParsed('Wi-Fi : SK_WiFiGIGAHOME_5G\nPW : momo12345', ssid: 'SK_WiFiGIGAHOME_5G', password: 'momo12345');
+      expectParsed('Wi-Fi : iptime_COOL\nPW : momo12345', ssid: 'iptime_COOL', password: 'momo12345');
+      expectParsed('Wi-Fi : momo_OIOI\nPW : momo12345', ssid: 'momo_OIOI', password: 'momo12345');
+    });
+  });
+
   group('5G·2.4G 대역 표시는 이름이 아니다', () {
     const parser = WifiCredentialParser();
 
@@ -959,6 +983,21 @@ void main() {
         expect(c.ssid, 'U+NetD05C', reason: text);
         expect(c.password, 'DDAE023378', reason: text);
         expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), containsAll(['U+NetD05C', 'U+NetD05C_5G']), reason: text);
+      }
+    });
+
+    test('대역 뒤의 "전용"과 구분자, 깨져 읽힌 "전용"(8)을 뗀다 (SK 안내문)', () {
+      for (final text in [
+        'WiFi\n5G 전용 : SK_WiFiGIGA1A2B_5G\n2.4G전용 : SK_WiFiGIGA1A2B_2.4G\n무선랜암호 : ABCD1@2345',
+        'WiFi\n5G 8 : SK_WiFiGIGA1A2B_5G\n2.4G전용 : SK_WiFiGIGA1A2B_2.4G\n무선랜암호 : ABCD1@2345',
+        // 사진 전체를 한 행으로 읽어 이름표 없이 칸만 나뉜 경우
+        '모모식당 WiFi\t5G 전용: SK_WiFiGIGA1A2B_5G\t2.4G전용 : SK_WiFiGIGA1A2B_2.4G\t무선랜암호 : ABCD1@2345',
+      ]) {
+        final c = parser.parse(text);
+        expect(c.ssid, 'SK_WiFiGIGA1A2B_5G', reason: text);
+        expect(c.password, 'ABCD1@2345', reason: text);
+        expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), contains('SK_WiFiGIGA1A2B_2.4G'),
+            reason: text);
       }
     });
 

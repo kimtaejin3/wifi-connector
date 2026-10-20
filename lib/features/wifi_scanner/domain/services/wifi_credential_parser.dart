@@ -183,6 +183,7 @@ class WifiCredentialParser {
     _addUnlabeledFallbacks(rows, found, wifiContext: wifiContext);
     _addSeparatorVariants(found);
     _addKtGigaVariants(found);
+    _addIspHexVariants(found);
     final result = _select(found);
 
     // Wi-Fi와 관계없는 글(메뉴판, 영수증, 명함, 포스터 ...)에서 엉뚱한 값을 고르지 않게 한다.
@@ -280,6 +281,26 @@ class WifiCredentialParser {
       final fixed = c.value.replaceAllMapped(_ktGiga, (_) => 'GiGA');
       if (fixed == c.value) continue;
       found.add(WifiCandidate(value: fixed, type: c.type, score: (c.score + 0.01).clamp(0.0, 1.0)));
+    }
+  }
+
+  /// 통신사 공유기 이름의 꼬리 네 글자는 16진수다 (`SK_WiFiGIGA1A2B`, `KT_GiGA_5G_F3D6`, `U+NetD05C`).
+  /// 16진수에는 O와 I가 없으므로 OCR이 그 자리에서 읽은 O·o는 0, I·l은 1이다. 고친 값을 1순위로
+  /// 두고 읽은 그대로의 값도 후보로 남긴다.
+  void _addIspHexVariants(List<WifiCandidate> found) {
+    for (final c in found.toList()) {
+      if (c.type != WifiCandidateType.ssid) continue;
+      final m = _ispHexName.firstMatch(c.value);
+      if (m == null) continue;
+      final hex = m.namedGroup('hex')!;
+      final fixed = hex.replaceAll(RegExp('[Oo]'), '0').replaceAll(RegExp('[Il]'), '1');
+      if (fixed == hex) continue;
+      final start = m.namedGroup('prefix')!.length;
+      found.add(WifiCandidate(
+        value: c.value.replaceRange(start, start + hex.length, fixed),
+        type: c.type,
+        score: (c.score + 0.01).clamp(0.0, 1.0),
+      ));
     }
   }
 
@@ -914,8 +935,13 @@ final _whitespace = RegExp(r'\s+');
 final _spaces = RegExp(r' +');
 final _separators = RegExp(r'[ _-]');
 /// 대역 표시만 있는 값, 값 앞의 대역 표시, 값 가운데의 다음 대역 표시.
+/// 값 앞의 대역 표시에는 "5G 전용 :", "2.4G전용 :"처럼 짧은 한글 말과 구분자가 붙기도 하고,
+/// 작은 글씨의 "전용"을 OCR이 "8" 같은 숫자로 깨뜨려 읽기도 한다 ("5G 8 : SK_WiFi...").
 final _bandOnly = RegExp(r'^(?:2\.4|2|5|6)\s?g(?:hz)?$', caseSensitive: false);
-final _leadingBand = RegExp(r'^(?:2\.4|2|5|6)\s?g(?:hz)?\s*[:：]?\s+(?=\S)', caseSensitive: false);
+final _leadingBand = RegExp(
+  r'^(?:2\.4|2|5|6)\s?g(?:hz)?(?:\s*(?:[가-힣]{1,4}|\d{1,2}))?\s*[:：=]?\s+(?=\S)',
+  caseSensitive: false,
+);
 final _innerBand = RegExp(r'\s+(?:2\.4|2|5|6)\s?g(?:hz)?\s*[:：]?\s+(?=\S)', caseSensitive: false);
 /// 비밀번호 앞에 붙은 마침표·쉼표 (뒤에 8자 이상이 있을 때만).
 final _leadingDot = RegExp(r'^[.,·]\s*(?=\S{8})');
@@ -945,6 +971,11 @@ final _routerName = RegExp(
 );
 /// KT 공유기 이름의 `GiGA` 자리. 맨 앞이나 `_`, `KT`, `olleh` 뒤에 오고 뒤에는 구분자·숫자·끝이 온다.
 final _ktGiga = RegExp(r'(?<=^|[_\s\-]|kt|olleh)g[il1|]ga(?=[_\s\-]|\d|wifi|$)', caseSensitive: false);
+/// 통신사 공유기 이름: 접두어 + 16진수 네 글자(OCR 혼동 글자 O·o·I·l 포함) + 선택적 대역 꼬리.
+final _ispHexName = RegExp(
+  r'^(?<prefix>sk_wifigiga|kt_g[il1|]ga_(?:(?:2\.4|2|5)g_)?(?:wave2_)?|u\+net)(?<hex>[0-9A-FOoIl]{4})(?:_(?:2\.4|2|5)g)?$',
+  caseSensitive: false,
+);
 final _hangulSyllable = RegExp(r'[가-힣]');
 /// 비밀번호 뒤의 메모. 공백 뒤 화살표로 시작하거나(`<=숫자 0`, `← zero`), 한글 설명이 오는 경우
 /// (`숫자 0`). 비밀번호에는 한글이 들어갈 수 없고, 공백 뒤 화살표가 비밀번호일 일도 없다.

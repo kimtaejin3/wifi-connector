@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>SK 대역 안내문 (테스트)</title>
+<style>
+  /* 식당 벽에 붙은 코팅 안내문을 흉내 낸다: 위 빨강·아래 파랑 줄, 초록 둥근 테두리 안에 세 줄.
+     값은 가상이지만 글자 모양(작은 "전용", 굵은 빨간 @)은 실제 안내문과 같게 둔다. */
+  html, body { margin: 0; background: #e9e4dc; }
+  body { width: 1600px; height: 1200px; display: flex; align-items: center; justify-content: center;
+         font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; }
+  .sign { width: 1180px; height: 900px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.25);
+          padding: 70px 90px; box-sizing: border-box; display: flex; flex-direction: column; }
+  .bar { height: 10px; border-radius: 5px; }
+  .red { background: #d9372b; }
+  .blue { background: #2a3ea8; }
+  .head { display: flex; align-items: flex-end; justify-content: center; gap: 60px; margin: 48px 0 36px; }
+  .name { font-size: 64px; font-weight: 900; letter-spacing: 2px; font-style: italic; }
+  .wifi { font-size: 88px; font-weight: 900; font-family: Arial, Helvetica, sans-serif; }
+  .box { flex: 1; border: 7px solid #2f6b3a; border-radius: 44px; display: flex; flex-direction: column;
+         align-items: center; justify-content: center; gap: 30px; margin-bottom: 44px; }
+  .row { display: flex; align-items: baseline; gap: 18px; font-family: Arial, Helvetica, sans-serif;
+         font-weight: 700; font-size: 44px; color: #222; }
+  .row .label { font-family: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; font-weight: 700; }
+  .row .band { font-size: 44px; }
+  .row .only { font-size: 34px; font-weight: 500; }
+  .row .colon { margin: 0 6px; }
+  .row.pw { color: #d9372b; font-size: 56px; margin-top: 10px; }
+</style>
+</head>
+<body>
+  <div class="sign">
+    <div class="bar red"></div>
+    <div class="head"><span class="name">모모곰탕</span><span class="wifi">WiFi</span></div>
+    <div class="box">
+      <div class="row"><span class="label"><span class="band">5G</span> <span class="only">전용</span></span><span class="colon">:</span><span>SK_WiFiGIGA7C0D_5G</span></div>
+      <div class="row"><span class="label"><span class="band">2.4G</span><span class="only">전용</span></span><span class="colon">:</span><span>SK_WiFiGIGA7C0D_2.4G</span></div>
+      <div class="row pw"><span class="label">무선랜암호</span><span class="colon">:</span><span>ABEF6@2497</span></div>
+    </div>
+    <div class="bar blue"></div>
+  </div>
+</body>
+</html>
