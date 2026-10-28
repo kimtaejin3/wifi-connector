@@ -1,4 +1,7 @@
 {
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/beta", "destination": "https://play.google.com/store/apps/details?id=com.kimtaejin.wifi_connector", "permanent": false }
+  ]
 }
