@@ -1,0 +1,16 @@
+{
+  "name": "variants-07",
+  "source": "variants-07.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "wii - hong_studio\npw - hong0812",
+  "layoutText": "wii - hong_studio\npw - hong0812",
+  "lines": [
+    {"text":"wii - hong_studio","box":[585.0,512.0,1015.0,589.0],"elements":[{"text":"wii","box":[586.0,512.0,673.0,569.0]},{"text":"-","box":[690.0,542.0,710.0,552.0]},{"text":"hong_studio","box":[727.0,517.0,1015.0,589.0]}]},
+    {"text":"pw - hong0812","box":[611.0,612.0,983.0,680.0],"elements":[{"text":"pw","box":[611.0,626.0,683.0,674.0]},{"text":"-","box":[697.0,639.0,717.0,647.0]},{"text":"hong0812","box":[735.0,614.0,983.0,681.0]}]}
+  ]
+}

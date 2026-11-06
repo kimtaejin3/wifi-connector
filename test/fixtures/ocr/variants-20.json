@@ -1,0 +1,17 @@
+{
+  "name": "variants-20",
+  "source": "variants-20.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": ":spaced_wifi\nWIFI\nP W :spaced2468",
+  "layoutText": "WIFI\t:spaced_wifi\nP W :spaced2468",
+  "lines": [
+    {"text":":spaced_wifi","box":[758.0,530.0,1053.0,578.0],"elements":[{"text":":spaced_wifi","box":[758.0,530.0,1053.0,578.0]}]},
+    {"text":"WIFI","box":[543.0,533.0,713.0,570.0],"elements":[{"text":"WIFI","box":[543.0,533.0,713.0,570.0]}]},
+    {"text":"P W :spaced2468","box":[575.0,617.0,1026.0,664.0],"elements":[{"text":"P","box":[575.0,619.0,600.0,656.0]},{"text":"W","box":[626.0,619.0,671.0,656.0]},{"text":":spaced2468","box":[714.0,617.0,1026.0,664.0]}]}
+  ]
+}

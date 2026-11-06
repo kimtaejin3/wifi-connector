@@ -1,0 +1,19 @@
+{
+  "name": "sign-hotspot",
+  "source": "sign-hotspot.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "LENS STUDY CAFE\nFREE Wi-Fi\nWi-Fi : WifiLens_Test\nPW: lens2026!\n편하게 이용하세요",
+  "layoutText": "LENS STUDY CAFE\nFREE Wi-Fi\nWi-Fi : WifiLens_Test\nPW: lens2026!\n편하게 이용하세요",
+  "lines": [
+    {"text":"LENS STUDY CAFE","box":[570.0,254.0,1019.0,281.0],"elements":[{"text":"LENS","box":[570.0,254.0,683.0,281.0]},{"text":"STUDY","box":[718.0,254.0,871.0,281.0]},{"text":"CAFE","box":[904.0,254.0,1019.0,281.0]}]},
+    {"text":"FREE Wi-Fi","box":[512.0,337.0,1084.0,434.0],"elements":[{"text":"FREE","box":[512.0,341.0,776.0,431.0]},{"text":"Wi-Fi","box":[816.0,341.0,1084.0,431.0]}]},
+    {"text":"Wi-Fi : WifiLens_Test","box":[374.0,586.0,1225.0,667.0],"elements":[{"text":"Wi-Fi","box":[374.0,590.0,583.0,657.0]},{"text":":","box":[622.0,606.0,633.0,653.0]},{"text":"WifiLens_Test","box":[668.0,586.0,1225.0,667.0]}]},
+    {"text":"PW: lens2026!","box":[496.0,732.0,1103.0,801.0],"elements":[{"text":"PW:","box":[496.0,736.0,671.0,801.0]},{"text":"lens2026!","box":[712.0,732.0,1103.0,801.0]}]},
+    {"text":"편하게 이용하세요","box":[672.0,912.0,927.0,944.0],"elements":[{"text":"편하게","box":[672.0,912.0,760.0,944.0]},{"text":"이용하세요","box":[776.0,912.0,927.0,944.0]}]}
+  ]
+}

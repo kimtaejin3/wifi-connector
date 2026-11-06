@@ -1,0 +1,17 @@
+{
+  "name": "variants-39",
+  "source": "variants-39.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "FREE WIFI\n와이파이 : open_park\n비밀번호 없음",
+  "layoutText": "FREE WIFI\n와이파이 : open_park\n비밀번호 없음",
+  "lines": [
+    {"text":"FREE WIFI","box":[715.0,512.0,882.0,535.0],"elements":[{"text":"FREE","box":[715.0,512.0,795.0,535.0]},{"text":"WIFI","box":[810.0,512.0,882.0,535.0]}]},
+    {"text":"와이파이 : open_park","box":[627.0,580.0,969.0,625.0],"elements":[{"text":"와이파이","box":[627.0,580.0,761.0,622.0]},{"text":":","box":[779.0,592.0,783.0,612.0]},{"text":"open_park","box":[797.0,583.0,969.0,623.0]}]},
+    {"text":"비밀번호 없음","box":[694.0,647.0,907.0,682.0],"elements":[{"text":"비밀번호","box":[694.0,647.0,827.0,682.0]},{"text":"없음","box":[841.0,647.0,907.0,682.0]}]}
+  ]
+}

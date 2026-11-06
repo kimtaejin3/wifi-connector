@@ -1,0 +1,18 @@
+{
+  "name": "variety-06",
+  "source": "variety-06.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "ID\nPW\nStudy _Room\nstudy4321",
+  "layoutText": "ID\tStudy _Room\nPW\tstudy4321",
+  "lines": [
+    {"text":"ID","box":[653.0,544.0,685.0,570.0],"elements":[{"text":"ID","box":[653.0,544.0,685.0,570.0]}]},
+    {"text":"PW","box":[641.0,620.0,698.0,650.0],"elements":[{"text":"PW","box":[641.0,620.0,698.0,650.0]}]},
+    {"text":"Study _Room","box":[737.0,538.0,958.0,577.0],"elements":[{"text":"Study","box":[737.0,538.0,851.0,577.0]},{"text":"_Room","box":[853.0,538.0,958.0,577.0]}]},
+    {"text":"study4321","box":[772.0,617.0,940.0,655.0],"elements":[{"text":"study4321","box":[772.0,617.0,940.0,655.0]}]}
+  ]
+}

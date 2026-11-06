@@ -1,0 +1,16 @@
+{
+  "name": "variants-16",
+  "source": "variants-16.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "네트워크 : SEOUL_LOFT\n암호: loft3030",
+  "layoutText": "네트워크 : SEOUL_LOFT\n암호: loft3030",
+  "lines": [
+    {"text":"네트워크 : SEOUL_LOFT","box":[534.0,529.0,1068.0,576.0],"elements":[{"text":"네트워크","box":[534.0,529.0,715.0,576.0]},{"text":":","box":[735.0,542.0,741.0,567.0]},{"text":"SEOUL_LOFT","box":[762.0,533.0,1068.0,576.0]}]},
+    {"text":"암호: loft3030","box":[628.0,609.0,970.0,663.0],"elements":[{"text":"암호:","box":[628.0,613.0,745.0,663.0]},{"text":"loft3030","box":[765.0,613.0,970.0,660.0]}]}
+  ]
+}

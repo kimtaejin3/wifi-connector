@@ -1,0 +1,16 @@
+{
+  "name": "variants-30",
+  "source": "variants-30.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WIFI: dot-cafe\nPW : grape.juice_77",
+  "layoutText": "WIFI: dot-cafe\nPW : grape.juice_77",
+  "lines": [
+    {"text":"WIFI: dot-cafe","box":[626.0,527.0,976.0,578.0],"elements":[{"text":"WIFI:","box":[626.0,527.0,768.0,578.0]},{"text":"dot-cafe","box":[771.0,527.0,976.0,578.0]}]},
+    {"text":"PW : grape.juice_77","box":[572.0,618.0,1027.0,663.0],"elements":[{"text":"PW","box":[572.0,620.0,647.0,655.0]},{"text":":","box":[668.0,628.0,675.0,653.0]},{"text":"grape.juice_77","box":[694.0,618.0,1027.0,663.0]}]}
+  ]
+}

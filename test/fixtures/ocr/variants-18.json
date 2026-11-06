@@ -1,0 +1,16 @@
+{
+  "name": "variants-18",
+  "source": "variants-18.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WiFi ► star_lounge\nPW ► star7979",
+  "layoutText": "WiFi ► star_lounge\nPW ► star7979",
+  "lines": [
+    {"text":"WiFi ► star_lounge","box":[573.0,527.0,1025.0,578.0],"elements":[{"text":"WiFi","box":[573.0,531.0,675.0,572.0]},{"text":"►","box":[699.0,532.0,732.0,574.0]},{"text":"star_lounge","box":[754.0,530.0,1025.0,579.0]}]},
+    {"text":"PW ► star7979","box":[621.0,618.0,979.0,659.0],"elements":[{"text":"PW","box":[621.0,619.0,696.0,656.0]},{"text":"►","box":[720.0,618.0,752.0,659.0]},{"text":"star7979","box":[776.0,619.0,979.0,656.0]}]}
+  ]
+}

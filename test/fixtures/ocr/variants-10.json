@@ -1,0 +1,18 @@
+{
+  "name": "variants-10",
+  "source": "variants-10.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "NETWORK\nBloom_Flower\nPASSWORD\nbloom2024!!",
+  "layoutText": "NETWORK\nBloom_Flower\nPASSWORD\nbloom2024!!",
+  "lines": [
+    {"text":"NETWORK","box":[734.0,459.0,862.0,475.0],"elements":[{"text":"NETWORK","box":[734.0,459.0,862.0,475.0]}]},
+    {"text":"Bloom_Flower","box":[543.0,491.0,1055.0,571.0],"elements":[{"text":"Bloom_Flower","box":[543.0,491.0,1055.0,571.0]}]},
+    {"text":"PASSWORD","box":[727.0,619.0,869.0,635.0],"elements":[{"text":"PASSWORD","box":[727.0,619.0,869.0,635.0]}]},
+    {"text":"bloom2024!!","box":[568.0,650.0,1032.0,723.0],"elements":[{"text":"bloom2024!!","box":[568.0,650.0,1032.0,723.0]}]}
+  ]
+}

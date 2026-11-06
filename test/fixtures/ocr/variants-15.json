@@ -1,0 +1,16 @@
+{
+  "name": "variants-15",
+  "source": "variants-15.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "와이파이명 : nabihostel\n패스워드 : nabi0505",
+  "layoutText": "와이파이명 : nabihostel\n패스워드 : nabi0505",
+  "lines": [
+    {"text":"와이파이명 : nabihostel","box":[528.0,529.0,1069.0,576.0],"elements":[{"text":"와이파이명","box":[528.0,529.0,754.0,576.0]},{"text":":","box":[778.0,542.0,784.0,567.0]},{"text":"nabihostel","box":[807.0,531.0,1069.0,576.0]}]},
+    {"text":"패스워드 : nabi0505","box":[572.0,614.0,1025.0,663.0],"elements":[{"text":"패스워드","box":[572.0,614.0,755.0,663.0]},{"text":":","box":[776.0,628.0,783.0,653.0]},{"text":"nabi0505","box":[804.0,616.0,1025.0,657.0]}]}
+  ]
+}

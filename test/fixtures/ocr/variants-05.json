@@ -1,0 +1,16 @@
+{
+  "name": "variants-05",
+  "source": "variants-05.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WIFi: Peach_Garden\nPass: peach 5959",
+  "layoutText": "WIFi: Peach_Garden\nPass: peach 5959",
+  "lines": [
+    {"text":"WIFi: Peach_Garden","box":[546.0,533.0,1064.0,579.0],"elements":[{"text":"WIFi:","box":[546.0,533.0,667.0,573.0]},{"text":"Peach_Garden","box":[684.0,533.0,1064.0,579.0]}]},
+    {"text":"Pass: peach 5959","box":[582.0,619.0,1025.0,680.0],"elements":[{"text":"Pass:","box":[582.0,623.0,721.0,666.0]},{"text":"peach","box":[729.0,621.0,895.0,679.0]},{"text":"5959","box":[897.0,619.0,1025.0,677.0]}]}
+  ]
+}

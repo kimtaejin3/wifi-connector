@@ -1,0 +1,17 @@
+{
+  "name": "variety-20",
+  "source": "variety-20.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "OPEN 10:00 CLOSE 22:00\n매주 월요일 휴무\nSince 2019",
+  "layoutText": "OPEN 10:00 CLOSE 22:00\n매주 월요일 휴무\nSince 2019",
+  "lines": [
+    {"text":"OPEN 10:00 CLOSE 22:00","box":[574.0,518.0,1023.0,547.0],"elements":[{"text":"OPEN","box":[574.0,518.0,669.0,547.0]},{"text":"10:00","box":[686.0,518.0,783.0,545.0]},{"text":"CLOSE","box":[798.0,518.0,909.0,547.0]},{"text":"22:00","box":[924.0,518.0,1023.0,547.0]}]},
+    {"text":"매주 월요일 휴무","box":[671.0,579.0,930.0,614.0],"elements":[{"text":"매주","box":[671.0,579.0,736.0,614.0]},{"text":"월요일","box":[749.0,579.0,848.0,614.0]},{"text":"휴무","box":[863.0,579.0,930.0,614.0]}]},
+    {"text":"Since 2019","box":[709.0,646.0,890.0,674.0],"elements":[{"text":"Since","box":[709.0,646.0,796.0,674.0]},{"text":"2019","box":[810.0,646.0,890.0,674.0]}]}
+  ]
+}

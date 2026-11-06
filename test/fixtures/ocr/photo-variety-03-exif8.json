@@ -1,0 +1,16 @@
+{
+  "name": "photo-variety-03-exif8",
+  "source": "photo-variety-03-exif8.jpg",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1200,
+    "height": 1600,
+    "exifOrientation": 8
+  },
+  "text": "WIFI cafe_luna\nPW luna2025",
+  "layoutText": "PW luna2025\tWIFI cafe_luna",
+  "lines": [
+    {"text":"WIFI cafe_luna","box":[623.0,627.0,672.0,969.0],"elements":[{"text":"WIFI","box":[628.0,627.0,668.0,732.0]},{"text":"cafe_luna","box":[623.0,752.0,671.0,969.0]}]},
+    {"text":"PW luna2025","box":[540.0,646.0,586.0,956.0],"elements":[{"text":"PW","box":[543.0,646.0,582.0,722.0]},{"text":"luna2025","box":[541.0,740.0,586.0,956.0]}]}
+  ]
+}

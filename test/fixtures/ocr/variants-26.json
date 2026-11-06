@@ -1,0 +1,16 @@
+{
+  "name": "variants-26",
+  "source": "variants-26.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WiFi 2.4G mint_house /5G mint_house 5G\n비밀번호 mint9090",
+  "layoutText": "WiFi 2.4G mint_house /5G mint_house 5G\n비밀번호 mint9090",
+  "lines": [
+    {"text":"WiFi 2.4G mint_house /5G mint_house 5G","box":[443.0,545.0,1156.0,585.0],"elements":[{"text":"WiFi","box":[443.0,550.0,514.0,577.0]},{"text":"2.4G","box":[529.0,550.0,604.0,578.0]},{"text":"mint_house","box":[620.0,549.0,811.0,582.0]},{"text":"/5G","box":[823.0,548.0,890.0,582.0]},{"text":"mint_house","box":[900.0,545.0,1100.0,585.0]},{"text":"5G","box":[1103.0,545.0,1156.0,585.0]}]},
+    {"text":"비밀번호 mint9090","box":[641.0,611.0,957.0,646.0],"elements":[{"text":"비밀번호","box":[641.0,611.0,775.0,646.0]},{"text":"mint9090","box":[789.0,614.0,957.0,642.0]}]}
+  ]
+}

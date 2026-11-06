@@ -1,0 +1,19 @@
+{
+  "name": "variants-47",
+  "source": "variants-47.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WiFi : qr_corner\nPW : qrcode2026\nQR을 스캔하면 바로 연결돼요\nT\nL",
+  "layoutText": "WiFi : qr_corner\nT\tPW : qrcode2026\nQR을 스캔하면 바로 연결돼요\nL",
+  "lines": [
+    {"text":"WiFi : qr_corner","box":[801.0,529.0,1065.0,562.0],"elements":[{"text":"WiFi","box":[801.0,529.0,872.0,556.0]},{"text":":","box":[889.0,536.0,893.0,554.0]},{"text":"qr_corner","box":[908.0,536.0,1065.0,562.0]}]},
+    {"text":"PW : qrcode2026","box":[802.0,588.0,1097.0,631.0],"elements":[{"text":"PW","box":[802.0,592.0,857.0,621.0]},{"text":":","box":[872.0,600.0,876.0,618.0]},{"text":"qrcode2026","box":[891.0,590.0,1097.0,631.0]}]},
+    {"text":"QR을 스캔하면 바로 연결돼요","box":[801.0,650.0,1099.0,672.0],"elements":[{"text":"QR을","box":[801.0,650.0,855.0,672.0]},{"text":"스캔하면","box":[864.0,650.0,950.0,672.0]},{"text":"바로","box":[961.0,650.0,1003.0,672.0]},{"text":"연결돼요","box":[1013.0,650.0,1099.0,672.0]}]},
+    {"text":"T","box":[687.0,582.0,749.0,625.0],"elements":[{"text":"T","box":[687.0,582.0,749.0,625.0]}]},
+    {"text":"L","box":[572.0,679.0,628.0,733.0],"elements":[{"text":"L","box":[572.0,679.0,628.0,733.0]}]}
+  ]
+}

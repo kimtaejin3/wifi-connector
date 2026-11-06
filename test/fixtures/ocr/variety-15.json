@@ -1,0 +1,16 @@
+{
+  "name": "variety-15",
+  "source": "variety-15.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WIFI : tea_time\nPW : Tea@2024!",
+  "layoutText": "WIFI : tea_time\nPW : Tea@2024!",
+  "lines": [
+    {"text":"WIFI : tea_time","box":[623.0,532.0,975.0,576.0],"elements":[{"text":"WIFI","box":[623.0,533.0,726.0,570.0]},{"text":":","box":[749.0,542.0,756.0,567.0]},{"text":"tea_time","box":[776.0,532.0,975.0,576.0]}]},
+    {"text":"PW : Tea@2024!","box":[606.0,618.0,994.0,663.0],"elements":[{"text":"PW","box":[606.0,619.0,681.0,656.0]},{"text":":","box":[701.0,628.0,707.0,653.0]},{"text":"Tea@2024!","box":[727.0,618.0,994.0,663.0]}]}
+  ]
+}

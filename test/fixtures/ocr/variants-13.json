@@ -1,0 +1,23 @@
+{
+  "name": "variants-13",
+  "source": "variants-13.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "구분\n2.4G\n5G\n와이파이 이름\nduo_net\nduo_net_5G\n비밀번호\nduo24680\nduo24680",
+  "layoutText": "구분\t와이파이 이름\t비밀번호\n2.4G\tduo_net\tduo24680\n5G\tduo_net_5G\tduo24680",
+  "lines": [
+    {"text":"구분","box":[525.0,506.0,589.0,540.0],"elements":[{"text":"구분","box":[525.0,506.0,589.0,540.0]}]},
+    {"text":"2.4G","box":[522.0,580.0,593.0,614.0],"elements":[{"text":"2.4G","box":[522.0,580.0,593.0,614.0]}]},
+    {"text":"5G","box":[537.0,657.0,577.0,687.0],"elements":[{"text":"5G","box":[537.0,657.0,577.0,687.0]}]},
+    {"text":"와이파이 이름","box":[650.0,506.0,851.0,539.0],"elements":[{"text":"와이파이","box":[650.0,506.0,777.0,539.0]},{"text":"이름","box":[792.0,506.0,851.0,539.0]}]},
+    {"text":"duo_net","box":[690.0,582.0,813.0,615.0],"elements":[{"text":"duo_net","box":[690.0,582.0,813.0,615.0]}]},
+    {"text":"duo_net_5G","box":[663.0,658.0,841.0,688.0],"elements":[{"text":"duo_net_5G","box":[663.0,658.0,841.0,688.0]}]},
+    {"text":"비밀번호","box":[932.0,506.0,1049.0,539.0],"elements":[{"text":"비밀번호","box":[932.0,506.0,1049.0,539.0]}]},
+    {"text":"duo24680","box":[910.0,577.0,1076.0,615.0],"elements":[{"text":"duo24680","box":[910.0,577.0,1076.0,615.0]}]},
+    {"text":"duo24680","box":[912.0,658.0,1075.0,685.0],"elements":[{"text":"duo24680","box":[912.0,658.0,1075.0,685.0]}]}
+  ]
+}

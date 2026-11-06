@@ -1,0 +1,16 @@
+{
+  "name": "variety-24",
+  "source": "variety-24.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "ORDER No. A1029\npickup code 7731kx",
+  "layoutText": "ORDER No. A1029\npickup code 7731kx",
+  "lines": [
+    {"text":"ORDER No. A1029","box":[645.0,550.0,954.0,578.0],"elements":[{"text":"ORDER","box":[645.0,550.0,766.0,578.0]},{"text":"No.","box":[781.0,550.0,834.0,578.0]},{"text":"A1029","box":[848.0,550.0,954.0,578.0]}]},
+    {"text":"pickup code 7731kx","box":[635.0,607.0,966.0,649.0],"elements":[{"text":"pickup","box":[635.0,611.0,745.0,649.0]},{"text":"code","box":[758.0,612.0,838.0,643.0]},{"text":"7731kx","box":[851.0,612.0,966.0,644.0]}]}
+  ]
+}

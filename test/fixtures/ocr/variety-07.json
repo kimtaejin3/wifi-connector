@@ -1,0 +1,16 @@
+{
+  "name": "variety-07",
+  "source": "variety-07.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "lunahouse7\nb83kd02jql",
+  "layoutText": "lunahouse7\nb83kd02jql",
+  "lines": [
+    {"text":"lunahouse7","box":[667.0,531.0,935.0,570.0],"elements":[{"text":"lunahouse7","box":[667.0,531.0,935.0,570.0]}]},
+    {"text":"b83kd02jql","box":[662.0,613.0,934.0,667.0],"elements":[{"text":"b83kd02jql","box":[662.0,613.0,934.0,667.0]}]}
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "variants-14",
+  "source": "variants-14.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "al Sunrise_Inn\nPsunrise2026",
+  "layoutText": "al Sunrise_Inn\nPsunrise2026",
+  "lines": [
+    {"text":"al Sunrise_Inn","box":[630.0,529.0,966.0,578.0],"elements":[{"text":"al","box":[630.0,529.0,683.0,578.0]},{"text":"Sunrise_Inn","box":[699.0,532.0,966.0,576.0]}]},
+    {"text":"Psunrise2026","box":[620.0,615.0,978.0,663.0],"elements":[{"text":"Psunrise2026","box":[620.0,615.0,978.0,663.0]}]}
+  ]
+}

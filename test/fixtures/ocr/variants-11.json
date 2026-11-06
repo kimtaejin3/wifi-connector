@@ -1,0 +1,16 @@
+{
+  "name": "variants-11",
+  "source": "variants-11.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WIFI: tilt_cafe\nPW: tilt5678",
+  "layoutText": "WIFI: tilt_cafe\nPW: tilt5678",
+  "lines": [
+    {"text":"WIFI: tilt_cafe","box":[626.0,510.0,960.0,598.0],"elements":[{"text":"WIFI:","box":[626.0,529.0,775.0,597.0]},{"text":"tilt_cafe","box":[773.0,509.0,960.0,582.0]}]},
+    {"text":"PW: tilt5678","box":[653.0,597.0,959.0,674.0],"elements":[{"text":"PW:","box":[653.0,624.0,758.0,674.0]},{"text":"tilt5678","box":[772.0,597.0,959.0,660.0]}]}
+  ]
+}

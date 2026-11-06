@@ -1,0 +1,18 @@
+{
+  "name": "variety-19",
+  "source": "variety-19.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "김모모 대표\nTel 010-1234-5678\nmomo@cafemomo.kr\nwww.cafemomo.kr",
+  "layoutText": "김모모 대표\nTel 010-1234-5678\nmomo@cafemomo.kr\nwww.cafemomo.kr",
+  "lines": [
+    {"text":"김모모 대표","box":[710.0,512.0,891.0,547.0],"elements":[{"text":"김모모","box":[710.0,512.0,811.0,547.0]},{"text":"대표","box":[824.0,512.0,891.0,547.0]}]},
+    {"text":"Tel 010-1234-5678","box":[688.0,573.0,910.0,593.0],"elements":[{"text":"Tel","box":[688.0,573.0,720.0,593.0]},{"text":"010-1234-5678","box":[732.0,574.0,910.0,593.0]}]},
+    {"text":"momo@cafemomo.kr","box":[676.0,618.0,925.0,642.0],"elements":[{"text":"momo@cafemomo.kr","box":[676.0,618.0,925.0,642.0]}]},
+    {"text":"www.cafemomo.kr","box":[690.0,659.0,907.0,685.0],"elements":[{"text":"www.cafemomo.kr","box":[690.0,659.0,907.0,685.0]}]}
+  ]
+}

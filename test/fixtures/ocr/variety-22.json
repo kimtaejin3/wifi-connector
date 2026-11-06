@@ -1,0 +1,17 @@
+{
+  "name": "variety-22",
+  "source": "variety-22.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "Model No. AX3000\nSerial SN8823KD991\nMade in Korea",
+  "layoutText": "Model No. AX3000\nSerial SN8823KD991\nMade in Korea",
+  "lines": [
+    {"text":"Model No. AX3000","box":[628.0,517.0,955.0,546.0],"elements":[{"text":"Model","box":[628.0,517.0,728.0,546.0]},{"text":"No.","box":[745.0,518.0,797.0,546.0]},{"text":"AX3000","box":[811.0,518.0,955.0,546.0]}]},
+    {"text":"Serial SN8823KD991","box":[626.0,581.0,970.0,610.0],"elements":[{"text":"Serial","box":[626.0,581.0,714.0,610.0]},{"text":"SN8823KD991","box":[729.0,582.0,970.0,610.0]}]},
+    {"text":"Made in Korea","box":[628.0,645.0,866.0,674.0],"elements":[{"text":"Made","box":[628.0,645.0,717.0,674.0]},{"text":"in","box":[732.0,646.0,758.0,673.0]},{"text":"Korea","box":[774.0,646.0,866.0,674.0]}]}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "variants-38",
+  "source": "variants-38.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WIFI\npill_cafe\npill3690\nPW",
+  "layoutText": "WIFI\tpill_cafe\nPW\tpill3690",
+  "lines": [
+    {"text":"WIFI","box":[662.0,537.0,727.0,562.0],"elements":[{"text":"WIFI","box":[662.0,537.0,727.0,562.0]}]},
+    {"text":"pill_cafe","box":[781.0,519.0,962.0,568.0],"elements":[{"text":"pill_cafe","box":[781.0,519.0,962.0,568.0]}]},
+    {"text":"pill3690","box":[764.0,624.0,945.0,672.0],"elements":[{"text":"pill3690","box":[764.0,624.0,945.0,672.0]}]},
+    {"text":"PW","box":[664.0,642.0,708.0,665.0],"elements":[{"text":"PW","box":[664.0,642.0,708.0,665.0]}]}
+  ]
+}

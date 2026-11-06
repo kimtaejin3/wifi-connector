@@ -1,0 +1,17 @@
+{
+  "name": "variants-32",
+  "source": "variants-32.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WIFI:long_pw_cafe\nPW: abcdefgh12\n345678",
+  "layoutText": "WIFI:long_pw_cafe\nPW: abcdefgh12\n345678",
+  "lines": [
+    {"text":"WIFI:long_pw_cafe","box":[493.0,483.0,956.0,538.0],"elements":[{"text":"WIFI:long_pw_cafe","box":[493.0,483.0,956.0,538.0]}]},
+    {"text":"PW: abcdefgh12","box":[496.0,574.0,885.0,621.0],"elements":[{"text":"PW:","box":[496.0,576.0,599.0,613.0]},{"text":"abcdefgh12","box":[620.0,574.0,885.0,621.0]}]},
+    {"text":"345678","box":[594.0,658.0,766.0,703.0],"elements":[{"text":"345678","box":[594.0,658.0,766.0,703.0]}]}
+  ]
+}

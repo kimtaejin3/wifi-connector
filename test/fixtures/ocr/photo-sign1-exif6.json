@@ -1,0 +1,19 @@
+{
+  "name": "photo-sign1-exif6",
+  "source": "photo-sign1-exif6.jpg",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1500,
+    "height": 1200,
+    "exifOrientation": 6
+  },
+  "text": "ENJO Y YOUR COFFEE\nFREE WI-FI\nSSID : TestCafe\nPassword: Test12345\n문의는 카운터로 말씀해주세요",
+  "layoutText": "ENJO Y YOUR COFFEE\tFREE WI-FI\tSSID : TestCafe\tPassword: Test12345\t문의는 카운터로 말씀해주세요",
+  "lines": [
+    {"text":"ENJO Y YOUR COFFEE","box":[484.0,337.0,520.0,902.0],"elements":[{"text":"ENJO","box":[485.0,758.0,520.0,902.0]},{"text":"Y","box":[485.0,722.0,520.0,749.0]},{"text":"YOUR","box":[489.0,560.0,513.0,686.0]},{"text":"COFFEE","box":[489.0,337.0,513.0,520.0]}]},
+    {"text":"FREE WI-FI","box":[650.0,364.0,727.0,844.0],"elements":[{"text":"FREE","box":[653.0,632.0,722.0,844.0]},{"text":"WI-FI","box":[653.0,364.0,724.0,592.0]}]},
+    {"text":"SSID : TestCafe","box":[885.0,402.0,931.0,799.0],"elements":[{"text":"SSID","box":[888.0,683.0,931.0,799.0]},{"text":":","box":[898.0,653.0,927.0,659.0]},{"text":"TestCafe","box":[885.0,402.0,931.0,629.0]}]},
+    {"text":"Password: Test12345","box":[980.0,322.0,1036.0,902.0],"elements":[{"text":"Password:","box":[980.0,592.0,1036.0,902.0]},{"text":"Test12345","box":[980.0,322.0,1036.0,589.0]}]},
+    {"text":"문의는 카운터로 말씀해주세요","box":[1128.0,404.0,1157.0,799.0],"elements":[{"text":"문의는","box":[1128.0,714.0,1157.0,799.0]},{"text":"카운터로","box":[1128.0,587.0,1157.0,701.0]},{"text":"말씀해주세요","box":[1128.0,404.0,1157.0,574.0]}]}
+  ]
+}

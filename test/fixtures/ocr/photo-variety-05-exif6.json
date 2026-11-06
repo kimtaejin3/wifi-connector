@@ -1,0 +1,16 @@
+{
+  "name": "photo-variety-05-exif6",
+  "source": "photo-variety-05-exif6.jpg",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1200,
+    "height": 1600,
+    "exifOrientation": 6
+  },
+  "text": "SSID : Bakery_Guest\nPASSWORD : bread0909",
+  "layoutText": "SSID : Bakery_Guest\tPASSWORD : bread0909",
+  "lines": [
+    {"text":"SSID : Bakery_Guest","box":[549.0,632.0,583.0,969.0],"elements":[{"text":"SSID","box":[550.0,894.0,578.0,969.0]},{"text":":","box":[557.0,874.0,575.0,878.0]},{"text":"Bakery_Guest","box":[549.0,632.0,583.0,857.0]}]},
+    {"text":"PASSWORD : bread0909","box":[613.0,593.0,642.0,1010.0],"elements":[{"text":"PASSWORD","box":[614.0,816.0,642.0,1010.0]},{"text":":","box":[621.0,796.0,639.0,800.0]},{"text":"bread0909","box":[613.0,593.0,642.0,779.0]}]}
+  ]
+}

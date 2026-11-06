@@ -1,0 +1,18 @@
+{
+  "name": "variants-03",
+  "source": "variants-03.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "W-FI\nHANA COFFEE\nPASSWORD\nhana0303",
+  "layoutText": "W-FI\nHANA COFFEE\nPASSWORD\nhana0303",
+  "lines": [
+    {"text":"W-FI","box":[767.0,464.0,833.0,487.0],"elements":[{"text":"W-FI","box":[767.0,464.0,833.0,487.0]}]},
+    {"text":"HANA COFFEE","box":[590.0,508.0,996.0,570.0],"elements":[{"text":"HANA","box":[590.0,508.0,773.0,570.0]},{"text":"COFFEE","box":[776.0,508.0,996.0,570.0]}]},
+    {"text":"PASSWORD","box":[726.0,619.0,877.0,643.0],"elements":[{"text":"PASSWORD","box":[726.0,619.0,877.0,643.0]}]},
+    {"text":"hana0303","box":[672.0,670.0,930.0,717.0],"elements":[{"text":"hana0303","box":[672.0,670.0,930.0,717.0]}]}
+  ]
+}
