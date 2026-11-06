@@ -43,7 +43,7 @@ const knownFailures = <String, String>{
   'variants-18': '화살표 구분자(▶, OCR은 ►)를 몰라 이름·비밀번호를 못 찾음 (P1-1)',
   'variants-19': 'OCR이 밑줄 뒤에 공백을 넣어(one_ line_cafe) 여러 단어 값으로 보고 이름표를 버림 (P1-2)',
   'variants-20': '이름표 자간이 넓어 콜론이 값 칸에 붙음(:spaced_wifi) (P1-1)',
-  'variants-22': 'OCR이 WiFi를 WIF1로 읽음(SK_WIF1GIGA9B2E). SK 대소문자 정규화는 기존 테스트와 부딪혀 결정 필요 (P2-3)',
+  'variants-22': 'OCR이 WiFi를 WIF1로 읽음(SK_WIF1GIGA9B2E). SK 접두어를 SK_WiFiGIGA로 고치면 맞음 (P2-3)',
   'variants-25': 'Password/PIN: 이름표의 /PIN이 값에 붙음(/PIN:51837264) (P1-1)',
   'variants-26': '한 줄에 두 대역(WiFi 2.4G 이름 /5G 이름)이 오면 이름표를 버림 (P3-1)',
   'variants-27': 'OCR이 0을 o로 읽음(coffee0909). 아래 줄의 "0은 숫자" 메모를 쓰지 않음 (P2-4)',

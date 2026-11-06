@@ -13,10 +13,13 @@
 - **지금 결과**: 통과 53 · 알려진 실패 38 (`skip` + 사유, 4장 표). 실패 원인은 바로 고칠 수 있는 파서 규칙 22건
   (P1·P2), 설계가 더 필요한 파서 규칙 5건(P3), 파서로는 못 고치는 OCR 단계 11건(P4).
 - **개선 항목 19개** (5장). 파서·`OcrService`에 임시 시제품을 넣어 재 보니 P1 다섯 항목만으로 통과가 53 → 65,
-  시제품을 만든 P1·P2 항목 11개를 다 합치면 53 → 73(20개 고침)이고, 어느 경우에도 기존 테스트 324개는 하나도
-  깨지지 않았다(7장). 시제품은 모두 되돌렸고 `lib/`는 바뀌지 않았다.
+  시제품을 만든 P1·P2 항목 11개를 다 합치면 53 → 74(21개 고침)다. 기존 테스트는 P2-3에서 운영자 결정으로 기대를
+  바꾸기로 한 1개(`SK_WIFiGIGA7COD_2.4G` 경우) 말고는 하나도 깨지지 않았다(7장). 시제품은 모두 되돌렸고 `lib/`는
+  바뀌지 않았다.
 - **상위 3개**: P1-1 구분자·이름표 모양 넓히기(5개 고침), P1-2 밑줄 옆 공백 지우기(2개, EXIF 보정과 함께 3개),
   P1-3 화장실·현관 비밀번호 거르기(Wi-Fi 아닌 글 2개).
+- **결정 (2026-11-06, 운영자)**: `SK_WIF1GIGA`·`SK_WIFiGIGA`처럼 읽힌 SK 공유기 이름은 오인식으로 보고 실제 형식
+  `SK_WiFiGIGA`로 고친다(P2-3). 기존 테스트 하나의 기대를 이에 맞춰 바꾼다.
 - **variety 8번**: `variety/answers.md`에 적혀 있던 "이름을 `2.4G`/`5G`로 잘못 고르는 문제"는 이 fixture에서는 재현되지
   않는다(`variety-08` 통과, 이름 `U+NetA7C2_5G`). 그 메모보다 뒤인 2026-10-12 커밋 `110e36f`(대역 표시를 이름에서 제외)에서
   고쳐진 것으로 보이지만, 실기기 카메라에서도 그런지는 다시 확인해야 한다(1.8). 메모는 이 내용으로 고쳐 두었다.
@@ -307,7 +310,7 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 | `variants-02` | 명조체 | `sodam_books` · `books1004` | `sodam books` · `books1004` | 위와 같음 (간격 0.03) | F4, H1, I3 | P2-2 |
 | `variants-03` | 아주 굵게·좁은 자간, 이름표 위·값 아래 | `HANA_COFFEE` · `hana0303` | `HANA COFFEE` · `hana0303` | 위와 같음 (간격 0.05) | F4, H1, I3 | P2-2 |
 | `variety-09` | 통신사 공유기 이름 | `KT_GiGA_5G_Wave2_4F1A` · `k9x2m4p8q1` | `KT_GiGA5G_Wave2_4FIA` · `k9x2m4p8q1` | OCR이 `GIGA` 뒤 밑줄을 빠뜨리고 꼬리 1을 I로 읽음 → H3의 이름 모양에 안 맞아 꼬리를 못 고침 | H2, H3, G4 | P2-3 |
-| `variants-22` | SK 공유기 스티커 | `SK_WiFiGIGA9B2E` 또는 `_5G` · `B7DE1@4410` | `SK_WIF1GIGA9B2E` · `B7DE1@4410` | OCR이 `WiFi`를 `WIF1`로 읽음 | H2, H3 | P2-3 (결정 필요) |
+| `variants-22` | SK 공유기 스티커 | `SK_WiFiGIGA9B2E` 또는 `_5G` · `B7DE1@4410` | `SK_WIF1GIGA9B2E` · `B7DE1@4410` | OCR이 `WiFi`를 `WIF1`로 읽음 | H2, H3 | P2-3 |
 | `variants-27` | 아래 줄 메모 "0은 숫자" | `zero_cafe` · `c0ffee0909` | `zero_cafe` · `coffee0909` | OCR이 0을 o로 읽었고, 다음 줄 메모("※ 0은 모두 숫자")는 쓰지 않음 | F2 | P2-4 |
 | `variants-07` | 포스트잇 마커, 살짝 기울임 | `hong_studio` · `hong0812` | — · `hong0812` | OCR이 `wifi`를 `wii`로 읽어 이름표를 못 찾음(`wii - hong_studio`) | D2, G2 | P2-5 |
 | `sign3` | WIFI 제목 아래 ID / PW 두 열 | `momo_guest` · `hello1234` | `momo_guest` · `Ask our staff if it doesn't work` | OCR이 값 `hello1234`를 놓침 → PW 다음 줄 안내 문장을 비밀번호로 고름 | E6, F6 | P2-6 (+P4-2) |
@@ -393,11 +396,28 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 
 ### P2-3 통신사 공유기 이름 정규화
 
-- **고치는 fixture (1)**: `variety-09`. `variants-22`는 결정에 따라.
-- **구현 방향**: KT — `^KT_?G[il1|]GA_?(2G|5G)_?(Wave2_?)?([0-9A-FOIL]{4})$`이면 `KT_GiGA_<대역>_<Wave2_><16진수>`로 고친 값을 +0.02로 넣는다(꼬리의 `O→0`, `I/L→1`). SK — `^SK_?W[iIl1|]F[iIl1|]GIGA`의 `WiFi` 자리에 숫자·세로선(`1`, `|`)이 있으면 `i`로 바꾼 값을 +0.02로 넣는다.
-- **결정 필요**: OCR은 `SK_WiFiGIGA`를 `SK_WIF1GIGA`처럼 대소문자까지 바꿔 읽는다. 대소문자까지 `SK_WiFiGIGA`로 맞추면 `variants-22`가 고쳐지지만, 기존 테스트 `통신사 공유기 이름의 16진수 꼬리`(`SK_WIFiGIGA7COD_2.4G` → `SK_WIFiGIGA7C0D_2.4G`, 읽은 대소문자 유지)와 `다른 통신사·공유기 이름도`(`SK WiFiGIGA 3A2B` → `SK_WiFiGIGA_3A2B`, 밑줄 유지)가 깨진다(시제품으로 확인). 실제 SK 이름 형식(`SK_WiFiGIGA` + 16진수 4자 + 선택 `_5G`)에 맞춰 두 테스트의 기대를 바꿀지 운영자가 정한다.
-- **위험**: `KT_`로 시작하는 가게 이름(`KT_momo_free`)은 모양이 달라 영향이 없다. 16진수 모양만 보고 고치므로 4자 꼬리가 아닌 이름은 그대로다.
-- **회귀 검사**: `KT GiGA 이름의 소문자 i`, `통신사 공유기 이름의 16진수 꼬리`, `밑줄을 공백으로 읽은 공유기 이름` 그룹, fixture `variants-21`·`sign-sk-band`·`variety-08`.
+- **고치는 fixture (2)**: `variety-09`, `variants-22`.
+- **결정 (2026-11-06, 운영자)**: `SK_WIF1GIGA`·`SK_WIFiGIGA`처럼 읽힌 SK 이름은 오인식이다. 실제 형식 `SK_WiFiGIGA`로
+  고친 값을 1순위로 두고, 읽은 값은 후보로 남긴다.
+- **구현 방향**:
+  - KT — `^KT_?G[il1|]GA_?(2G|5G)_?(Wave2_?)?([0-9A-FOIL]{4})$`(대소문자 무시)이면 `KT_GiGA_<대역>_<Wave2_><16진수>`로
+    고친 값을 +0.02로 넣는다(꼬리의 `O→0`, `I/L→1`).
+  - SK — `^SK_?W[il1|]F[il1|]G[il1|]GA`(대소문자 무시)로 시작하면 그 접두어를 `SK_WiFiGIGA`로 바꾸고, 뒤(밑줄·16진수
+    꼬리·`_5G`/`_2.4G`)는 읽은 그대로 둔 값을 +0.02로 넣는다. H3(16진수 꼬리 고침)보다 먼저 돌려야 고친 접두어에도
+    꼬리 고침이 붙는다.
+  - 기존 테스트 하나의 기대를 바꾼다: `통신사 공유기 이름의 16진수 꼬리`의
+    `('SK_WIFiGIGA7COD_2.4G', 'SK_WIFiGIGA7C0D_2.4G')` → `('SK_WIFiGIGA7COD_2.4G', 'SK_WiFiGIGA7C0D_2.4G')`.
+    읽은 값이 후보에 남는지 보는 검사는 그대로 둔다.
+- **확인한 것 (시제품)**: 기존 테스트는 위 한 경우만 깨졌다(그 테스트는 반복문이라 첫 실패 뒤 경우가 가려지므로 16개
+  경우를 따로 하나씩 돌려 모두 맞음을 봤다). `SK_WIF1GIGA9B2E→SK_WiFiGIGA9B2E`, `SK_WlFlGlGA1A2B_5G→SK_WiFiGIGA1A2B_5G`,
+  `SKWiFiGIGA1A2B→SK_WiFiGIGA1A2B`, `SK_WIFiGIGA7COD_2.4G→SK_WiFiGIGA7C0D_2.4G`, `KT_GIGA5G_Wave2_4FIA→KT_GiGA_5G_Wave2_4F1A`,
+  기존 16진수 꼬리 경우 6개, `SK WiFiGIGA 3A2B→SK_WiFiGIGA_3A2B`, 그리고 `SK_WiFiGIGA_3A2B`·`SK_WiFiGIGAHOME_5G`·
+  `GIGABYTE_5G`·`MEGAGIGA2`는 그대로.
+- **위험**: `KT_`·`SK`로 시작하는 가게 이름(`KT_momo_free`, `SKY_cafe`)은 모양이 달라 영향이 없다. 접두어만 고치므로
+  16진수가 아닌 꼬리(`SK_WiFiGIGAHOME_5G`)와 이미 맞게 읽은 이름은 그대로다.
+- **회귀 검사**: `KT GiGA 이름의 소문자 i`, `통신사 공유기 이름의 16진수 꼬리`(바꾼 기대 포함),
+  `SK WiFiGIGA와 단어 속 giga는 건드리지 않는다`, `밑줄을 공백으로 읽은 공유기 이름` 그룹, fixture `variants-21`·
+  `variants-22`·`variety-09`·`sign-sk-band`·`variety-08`.
 
 ### P2-4 비밀번호 아래 줄의 메모
 
@@ -492,9 +512,11 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 | P1 전체 | | 위 12개 (53 → 65) | 없음 |
 | P2-1 | EXIF 좌표 (+로더) | `photo-sign4-exif8` | 없음 |
 | P2-1 + P2-2 | EXIF + 단어 간격 (+로더) | `photo-sign4-exif8`, `variants-01`, `variants-02`, `variants-03` | 없음 |
-| P2-3 | KT 정규화 + SK 대소문자까지 | `variety-09`, `variants-22` | 3개 (`SK WiFiGIGA와 단어 속 giga는 건드리지 않는다`, `다른 통신사·공유기 이름도`, `16진수에 없는 O·I는 0·1로…`) |
-| P2-3 | KT 정규화 + SK는 숫자·세로선만 | `variety-09` | 없음 |
+| P2-3 | 첫 판: KT 정규화 + SK 이름 전체를 다시 씀(접두어 뒤 밑줄도 지움) | `variety-09`, `variants-22` | 3개 (`SK WiFiGIGA와 단어 속 giga는 건드리지 않는다`, `다른 통신사·공유기 이름도`, `16진수에 없는 O·I는 0·1로…`) |
+| P2-3 | 보수판: KT 정규화 + SK는 숫자·세로선만 | `variety-09` | 없음 |
+| P2-3 | **결정판**: KT 정규화 + SK 접두어만 `SK_WiFiGIGA`로, 뒤는 읽은 그대로 | `variety-09`, `variants-22` | 1개 — `16진수에 없는 O·I는 0·1로…`의 `SK_WIFiGIGA7COD_2.4G` 기대 (운영자 결정으로 바꿀 기대) |
 | P2-4 | 아래 줄 메모 | `variants-27` | 없음 |
 | P2-5 | 깨진 Wi-Fi 이름표 | `variants-07` | 없음 |
 | P2-6 | 문장 거르기 | 없음 (`sign3` 비밀번호가 문장 → 없음) | 없음 |
 | P1 + P2 전체 (P2-3은 보수판) | | 20개 (53 → 73), P1-2+P2-1로 `photo-variety-06-exif6`도 | 없음 |
+| P1 + P2 전체 (P2-3은 결정판) | | 21개 (53 → 74) | 위 1개 (바꿀 기대) |
