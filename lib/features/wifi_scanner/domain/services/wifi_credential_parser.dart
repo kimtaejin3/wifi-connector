@@ -348,15 +348,16 @@ class WifiCredentialParser {
     _Segment value,
     _AddCandidate add, {
     required bool sameRow,
+    bool fragmentRow = false,
   }) {
     // "FREE WIFI" 같은 제목 다음에 오는 문장은 값으로 보지 않는다.
     if (label.header && value.value.contains(_whitespace)) return;
     // 값 칸에 붙어 읽힌 구분자 (":spaced_wifi")는 값이 아니다.
     final text = value.value.replaceFirst(_leadingSeparator, '');
     if (text.isEmpty) return;
-    // 세로쓰기 이름표 조각("파")이 표 열 맞추기로 이름이 되는 것을 막는다. 이름표 바로 뒤의 값
-    // ("SSID: A")은 여기로 오지 않아 감점하지 않는다.
-    final fragment = label.label!.type == WifiCandidateType.ssid && text.runes.length < 2;
+    // 세로쓰기 이름표 조각("파")이 표 열 맞추기로 이름이 되는 것을 막는다. 값 행의 칸이 모두 한 글자
+    // 조각일 때만 감점하고, 이름표가 바로 앞 칸·바로 위 행에 있는 한 글자 값("SSID\nA")은 깎지 않는다.
+    final fragment = fragmentRow && label.label!.type == WifiCandidateType.ssid && text.runes.length < 2;
     add(label.label!, text, _detachedBase(label, sameRow: sameRow) * (fragment ? 0.2 : 1), isolated: true);
     value.consumed = true;
   }
@@ -373,7 +374,7 @@ class WifiCredentialParser {
       for (var k = 0; k < run.length; k++) {
         final target = next[runStart + k];
         if (target.isLabel || target.consumed) continue;
-        _addDetached(run[k], target, add, sameRow: false);
+        _addDetached(run[k], target, add, sameRow: false, fragmentRow: next.every((s) => s.value.trim().runes.length < 2));
       }
       return;
     }
@@ -774,9 +775,13 @@ class WifiCredentialParser {
 
     for (var k = 0; k < matches.length; k++) {
       final m = matches[k];
-      final end = k + 1 < matches.length ? matches[k + 1].start : cell.length;
+      var end = k + 1 < matches.length ? matches[k + 1].start : cell.length;
+      // "PW : c1234567 / 현관 비밀번호 : 1357*" — 이름표에서 뺀 다른 곳의 비밀번호 구절부터는 이 값이 아니다.
+      final other = _otherPlacePassword.allMatches(cell).where((o) => o.start >= m.valueStart && o.start < end);
+      final cut = other.isNotEmpty;
+      if (cut) end = other.first.start;
       var value = cell.substring(m.valueStart, end).trim();
-      if (k + 1 < matches.length) value = value.replaceFirst(_trailingDelimiters, '');
+      if (k + 1 < matches.length || cut) value = value.replaceFirst(_trailingDelimiters, '');
       // 따옴표로 감싼 값은 여러 단어여도 의도된 값이다 ('Connect to "Momo Guest"').
       final quoted = _wrappingQuotes.hasMatch(value);
       // "cafe_momo 이고" 같은 문장 종결을 먼저 떼어내야 아래 여러 단어 판정에 걸리지 않는다.
@@ -838,6 +843,9 @@ class WifiCredentialParser {
     }
 
     final sep = _separator.matchAsPrefix(cell, end);
+    // "ID. x"처럼 이름표 바로 뒤 마침표는 값이 한 낱말일 때만 구분자다. 문장 끝 마침표
+    // ("Please ask for password. Next sentence") 뒤의 여러 단어는 값이 아니므로 이름표로 보지 않는다.
+    if (sep != null && sep[0]!.trim() == '.' && _whitespace.hasMatch(cell.substring(sep.end).trim())) return null;
     return _LabelMatch(
       type: type,
       strength: strength,

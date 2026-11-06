@@ -1143,4 +1143,21 @@ void main() {
       expectParsed('CAFE\ncode_cafe7\nb83kd02jq1', ssid: 'code_cafe7', password: 'b83kd02jq1');
     });
   });
+
+  group('PR #2 검토 반영', () {
+    test('P1-5: 이름표 다음 줄·다음 칸의 한 글자 이름은 감점하지 않는다', () {
+      expectParsed('SSID\nA\nPW\nabc12345', ssid: 'A', password: 'abc12345');
+      expectParsed('SSID\tA\nPW\tabc12345', ssid: 'A', password: 'abc12345');
+      expectParsed('SSID:\nA\nPW: abc12345', ssid: 'A', password: 'abc12345');
+    });
+
+    test('P1-3: 한 줄에 이어 적힌 현관 비밀번호가 앞 PW 값에 붙지 않는다', () {
+      expectParsed('WIFI : a_b / PW : c1234567 / 현관 비밀번호 : 1357*', ssid: 'a_b', password: 'c1234567');
+    });
+
+    test('P1-1: 문장 끝 마침표 뒤 여러 단어는 값이 아니다', () {
+      expectParsed('Please ask for password. Next sentence', ssid: null, password: null);
+      expectParsed('ID. a_b\nPW. c1234567', ssid: 'a_b', password: 'c1234567');
+    });
+  });
 }
