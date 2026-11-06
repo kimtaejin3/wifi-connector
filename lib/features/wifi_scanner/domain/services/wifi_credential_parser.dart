@@ -28,6 +28,7 @@ class WifiCredentialParser {
     final found = <WifiCandidate>[];
 
     void add(_LabelMatch label, String value, double base, {required bool isolated}) {
+      if (label.place) return;
       var cleaned = _cleanValue(value);
       if (cleaned.isEmpty) return;
       // "d9ki88ec01 <=숫자 0" — 비밀번호 뒤에 붙은 메모는 떼고, 메모가 알려 주는 글자는 반영한다.
@@ -179,7 +180,7 @@ class WifiCredentialParser {
       }
     }
 
-    final wifiContext = _wifiContext.hasMatch(normalizeOcrText(rawText));
+    final wifiContext = _wifiContext.hasMatch(normalizeOcrText(rawText).replaceAll(_otherPlacePassword, ' '));
     _addUnlabeledFallbacks(rows, found, wifiContext: wifiContext);
     _addSeparatorVariants(found);
     _addKtGigaVariants(found);
@@ -202,6 +203,15 @@ class WifiCredentialParser {
     if (ssid == null || password == null || password.isEmpty) return false;
     final lines = rows.where((r) => r.any((s) => s.value.trim().isNotEmpty || s.isLabel)).length;
     if (lines > 3) return false;
+    // SNS 계정("@cafe_momo")은 Wi-Fi 이름이 아니다.
+    if (ssid.startsWith('@')) return false;
+    // 예약·주문·쿠폰·회원·영수증 안내의 두 줄은 이름표 없는 Wi-Fi 카드가 아니다.
+    // 이름·비밀번호로 고른 줄 자신은 제목으로 보지 않는다 ("code_cafe7").
+    final titled = rows.any((r) {
+      final first = r.first.value.trim();
+      return first != ssid && first != password && _notCardTitle.hasMatch(first);
+    });
+    if (titled) return false;
     // 영어 단어 하나("ORANGE", "Alice")나 한글 낱말은 이름으로 보지 않는다.
     // 숫자·밑줄·하이픈이 섞였거나 "MomoCafe"처럼 단어를 붙여 쓴 이름만 받는다.
     final ssidOk = (_hasDigit.hasMatch(ssid) || ssid.contains(RegExp(r'[_\-]')) || _camelCase.hasMatch(ssid)) &&
@@ -339,10 +349,17 @@ class WifiCredentialParser {
     _Segment value,
     _AddCandidate add, {
     required bool sameRow,
+    bool fragmentRow = false,
   }) {
     // "FREE WIFI" 같은 제목 다음에 오는 문장은 값으로 보지 않는다.
     if (label.header && value.value.contains(_whitespace)) return;
-    add(label.label!, value.value, _detachedBase(label, sameRow: sameRow), isolated: true);
+    // 값 칸에 붙어 읽힌 구분자 (":spaced_wifi")는 값이 아니다.
+    final text = value.value.replaceFirst(_leadingSeparator, '');
+    if (text.isEmpty) return;
+    // 세로쓰기 이름표 조각("파")이 표 열 맞추기로 이름이 되는 것을 막는다. 값 행의 칸이 모두 한 글자
+    // 조각일 때만 감점하고, 이름표가 바로 앞 칸·바로 위 행에 있는 한 글자 값("SSID\nA")은 깎지 않는다.
+    final fragment = fragmentRow && label.label!.type == WifiCandidateType.ssid && text.runes.length < 2;
+    add(label.label!, text, _detachedBase(label, sameRow: sameRow) * (fragment ? 0.2 : 1), isolated: true);
     value.consumed = true;
   }
 
@@ -358,7 +375,7 @@ class WifiCredentialParser {
       for (var k = 0; k < run.length; k++) {
         final target = next[runStart + k];
         if (target.isLabel || target.consumed) continue;
-        _addDetached(run[k], target, add, sameRow: false);
+        _addDetached(run[k], target, add, sameRow: false, fragmentRow: next.every((s) => s.value.trim().runes.length < 2));
       }
       return;
     }
@@ -536,6 +553,7 @@ class WifiCredentialParser {
       !_greetingWords.contains(v.toLowerCase().replaceAll(_noisePunctuation, ''));
 
   bool _looksLikeSsid(String v) =>
+      !v.startsWith('@') &&
       utf8.encode(v).length <= 32 &&
       !_bandOnly.hasMatch(v) &&
       _ssidShape.hasMatch(v) &&
@@ -659,9 +677,10 @@ class WifiCredentialParser {
       final cells = normalizeOcrText(line).split('\t');
       for (var c = 0; c < cells.length; c++) {
         // "• Password: ..." 같은 글머리 기호는 라벨 인식을 막으므로 떼어낸다.
-        final cell = cells[c].trim().replaceFirst(_bullet, '').trim().replaceFirst(_iconPrefix, '');
+        var cell = cells[c].trim().replaceFirst(_bullet, '').trim().replaceFirst(_iconPrefix, '');
         // Wi-Fi·자물쇠 아이콘을 OCR이 "令", "?", "🔒" 같은 한두 글자로 읽은 셀은 버린다.
         if (cell.isEmpty || _iconOnly.hasMatch(cell)) continue;
+        cell = _unbracketLabel(cell);
         // 작은 글씨의 "아이디"를 한국어 인식기가 영문처럼 깨뜨려 읽은 셀은 원래 이름표로 되돌린다.
         // 그대로 두면 위의 "WIFI" 제목이 이 글자를 Wi-Fi 이름으로 가져간다.
         if (_garbledIdLabel.hasMatch(cell)) {
@@ -721,12 +740,24 @@ class WifiCredentialParser {
     return [left, ..._splitBands(right)];
   }
 
+  /// 칸 맨 앞의 괄호 이름표 `[WIFI] x`, `【PW】 x`, `<ID> x`를 `WIFI : x`로 바꾼다.
+  /// 괄호 안이 통째로 이름표일 때만 바꾼다 (`[영수증] x`는 그대로).
+  String _unbracketLabel(String cell) {
+    final m = _bracketLabel.firstMatch(cell);
+    if (m == null) return cell;
+    final inner = m.group(1)!.trim();
+    if (inner.isEmpty || _matchLabel(inner, 0)?.valueStart != inner.length) return cell;
+    final rest = m.group(2)!.replaceFirst(_leadingSeparator, '').trim();
+    return '$inner : $rest'.trim();
+  }
+
   List<_Segment> _segmentCell(String cell, int cellIndex) {
     final matches = <_LabelMatch>[];
     var pos = 0;
     while (pos < cell.length) {
       if (pos == 0 || _delimiter.hasMatch(cell[pos - 1])) {
-        final m = _matchLabel(cell, pos);
+        // "현관 비밀번호 :" 같은 장소 비밀번호도 이름표로 인식해 앞 값과의 경계를 만든다. 값은 버린다.
+        final m = _placeLabel(cell, pos) ?? _matchLabel(cell, pos);
         // 셀 중간의 라벨은 오탐을 줄이기 위해 강한 비밀번호 라벨이거나 구분자(:, =)가 있을 때만 인정
         if (m != null && (pos == 0 || m.hasSeparator || m.isStrongPassword)) {
           matches.add(m);
@@ -772,6 +803,31 @@ class WifiCredentialParser {
     return segs;
   }
 
+  /// 화장실·현관 등 Wi-Fi가 아닌 곳의 비밀번호 이름표. 토큰 경계에서 장소 낱말 바로 뒤에
+  /// 비밀번호 이름표가 올 때만 인정한다 (다른 이름표의 값 안쪽 "화장실비밀번호연구소"는 해당 없음).
+  _LabelMatch? _placeLabel(String cell, int pos) {
+    // 장소 낱말이 칸 맨 앞이거나 구분자(/, |) 바로 뒤일 때만 본다. 다른 이름표의 값 안에서 만난
+    // 장소 낱말("SSID: Lobby 현관 PW: x"의 현관)은 그 값의 일부다.
+    if (!_placeTrigger.hasMatch(cell.substring(0, pos))) return null;
+    final door = _otherPlaceWord.matchAsPrefix(cell, pos);
+    if (door == null) return null;
+    final at = _whitespace.matchAsPrefix(cell, door.end)?.end ?? door.end;
+    final label = _passwordLabel.matchAsPrefix(cell, at) as RegExpMatch?;
+    // "현관 와이파이 비밀번호"는 와이파이 비밀번호 이름표다.
+    if (label == null || label.namedGroup('wifi') != null) return null;
+    final inner = _tryLabel(_passwordLabel, WifiCandidateType.password, cell, at);
+    if (inner == null) return null;
+    return _LabelMatch(
+      type: WifiCandidateType.password,
+      strength: _Strength.strong,
+      header: false,
+      start: pos,
+      valueStart: inner.valueStart,
+      hasSeparator: inner.hasSeparator,
+      place: true,
+    );
+  }
+
   _LabelMatch? _matchLabel(String cell, int pos) =>
       _tryLabel(_passwordLabel, WifiCandidateType.password, cell, pos) ??
       _tryLabel(_ssidLabel, WifiCandidateType.ssid, cell, pos);
@@ -792,10 +848,29 @@ class WifiCredentialParser {
     final slash = _slash.matchAsPrefix(cell, end);
     if (slash != null) {
       final second = re.matchAsPrefix(cell, slash.end);
-      if (second != null) end = second.end;
+      if (second != null) {
+        end = second.end;
+      } else {
+        // "Password/PIN:" — 뒤에 구분자가 오는 짧은 낱말이 다른 이름표가 아니면 이름표의 일부다.
+        // "ID/PW : a / b"의 PW처럼 다른 이름표면 따로 둬서 값을 나눠 쓰게 한다.
+        final word = _slashWord.matchAsPrefix(cell, slash.end);
+        if (word != null && _matchLabel(cell, slash.end) == null) end = word.end;
+      }
     }
 
-    final sep = _separator.matchAsPrefix(cell, end);
+    var sep = _separator.matchAsPrefix(cell, end);
+    if (sep == null) {
+      final dot = _dotSeparator.matchAsPrefix(cell, end);
+      if (dot != null) {
+        if (_cellStart.hasMatch(cell.substring(0, pos))) {
+          // 칸 맨 앞의 "ID. x", "PW. x"는 "ID : x"와 똑같이 다룬다.
+          sep = dot;
+        } else if (_whitespace.hasMatch(cell.substring(dot.end).split(_valueEnd).first.trim())) {
+          // 문장 가운데의 "Please ask for password. Next sentence"는 이름표가 아니다.
+          return null;
+        }
+      }
+    }
     return _LabelMatch(
       type: type,
       strength: strength,
@@ -815,7 +890,8 @@ class WifiCredentialParser {
     // 'Connect to "Momo Guest"' — 양쪽을 모두 감싼 따옴표만 벗긴다.
     final quoted = _wrappingQuotes.firstMatch(v);
     if (quoted != null) v = quoted.group(1)!;
-    return v;
+    // OCR은 밑줄 옆에 없던 공백을 넣기도 한다 ("Study _Room", "one_ line_cafe"). 하이픈은 건드리지 않는다.
+    return v.replaceAll(_spaceAroundUnderscore, '_');
   }
 
   bool _isNoise(String value) {
@@ -845,6 +921,7 @@ class _LabelMatch {
     required this.start,
     required this.valueStart,
     required this.hasSeparator,
+    this.place = false,
   });
 
   final WifiCandidateType type;
@@ -855,6 +932,9 @@ class _LabelMatch {
   final int start;
   final int valueStart;
   final bool hasSeparator;
+
+  /// 화장실·현관 등 Wi-Fi가 아닌 곳의 비밀번호 이름표. 경계만 만들고 후보는 내지 않는다.
+  final bool place;
 
   bool get isStrongPassword => type == WifiCandidateType.password && strength == _Strength.strong;
 }
@@ -891,7 +971,7 @@ const _particle = r'(?:(?:는|은|이|가|를|을)(?=\s|[:=：;|]|$)|\s+is(?=\s|
 const _boundary = r'(?![\p{L}\p{N}_]|-[\p{L}\p{N}])';
 
 final _passwordLabel = RegExp(
-  '$_free(?:(?:$_wifiWord|$_network)\\s*)?'
+  '$_free(?:(?<wifi>$_wifiWord|$_network)\\s*)?'
   '(?:(?<strong>pass\\s?w[o0]r?d|p\\s?a\\s?s\\s?s\\s?w\\s?[o0]\\s?r\\s?d|passward|passwd|passcode|pwd|p\\s?/\\s?w|p\\.w\\.?|p\\s{0,2}(?:w|vv)'
   '|비[\\s|Il1]*밀[\\s|Il1]*번[\\s|Il1]*호|비\\s*번|암\\s*호(?:\\s*키)?|보\\s*안\\s*키|네트\\s?워크\\s*키|패\\s*스\\s*워\\s*드)|(?<weak>pass|key))'
   '$_particle$_boundary',
@@ -912,7 +992,14 @@ final _ssidLabel = RegExp(
 
 final _freePrefix = RegExp(r'^(?:free|무료)', caseSensitive: false);
 // OCR은 ':'를 ';'로, 표의 세로선을 '|'로 읽기도 한다.
-final _separator = RegExp(r'\s*(?:[:=：;|]{1,3}>?|(?:[-–—>→➜➔⇒]|=>)(?=\s))\s*');
+// "WiFi ► x"의 화살표 글자도 구분자로 본다. "ID. x"의 마침표는 칸 맨 앞 이름표일 때만(_dotSeparator).
+final _separator = RegExp(r'\s*(?:[:=：;|]{1,3}>?|(?:[-–—>→➜➔⇒▶►▷▸➤➢☞»›]|=>)(?=\s))\s*');
+final _bracketLabel = RegExp(r'^[\[【〔<(]([^\]】〕>)]{1,24})[\]】〕>)]\s*(.*)$');
+/// 칸 맨 앞 이름표 뒤 "ID. x"의 마침표. 이름표가 칸의 맨 앞(또는 번호 뒤)에 있을 때만 구분자로 쓴다.
+final _dotSeparator = RegExp(r'\s*\.(?=\s)\s*');
+final _cellStart = RegExp(r'^\s*(?:\d{1,2}[.)]\s*)?$');
+final _valueEnd = RegExp(r'\s+/\s+|\s*\|\s*');
+final _leadingSeparator = RegExp(r'^[:=：;|]+\s*');
 final _bullet = RegExp(r'^(?:[•·▪▶►☞→■□●○◆◇✔✓※★☆*]+|-(?=\s))\s*');
 final _sentenceEnding = RegExp(
   r'\s*(?:입니다|이에요|예요|에요|이며|이고|이구요|이라고|이에용|입니당|임다|이야|이에요)[.!。]?$',
@@ -924,6 +1011,7 @@ final _openKeywords = RegExp(
 final _labelNote = RegExp(r'\s*[(\[（][^)\]）]{0,24}[)\]）](?=\s*(?:[:=：]|$))');
 final _bandQualifier = RegExp(r'\s*(?:\d(?:\.\d)?\s*g(?:hz)?|\d)(?=\s*[:=：])', caseSensitive: false);
 final _slash = RegExp(r'\s*/\s*');
+final _slashWord = RegExp(r'[A-Za-z가-힣]{1,8}(?=\s*[:=：;|])');
 final _delimiter = RegExp(r'[\s/|,;·]');
 final _trailingDelimiters = RegExp(r'[\s/|,;·]+$');
 final _prefixTrailing = RegExp(r'[\s/|,;·:=：\-–—→]+$');
@@ -933,6 +1021,7 @@ final _trailingNote = RegExp(r'\s+[(\[（【][^)\]）】]*[)\]）】]$');
 final _valueSplitters = [RegExp(r'\s+/\s+'), RegExp(r'\s*\|\s*'), RegExp(r'\s*/\s*'), RegExp(r'\s+')];
 final _whitespace = RegExp(r'\s+');
 final _spaces = RegExp(r' +');
+final _spaceAroundUnderscore = RegExp(r'\s*_\s*');
 final _separators = RegExp(r'[ _-]');
 /// 대역 표시만 있는 값, 값 앞의 대역 표시, 값 가운데의 다음 대역 표시.
 /// 값 앞의 대역 표시에는 "5G 전용 :", "2.4G전용 :"처럼 짧은 한글 말과 구분자가 붙기도 하고,
@@ -955,6 +1044,20 @@ final _hasSymbol = RegExp(r'[^A-Za-z0-9\s]');
 /// 02-1234-5678, 010.1234.5678, +82-10-1234-5678 같은 전화번호 모양.
 final _phoneLike = RegExp(r'^\+?\d[\d().]*[-.)][\d\-.()]*\d$');
 final _ispPrefix = RegExp(r'^(?:kt|skt?|lgu?|u\+|olleh|iptime|giga|anygate|netis|tp-?link)(?=[\s_]|net|wifi|giga|$)', caseSensitive: false);
+/// Wi-Fi가 아닌 곳의 비밀번호 앞말: 화장실, 현관, 도어락, 출입문, 대문, 주차장, 사물함, 보관함, 택배함, 금고(+문).
+const _otherPlace = r'(?:화장실|현관|도어락|출입문|대문|주차장|사물함|보관함|택배함|금고)(?:\s*문)?';
+/// 장소 비밀번호 이름표가 올 수 있는 자리: 칸 맨 앞, 또는 `/`·`|`·`,` 바로 뒤.
+final _placeTrigger = RegExp(r'(?:^|[/|,])\s*$');
+const _otherPlaceStart = r'(?<![\p{L}\p{N}_])(?:공동\s?)?';
+final _otherPlaceWord = RegExp('$_otherPlaceStart$_otherPlace', unicode: true);
+/// Wi-Fi 단서를 셀 때 뺄 장소 비밀번호 이름표 (토큰 경계에서만: "SSID: 화장실비밀번호연구소"는 해당 없음).
+final _otherPlacePassword = RegExp(
+  r'(?<=^|\t|[/|,]\s*)(?:공동\s?)?'
+  '$_otherPlace\\s*(?:비[\\s|Il1]*밀[\\s|Il1]*번[\\s|Il1]*호|비\\s*번|암\\s*호|패\\s*스\\s*워\\s*드|pass\\s?w[o0]r?d|passcode|pwd|pw)(?![\\p{L}\\p{N}_])',
+  caseSensitive: false,
+  unicode: true,
+  multiLine: true,
+);
 /// 글 어딘가에 Wi-Fi 안내문이라는 단서가 있는지. "ID", "Name", "Key" 같은 일반 이름표는 단서로 치지 않는다.
 final _wifiContext = RegExp(
   '(?<![a-z])(?:$_wifi|wlan|s\\s?[s5]\\s?[i1l]\\s?d)'
@@ -991,6 +1094,11 @@ final _garbledIdLabel = RegExp(r'^[O0][FHE][O0][Il1|][CTIAl1|]{0,2}$');
 /// 날짜·시각 (20261007, 2026-10-07, 10:00, 09:00~22:00).
 final _dateOrTime = RegExp(
   r'^(?:(?:19|20)\d{2}[-./]?\d{2}[-./]?\d{2}|\d{1,2}:\d{2}(?:\s*[~\-–]\s*\d{1,2}:\d{2})?)$',
+);
+/// 이름표 없는 카드 위나 아래에 이 낱말로 시작하는 줄이 있으면 Wi-Fi 안내가 아닌 글이다.
+final _notCardTitle = RegExp(
+  r'^(?:reservation|예약|order|주문|coupon|쿠폰|code|member(?:ship)?|회원|follow(?:\s+us)?|팔로우|ticket|티켓|receipt|영수증)',
+  caseSensitive: false,
 );
 /// 단어를 붙여 쓴 이름 (MomoCafe, iPhone).
 final _camelCase = RegExp(r'[a-z][A-Z]');
