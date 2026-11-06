@@ -1176,6 +1176,11 @@ void main() {
       expectParsed('SSID: 화장실비밀번호연구소\nPW: abc12345', ssid: '화장실비밀번호연구소', password: 'abc12345');
     });
 
+    test('장소 비밀번호 낱말이 붙은 가게 이름은 그대로 둔다', () {
+      expectParsed('SSID: 현관비밀번호카페\nPW: abc12345', ssid: '현관비밀번호카페', password: 'abc12345');
+      expectParsed('WIFI : 현관비밀번호카페 / PW : abc12345', ssid: '현관비밀번호카페', password: 'abc12345');
+    });
+
     test('한 줄에 Wi-Fi·현관 비밀번호가 함께 있어도 Wi-Fi 값을 고른다', () {
       expectParsed('WIFI : a_b / PW : c1234567 / 현관 비밀번호 : 1357*', ssid: 'a_b', password: 'c1234567');
       expectParsed('현관 비밀번호 : 1357* / WIFI : a_b / PW : c1234567', ssid: 'a_b', password: 'c1234567');
