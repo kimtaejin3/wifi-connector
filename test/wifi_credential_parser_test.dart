@@ -1058,4 +1058,37 @@ void main() {
       expectParsed('No. 1234', ssid: null, password: null);
     });
   });
+
+  group('P1-2 밑줄 옆 공백 지우기', () {
+    test('밑줄 앞 공백: ID ⇥ Study _Room', () {
+      expectParsed('ID\tStudy _Room\nPW\tstudy4321', ssid: 'Study_Room', password: 'study4321');
+    });
+
+    test('밑줄 뒤 공백이 있어도 한 줄 이름표가 남는다', () {
+      expectParsed('WIFI one_ line_cafe / PW x1234567', ssid: 'one_line_cafe', password: 'x1234567');
+    });
+
+    test('밑줄 양쪽 공백', () {
+      expectParsed('SSID: my _ cafe\nPW: abc12345', ssid: 'my_cafe', password: 'abc12345');
+    });
+
+    test('하이픈 옆 공백은 지우지 않는다', () {
+      expect(parser.parse('SSID: Cafe - Guest\nPW: abc12345').ssid, isNot('Cafe-Guest'));
+    });
+  });
+
+  group('P1-5 한 글자 이름 감점', () {
+    test('이름표 바로 뒤의 한 글자 이름은 그대로 둔다', () {
+      expectParsed('SSID: A\nPW: abc12345', ssid: 'A', password: 'abc12345');
+      expectParsed('SSID: A / PW: abc12345', ssid: 'A', password: 'abc12345');
+    });
+
+    test('세로쓰기 이름표 조각 한 글자를 이름으로 고르지 않는다', () {
+      expectParsed(
+        '와\t비\n이\ta_b\t밀\n와이파 이\t비밀번 호\n파\t번\nc1234567',
+        ssid: 'a_b',
+        password: 'c1234567',
+      );
+    });
+  });
 }

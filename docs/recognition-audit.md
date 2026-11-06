@@ -292,13 +292,10 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 <!-- known-failures:start -->
 | fixture | 형태 | 기대 (이름 · 비밀번호) | 실제 (이름 · 비밀번호) | 원인 | 셀 | 개선 |
 |---|---|---|---|---|---|---|
-| `variety-06` | ID / PW 표 | `Study_Room` · `study4321` | `Study__Room` · `study4321` | OCR이 밑줄 앞에 공백을 넣음(`Study _Room`) → 공백까지 밑줄로 이음 | F4, D9 | P1-2 |
-| `variants-19` | 한 줄에 모두 | `one_line_cafe` · `oneline2468` | — · `oneline2468` | OCR이 밑줄 뒤에 공백을 넣음(`one_ line_cafe`) → 여러 단어로 보고 이름표 버림 | D8, D9 | P1-2 |
 | `variants-49` | 화장실 비밀번호 | (Wi-Fi 아님) | — · `1234*` | "화장실 비밀번호"를 비밀번호 이름표·Wi-Fi 단서로 씀 | D1, J1 | P1-3 |
 | `variants-50` | 공동현관·도어락 비밀번호 | (Wi-Fi 아님) | — · `#2580*` | "공동현관/도어락 비밀번호"를 비밀번호 이름표·Wi-Fi 단서로 씀 | D1, J1 | P1-3 |
 | `variety-23` | 예약 안내 (영문+숫자 두 줄) | (Wi-Fi 아님) | `table07` · `guest2026` | 제목 `Reservation` + 두 줄을 이름표 없는 카드로 봄 | G1, J1 | P1-4 |
 | `variants-51` | SNS 홍보 카드 | (Wi-Fi 아님) | `@cafe_momo_official` · `#momo2026` | SNS 계정·해시태그를 카드의 이름·비밀번호로 봄 | G4, G5, J1 | P1-4 |
-| `variants-09` | 세로쓰기 이름표 | `maru_guest` · `maru4949` | `파` · `maru4949` | 세로 이름표를 한 글자씩 읽고, 표 열 맞추기로 한 글자 `파`를 이름으로 고름 | E6, F6 | P1-5 |
 | `photo-sign4-exif8` | EXIF 회전 8 (sign4) | `MOMO_GUEST` · `Coffee#2024` | `WELCOME` · `MOMO_GUEST` | 상자가 누운 좌표라 모든 줄이 한 행에 거꾸로 이어짐 → 이름표 다음 칸이 엉뚱한 값 | A2, A5, E4 | P2-1 |
 | `photo-variety-06-exif6` | EXIF 회전 6 (variety-06) | `Study_Room` · `study4321` | — · `study4321` | 모든 줄이 한 행(`ID ⇥ PW ⇥ Study _Room ⇥ study4321`)이 되고 밑줄 앞 공백까지 겹침 | A2, A5, E3 | P2-1, P1-2 |
 | `variants-01` | 얇은 글꼴 | `Lumi_Cafe` · `lumi7788` | `Lumi Cafe` · `lumi7788` | OCR이 밑줄을 공백으로 읽음 (단어 간격 0.04×줄 높이) | F4, H1, I3 | P2-2 |

@@ -23,7 +23,6 @@ import 'support/sign_answers.dart';
 /// 지금 틀리는 안내문과 그 사유. docs/recognition-audit.md "4. 알려진 실패" 표와 같아야 한다.
 /// 사유 끝의 P1-1 같은 번호는 그 문서 "5. 개선 항목"의 번호다.
 const knownFailures = <String, String>{
-  'variety-06': 'OCR이 밑줄 앞에 공백을 넣음(Study _Room) → 공백까지 밑줄로 이어 Study__Room을 고름 (P1-2)',
   'variety-07': 'OCR이 끝의 1을 l로 읽음(b83kd02jql). 글자만으로는 못 가림 (P4-1)',
   'variety-09': 'OCR이 GIGA 뒤 밑줄을 빠뜨리고 1을 I로 읽음(KT_GIGA5G_Wave2_4FIA) (P2-3)',
   'variety-10': 'OCR이 밑줄을 마침표로 읽음(Sunny.Cafe) (P3-2)',
@@ -36,10 +35,8 @@ const knownFailures = <String, String>{
   'variants-06': 'OCR(칠판 손글씨체)이 PW 줄을 통째로 놓침 (P4-2)',
   'variants-07': 'OCR이 wifi를 wii로 읽어 이름표를 못 찾음(wii - hong_studio) (P2-5)',
   'variants-08': '손글씨체를 OCR이 잘못 읽음(dream_hou9e, drearm2580) (P4-3)',
-  'variants-09': '세로쓰기 이름표를 한 글자씩 읽고 한 글자 "파"를 이름으로 고름 (P1-5)',
   'variants-14': '이모지 아이콘을 OCR이 글자로 읽어 값에 붙임(al Sunrise_Inn, Psunrise2026) (P4-3)',
   'variants-15': 'OCR이 밑줄을 통째로 빠뜨림(nabihostel) (P4-3)',
-  'variants-19': 'OCR이 밑줄 뒤에 공백을 넣어(one_ line_cafe) 여러 단어 값으로 보고 이름표를 버림 (P1-2)',
   'variants-22': 'OCR이 WiFi를 WIF1로 읽음(SK_WIF1GIGA9B2E). SK 접두어를 SK_WiFiGIGA로 고치면 맞음 (P2-3)',
   'variants-26': '한 줄에 두 대역(WiFi 2.4G 이름 /5G 이름)이 오면 이름표를 버림 (P3-1)',
   'variants-27': 'OCR이 0을 o로 읽음(coffee0909). 아래 줄의 "0은 숫자" 메모를 쓰지 않음 (P2-4)',

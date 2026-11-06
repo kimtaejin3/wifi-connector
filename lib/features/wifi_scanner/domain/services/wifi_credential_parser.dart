@@ -345,7 +345,10 @@ class WifiCredentialParser {
     // 값 칸에 붙어 읽힌 구분자 (":spaced_wifi")는 값이 아니다.
     final text = value.value.replaceFirst(_leadingSeparator, '');
     if (text.isEmpty) return;
-    add(label.label!, text, _detachedBase(label, sameRow: sameRow), isolated: true);
+    // 세로쓰기 이름표 조각("파")이 표 열 맞추기로 이름이 되는 것을 막는다. 이름표 바로 뒤의 값
+    // ("SSID: A")은 여기로 오지 않아 감점하지 않는다.
+    final fragment = label.label!.type == WifiCandidateType.ssid && text.runes.length < 2;
+    add(label.label!, text, _detachedBase(label, sameRow: sameRow) * (fragment ? 0.2 : 1), isolated: true);
     value.consumed = true;
   }
 
@@ -837,7 +840,8 @@ class WifiCredentialParser {
     // 'Connect to "Momo Guest"' — 양쪽을 모두 감싼 따옴표만 벗긴다.
     final quoted = _wrappingQuotes.firstMatch(v);
     if (quoted != null) v = quoted.group(1)!;
-    return v;
+    // OCR은 밑줄 옆에 없던 공백을 넣기도 한다 ("Study _Room", "one_ line_cafe"). 하이픈은 건드리지 않는다.
+    return v.replaceAll(_spaceAroundUnderscore, '_');
   }
 
   bool _isNoise(String value) {
@@ -959,6 +963,7 @@ final _trailingNote = RegExp(r'\s+[(\[（【][^)\]）】]*[)\]）】]$');
 final _valueSplitters = [RegExp(r'\s+/\s+'), RegExp(r'\s*\|\s*'), RegExp(r'\s*/\s*'), RegExp(r'\s+')];
 final _whitespace = RegExp(r'\s+');
 final _spaces = RegExp(r' +');
+final _spaceAroundUnderscore = RegExp(r'\s*_\s*');
 final _separators = RegExp(r'[ _-]');
 /// 대역 표시만 있는 값, 값 앞의 대역 표시, 값 가운데의 다음 대역 표시.
 /// 값 앞의 대역 표시에는 "5G 전용 :", "2.4G전용 :"처럼 짧은 한글 말과 구분자가 붙기도 하고,
