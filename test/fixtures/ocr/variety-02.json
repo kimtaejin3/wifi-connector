@@ -1,0 +1,16 @@
+{
+  "name": "variety-02",
+  "source": "variety-02.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "Wi-Fi :GIGA5G4021\n비번 : 3kd82mz550",
+  "layoutText": "Wi-Fi :GIGA5G4021\n비번 : 3kd82mz550",
+  "lines": [
+    {"text":"Wi-Fi :GIGA5G4021","box":[567.0,532.0,1028.0,570.0],"elements":[{"text":"Wi-Fi","box":[567.0,532.0,688.0,570.0]},{"text":":GIGA5G4021","box":[710.0,532.0,1028.0,570.0]}]},
+    {"text":"비번 : 3kd82mz550","box":[558.0,608.0,1046.0,667.0],"elements":[{"text":"비번","box":[558.0,614.0,665.0,663.0]},{"text":":","box":[699.0,608.0,726.0,667.0]},{"text":"3kd82mz550","box":[729.0,608.0,1046.0,667.0]}]}
+  ]
+}

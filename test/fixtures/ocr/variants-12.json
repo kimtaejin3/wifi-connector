@@ -1,0 +1,18 @@
+{
+  "name": "variants-12",
+  "source": "variants-12.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "SSID\ngrid_cafe\nPASSWORD\ngrid1357",
+  "layoutText": "SSID\tPASSWORD\ngrid_cafe\tgrid1357",
+  "lines": [
+    {"text":"SSID","box":[637.0,544.0,712.0,573.0],"elements":[{"text":"SSID","box":[637.0,544.0,712.0,573.0]}]},
+    {"text":"grid_cafe","box":[605.0,618.0,744.0,652.0],"elements":[{"text":"grid_cafe","box":[605.0,618.0,744.0,652.0]}]},
+    {"text":"PASSWORD","box":[802.0,546.0,993.0,571.0],"elements":[{"text":"PASSWORD","box":[802.0,546.0,993.0,571.0]}]},
+    {"text":"grid1357","box":[831.0,617.0,962.0,653.0],"elements":[{"text":"grid1357","box":[831.0,617.0,962.0,653.0]}]}
+  ]
+}

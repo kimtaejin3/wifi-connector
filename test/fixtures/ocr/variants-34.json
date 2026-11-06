@@ -1,0 +1,20 @@
+{
+  "name": "variants-34",
+  "source": "variants-34.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "GRAND OPEN\n아메리카노 1+1 이벤트\n2026.11.01~ 11.30 @momobakery . #빵스타그램\nWIFI momo_bakery_guest PW bake2026\nTEL 031-123-4567\n----",
+  "layoutText": "GRAND OPEN\n아메리카노 1+1 이벤트\n2026.11.01~ 11.30 @momobakery . #빵스타그램\nWIFI momo_bakery_guest PW bake2026\t----\nTEL 031-123-4567",
+  "lines": [
+    {"text":"GRAND OPEN","box":[588.0,440.0,1009.0,489.0],"elements":[{"text":"GRAND","box":[588.0,440.0,813.0,489.0]},{"text":"OPEN","box":[836.0,440.0,1009.0,489.0]}]},
+    {"text":"아메리카노 1+1 이벤트","box":[627.0,524.0,971.0,559.0],"elements":[{"text":"아메리카노","box":[627.0,524.0,797.0,559.0]},{"text":"1+1","box":[811.0,528.0,855.0,554.0]},{"text":"이벤트","box":[873.0,524.0,971.0,559.0]}]},
+    {"text":"2026.11.01~ 11.30 @momobakery . #빵스타그램","box":[526.0,581.0,1066.0,610.0],"elements":[{"text":"2026.11.01~","box":[526.0,581.0,668.0,610.0]},{"text":"11.30","box":[670.0,581.0,723.0,610.0]},{"text":"@momobakery","box":[745.0,581.0,923.0,610.0]},{"text":".","box":[925.0,581.0,938.0,610.0]},{"text":"#빵스타그램","box":[945.0,584.0,1066.0,606.0]}]},
+    {"text":"WIFI momo_bakery_guest PW bake2026","box":[490.0,666.0,1108.0,696.0],"elements":[{"text":"WIFI","box":[490.0,668.0,555.0,691.0]},{"text":"momo_bakery_guest","box":[570.0,666.0,872.0,696.0]},{"text":"PW","box":[903.0,668.0,950.0,691.0]},{"text":"bake2026","box":[963.0,666.0,1108.0,691.0]}]},
+    {"text":"TEL 031-123-4567","box":[701.0,739.0,898.0,756.0],"elements":[{"text":"TEL","box":[701.0,739.0,740.0,756.0]},{"text":"031-123-4567","box":[750.0,739.0,898.0,756.0]}]},
+    {"text":"----","box":[1144.0,672.0,1147.0,695.0],"elements":[{"text":"----","box":[1144.0,672.0,1147.0,695.0]}]}
+  ]
+}

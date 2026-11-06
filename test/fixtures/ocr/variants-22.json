@@ -1,0 +1,20 @@
+{
+  "name": "variants-22",
+  "source": "variants-22.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "SK broadband\n무선랜 이름(SSID)\nSK_WIF1GIGA9B2E\nSK_WiFiGIGA9B2 E_5G\n무선랜 암호(KEY )\nB7DE1@4410",
+  "layoutText": "SK broadband\n무선랜 이름(SSID)\nSK_WIF1GIGA9B2E\nSK_WiFiGIGA9B2 E_5G\n무선랜 암호(KEY )\nB7DE1@4410",
+  "lines": [
+    {"text":"SK broadband","box":[660.0,472.0,819.0,490.0],"elements":[{"text":"SK","box":[660.0,472.0,688.0,490.0]},{"text":"broadband","box":[698.0,472.0,819.0,490.0]}]},
+    {"text":"무선랜 이름(SSID)","box":[660.0,517.0,842.0,539.0],"elements":[{"text":"무선랜","box":[660.0,517.0,724.0,539.0]},{"text":"이름(SSID)","box":[735.0,517.0,842.0,539.0]}]},
+    {"text":"SK_WIF1GIGA9B2E","box":[660.0,559.0,892.0,589.0],"elements":[{"text":"SK_WIF1GIGA9B2E","box":[660.0,559.0,892.0,589.0]}]},
+    {"text":"SK_WiFiGIGA9B2 E_5G","box":[661.0,611.0,938.0,635.0],"elements":[{"text":"SK_WiFiGIGA9B2","box":[661.0,611.0,875.0,635.0]},{"text":"E_5G","box":[881.0,611.0,938.0,635.0]}]},
+    {"text":"무선랜 암호(KEY )","box":[660.0,652.0,839.0,683.0],"elements":[{"text":"무선랜","box":[660.0,655.0,724.0,677.0]},{"text":"암호(KEY","box":[735.0,652.0,828.0,683.0]},{"text":")","box":[830.0,652.0,839.0,683.0]}]},
+    {"text":"B7DE1@4410","box":[661.0,703.0,813.0,726.0],"elements":[{"text":"B7DE1@4410","box":[661.0,703.0,813.0,726.0]}]}
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "variety-13",
+  "source": "variety-13.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WIFI 2.4G: home_net\nWIFI 5G: home_net_5G\nPW: homenet77",
+  "layoutText": "WIFI 2.4G: home_net\nWIFI 5G: home_net_5G\nPW: homenet77",
+  "lines": [
+    {"text":"WIFI 2.4G: home_net","box":[617.0,512.0,981.0,551.0],"elements":[{"text":"WIFI","box":[617.0,516.0,691.0,547.0]},{"text":"2.4G:","box":[705.0,517.0,803.0,549.0]},{"text":"home_net","box":[817.0,515.0,981.0,551.0]}]},
+    {"text":"WIFI 5G: home_net_5G","box":[603.0,578.0,991.0,617.0],"elements":[{"text":"WIFI","box":[603.0,582.0,677.0,611.0]},{"text":"5G:","box":[693.0,581.0,755.0,611.0]},{"text":"home_net_5G","box":[771.0,580.0,991.0,617.0]}]},
+    {"text":"PW: homenet77","box":[661.0,645.0,939.0,674.0],"elements":[{"text":"PW:","box":[661.0,646.0,733.0,673.0]},{"text":"homenet77","box":[750.0,645.0,939.0,674.0]}]}
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "photo-variants-21-exif6",
+  "source": "photo-variants-21-exif6.jpg",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1200,
+    "height": 1600,
+    "exifOrientation": 6
+  },
+  "text": "KT GiGA WiFi\nSSID (2.4GHZ) : KT_GiGA_2G_7A3F\nSSID(5GHZ): KT_GiGA_5G_7A3F\n비밀번호 : 3f8kd02pa7\n00:1A:2B:3C:4D:5E\nS/N : KTA2026B0099\n관리자 암호 : admin7a3f",
+  "layoutText": "SSID (2.4GHZ) : KT_GiGA_2G_7A3F\tSSID(5GHZ): KT_GiGA_5G_7A3F\t비밀번호 : 3f8kd02pa7\t00:1A:2B:3C:4D:5E\tS/N : KTA2026B0099\t관리자 암호 : admin7a3f\nKT GiGA WiFi",
+  "lines": [
+    {"text":"KT GiGA WiFi","box":[451.0,849.0,471.0,1033.0],"elements":[{"text":"KT","box":[453.0,1006.0,471.0,1033.0]},{"text":"GiGA","box":[451.0,927.0,471.0,986.0]},{"text":"WiFi","box":[451.0,849.0,471.0,910.0]}]},
+    {"text":"SSID (2.4GHZ) : KT_GiGA_2G_7A3F","box":[495.0,567.0,521.0,1033.0],"elements":[{"text":"SSID","box":[497.0,975.0,516.0,1033.0]},{"text":"(2.4GHZ)","box":[496.0,853.0,518.0,967.0]},{"text":":","box":[502.0,823.0,516.0,826.0]},{"text":"KT_GiGA_2G_7A3F","box":[497.0,567.0,521.0,798.0]}]},
+    {"text":"SSID(5GHZ): KT_GiGA_5G_7A3F","box":[539.0,600.0,568.0,1044.0],"elements":[{"text":"SSID(5GHZ):","box":[539.0,853.0,568.0,1044.0]},{"text":"KT_GiGA_5G_7A3F","box":[539.0,600.0,568.0,840.0]}]},
+    {"text":"비밀번호 : 3f8kd02pa7","box":[587.0,744.0,612.0,1033.0],"elements":[{"text":"비밀번호","box":[587.0,947.0,609.0,1033.0]},{"text":":","box":[594.0,921.0,607.0,924.0]},{"text":"3f8kd02pa7","box":[588.0,744.0,612.0,896.0]}]},
+    {"text":"00:1A:2B:3C:4D:5E","box":[634.0,677.0,653.0,939.0],"elements":[{"text":"00:1A:2B:3C:4D:5E","box":[634.0,677.0,653.0,939.0]}]},
+    {"text":"S/N : KTA2026B0099","box":[679.0,756.0,700.0,1033.0],"elements":[{"text":"S/N","box":[679.0,990.0,700.0,1033.0]},{"text":":","box":[684.0,964.0,698.0,967.0]},{"text":"KTA2026B0099","box":[679.0,756.0,698.0,939.0]}]},
+    {"text":"관리자 암호 : admin7a3f","box":[724.0,722.0,746.0,1034.0],"elements":[{"text":"관리자","box":[724.0,968.0,746.0,1034.0]},{"text":"암호","box":[724.0,909.0,746.0,951.0]},{"text":":","box":[730.0,882.0,744.0,886.0]},{"text":"admin7a3f","box":[725.0,722.0,744.0,858.0]}]}
+  ]
+}

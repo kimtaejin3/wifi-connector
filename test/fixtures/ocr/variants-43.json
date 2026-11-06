@@ -1,0 +1,16 @@
+{
+  "name": "variants-43",
+  "source": "variants-43.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WIFI : Momo Coffee Roasters\nPW:roast0101",
+  "layoutText": "WIFI : Momo Coffee Roasters\nPW:roast0101",
+  "lines": [
+    {"text":"WIFI : Momo Coffee Roasters","box":[451.0,530.0,1147.0,570.0],"elements":[{"text":"WIFI","box":[451.0,533.0,554.0,570.0]},{"text":":","box":[578.0,542.0,584.0,567.0]},{"text":"Momo","box":[607.0,533.0,752.0,570.0]},{"text":"Coffee","box":[771.0,530.0,924.0,570.0]},{"text":"Roasters","box":[945.0,533.0,1147.0,570.0]}]},
+    {"text":"PW:roast0101","box":[626.0,618.0,973.0,657.0],"elements":[{"text":"PW:roast0101","box":[626.0,618.0,973.0,657.0]}]}
+  ]
+}

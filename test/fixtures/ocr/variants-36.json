@@ -1,0 +1,18 @@
+{
+  "name": "variants-36",
+  "source": "variants-36.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "Wi-Fi:stay_ocean_view\nPW: ocean7777\n현관 비밀번호 : 1357*\n체크아웃 11:00",
+  "layoutText": "Wi-Fi:stay_ocean_view\nPW: ocean7777\n현관 비밀번호 : 1357*\n체크아웃 11:00",
+  "lines": [
+    {"text":"Wi-Fi:stay_ocean_view","box":[599.0,515.0,999.0,555.0],"elements":[{"text":"Wi-Fi:stay_ocean_view","box":[599.0,515.0,999.0,555.0]}]},
+    {"text":"PW: ocean7777","box":[602.0,586.0,871.0,614.0],"elements":[{"text":"PW:","box":[602.0,586.0,675.0,613.0]},{"text":"ocean7777","box":[691.0,587.0,871.0,614.0]}]},
+    {"text":"현관 비밀번호 : 1357*","box":[600.0,650.0,939.0,687.0],"elements":[{"text":"현관","box":[600.0,650.0,667.0,685.0]},{"text":"비밀번호","box":[682.0,650.0,815.0,687.0]},{"text":":","box":[830.0,660.0,835.0,679.0]},{"text":"1357*","box":[850.0,654.0,939.0,681.0]}]},
+    {"text":"체크아웃 11:00","box":[600.0,719.0,837.0,754.0],"elements":[{"text":"체크아웃","box":[600.0,719.0,736.0,754.0]},{"text":"11:00","box":[750.0,722.0,837.0,750.0]}]}
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "variety-11",
+  "source": "variety-11.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "Momo_Guest\nguest4321",
+  "layoutText": "Momo_Guest\nguest4321",
+  "lines": [
+    {"text":"Momo_Guest","box":[686.0,533.0,989.0,576.0],"elements":[{"text":"Momo_Guest","box":[686.0,533.0,989.0,576.0]}]},
+    {"text":"guest4321","box":[716.0,615.0,954.0,666.0],"elements":[{"text":"guest4321","box":[716.0,615.0,954.0,666.0]}]}
+  ]
+}

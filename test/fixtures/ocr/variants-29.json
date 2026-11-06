@@ -1,0 +1,16 @@
+{
+  "name": "variants-29",
+  "source": "variants-29.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WIFI : symbol_bar\nPW: m@cha#2026!",
+  "layoutText": "WIFI : symbol_bar\nPW: m@cha#2026!",
+  "lines": [
+    {"text":"WIFI : symbol_bar","box":[589.0,531.0,1010.0,578.0],"elements":[{"text":"WIFI","box":[589.0,533.0,692.0,570.0]},{"text":":","box":[716.0,542.0,722.0,567.0]},{"text":"symbol_bar","box":[743.0,531.0,1010.0,578.0]}]},
+    {"text":"PW: m@cha#2026!","box":[570.0,616.0,1029.0,663.0],"elements":[{"text":"PW:","box":[570.0,618.0,671.0,655.0]},{"text":"m@cha#2026!","box":[694.0,616.0,1029.0,663.0]}]}
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "variants-44",
+  "source": "variants-44.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "와이파이 : 모모커피_5G\n비밀번호 : momo5g5g",
+  "layoutText": "와이파이 : 모모커피_5G\n비밀번호 : momo5g5g",
+  "lines": [
+    {"text":"와이파이 : 모모커피_5G","box":[552.0,528.0,1045.0,577.0],"elements":[{"text":"와이파이","box":[552.0,528.0,731.0,577.0]},{"text":":","box":[756.0,542.0,761.0,567.0]},{"text":"모모커피_5G","box":[782.0,528.0,1045.0,577.0]}]},
+    {"text":"비밀번호 : momo5g5g","box":[556.0,614.0,1047.0,663.0],"elements":[{"text":"비밀번호","box":[556.0,614.0,737.0,663.0]},{"text":":","box":[756.0,628.0,763.0,653.0]},{"text":"momo5g5g","box":[786.0,620.0,1047.0,663.0]}]}
+  ]
+}

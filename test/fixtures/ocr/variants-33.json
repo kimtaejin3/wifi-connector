@@ -1,0 +1,18 @@
+{
+  "name": "variants-33",
+  "source": "variants-33.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "SSID\nBIG_SKY_CAFE\nsky55555\nPW",
+  "layoutText": "SSID\nBIG_SKY_CAFE\nPW\nsky55555",
+  "lines": [
+    {"text":"SSID","box":[506.0,506.0,554.0,525.0],"elements":[{"text":"SSID","box":[506.0,506.0,554.0,525.0]}]},
+    {"text":"BIG_SKY_CAFE","box":[601.0,509.0,1089.0,572.0],"elements":[{"text":"BIG_SKY_CAFE","box":[601.0,509.0,1089.0,572.0]}]},
+    {"text":"sky55555","box":[680.0,615.0,995.0,688.0],"elements":[{"text":"sky55555","box":[680.0,615.0,995.0,688.0]}]},
+    {"text":"PW","box":[603.0,619.0,637.0,638.0],"elements":[{"text":"PW","box":[603.0,619.0,637.0,638.0]}]}
+  ]
+}

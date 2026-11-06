@@ -1,0 +1,16 @@
+{
+  "name": "variants-08",
+  "source": "variants-08.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "와이파이: dream_hou9e\n비번: drearm2580",
+  "layoutText": "와이파이: dream_hou9e\n비번: drearm2580",
+  "lines": [
+    {"text":"와이파이: dream_hou9e","box":[567.0,518.0,1029.0,578.0],"elements":[{"text":"와이파이:","box":[567.0,522.0,755.0,575.0]},{"text":"dream_hou9e","box":[775.0,521.0,1029.0,578.0]}]},
+    {"text":"비번: drearm2580","box":[616.0,626.0,987.0,673.0],"elements":[{"text":"비번:","box":[616.0,628.0,711.0,673.0]},{"text":"drearm2580","box":[732.0,626.0,987.0,673.0]}]}
+  ]
+}

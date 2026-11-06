@@ -1,0 +1,16 @@
+{
+  "name": "photo-variety-04-exif3",
+  "source": "photo-variety-04-exif3.jpg",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": 3
+  },
+  "text": "와이파이 : 모모카페\n비밀번호 : momo2024!",
+  "layoutText": "비밀번호 : momo2024!\n와이파이 : 모모카페",
+  "lines": [
+    {"text":"와이파이 : 모모카페","box":[604.0,616.0,1008.0,676.0],"elements":[{"text":"와이파이","box":[828.0,624.0,1008.0,671.0]},{"text":":","box":[798.0,633.0,804.0,658.0]},{"text":"모모카페","box":[604.0,617.0,791.0,676.0]}]},
+    {"text":"비밀번호 : momo2024!","box":[545.0,536.0,1056.0,586.0],"elements":[{"text":"비밀번호","box":[875.0,537.0,1056.0,586.0]},{"text":":","box":[849.0,547.0,856.0,572.0]},{"text":"momo2024!","box":[545.0,543.0,826.0,582.0]}]}
+  ]
+}

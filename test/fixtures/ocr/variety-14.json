@@ -1,0 +1,16 @@
+{
+  "name": "variety-14",
+  "source": "variety-14.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "wIFi: dalgona\npW: dal12345",
+  "layoutText": "wIFi: dalgona\npW: dal12345",
+  "lines": [
+    {"text":"wIFi: dalgona","box":[610.0,531.0,985.0,594.0],"elements":[{"text":"wIFi:","box":[611.0,531.0,755.0,580.0]},{"text":"dalgona","box":[774.0,535.0,985.0,594.0]}]},
+    {"text":"pW: dal12345","box":[614.0,602.0,985.0,668.0],"elements":[{"text":"pW:","box":[614.0,620.0,699.0,668.0]},{"text":"dal12345","box":[718.0,603.0,985.0,661.0]}]}
+  ]
+}

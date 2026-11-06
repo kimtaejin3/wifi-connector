@@ -1,0 +1,17 @@
+{
+  "name": "variants-51",
+  "source": "variants-51.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "FOLLOW US\n@cafe_momo_official\n#momo2026",
+  "layoutText": "FOLLOW US\n@cafe_momo_official\n#momo2026",
+  "lines": [
+    {"text":"FOLLOW US","box":[698.0,518.0,903.0,546.0],"elements":[{"text":"FOLLOW","box":[698.0,518.0,846.0,546.0]},{"text":"US","box":[861.0,518.0,903.0,546.0]}]},
+    {"text":"@cafe_momo_official","box":[622.0,577.0,976.0,617.0],"elements":[{"text":"@cafe_momo_official","box":[622.0,577.0,976.0,617.0]}]},
+    {"text":"#momo2026","box":[691.0,646.0,907.0,674.0],"elements":[{"text":"#momo2026","box":[691.0,646.0,907.0,674.0]}]}
+  ]
+}

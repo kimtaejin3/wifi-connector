@@ -1,0 +1,18 @@
+{
+  "name": "sign-sk-band",
+  "source": "sign-sk-band.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "모모공탕 WiFi\n5G 전용 : SK_WiFiGIGA7COD_5G\n2.4G18 : SK_WIFIGIGA7COD_2.4G\n무선랜암호 : ABEF6@2497",
+  "layoutText": "모모공탕 WiFi\n5G 전용 : SK_WiFiGIGA7COD_5G\n2.4G18 : SK_WIFIGIGA7COD_2.4G\n무선랜암호 : ABEF6@2497",
+  "lines": [
+    {"text":"모모공탕 WiFi","box":[565.0,291.0,1033.0,364.0],"elements":[{"text":"모모공탕","box":[565.0,309.0,797.0,364.0]},{"text":"WiFi","box":[852.0,289.0,1033.0,364.0]}]},
+    {"text":"5G 전용 : SK_WiFiGIGA7COD_5G","box":[466.0,556.0,1132.0,596.0],"elements":[{"text":"5G","box":[466.0,556.0,513.0,586.0]},{"text":"전용","box":[529.0,562.0,584.0,590.0]},{"text":":","box":[615.0,566.0,620.0,588.0]},{"text":"SK_WiFiGIGA7COD_5G","box":[651.0,557.0,1132.0,596.0]}]},
+    {"text":"2.4G18 : SK_WIFIGIGA7COD_2.4G","box":[434.0,638.0,1163.0,679.0],"elements":[{"text":"2.4G18","box":[434.0,638.0,579.0,673.0]},{"text":":","box":[610.0,648.0,615.0,671.0]},{"text":"SK_WIFIGIGA7COD_2.4G","box":[646.0,640.0,1163.0,679.0]}]},
+    {"text":"무선랜암호 : ABEF6@2497","box":[466.0,732.0,1133.0,787.0],"elements":[{"text":"무선랜암호","box":[466.0,732.0,703.0,781.0]},{"text":":","box":[736.0,748.0,743.0,775.0]},{"text":"ABEF6@2497","box":[774.0,736.0,1133.0,787.0]}]}
+  ]
+}

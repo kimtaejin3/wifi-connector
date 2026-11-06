@@ -1,0 +1,18 @@
+{
+  "name": "variants-46",
+  "source": "variants-46.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "손님용 WIFl : guestZone\nPW: guest3333\n직원용 WIFl : staffonly\nPW: staff9999",
+  "layoutText": "손님용 WIFl : guestZone\nPW: guest3333\n직원용 WIFl : staffonly\nPW: staff9999",
+  "lines": [
+    {"text":"손님용 WIFl : guestZone","box":[594.0,483.0,1005.0,519.0],"elements":[{"text":"손님용","box":[594.0,483.0,695.0,518.0]},{"text":"WIFl","box":[708.0,486.0,781.0,513.0]},{"text":":","box":[799.0,493.0,803.0,511.0]},{"text":"guestZone","box":[817.0,489.0,1005.0,519.0]}]},
+    {"text":"PW: guest3333","box":[596.0,550.0,860.0,583.0],"elements":[{"text":"PW:","box":[596.0,550.0,669.0,577.0]},{"text":"guest3333","box":[684.0,550.0,860.0,583.0]}]},
+    {"text":"직원용 WIFl : staffonly","box":[595.0,611.0,977.0,647.0],"elements":[{"text":"직원용","box":[595.0,611.0,695.0,646.0]},{"text":"WIFl","box":[708.0,614.0,781.0,641.0]},{"text":":","box":[799.0,621.0,803.0,639.0]},{"text":"staffonly","box":[818.0,612.0,977.0,647.0]}]},
+    {"text":"PW: staff9999","box":[596.0,676.0,847.0,706.0],"elements":[{"text":"PW:","box":[596.0,678.0,669.0,705.0]},{"text":"staff9999","box":[684.0,676.0,847.0,706.0]}]}
+  ]
+}

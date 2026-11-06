@@ -1,0 +1,19 @@
+{
+  "name": "sign3",
+  "source": "sign3.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1200,
+    "height": 1500,
+    "exifOrientation": null
+  },
+  "text": "WIFI\nmomo_guest\nID\nPW\nAsk our staff if it doesn't work",
+  "layoutText": "WIFI\nID\tmomo_guest\nPW\nAsk our staff if it doesn't work",
+  "lines": [
+    {"text":"WIFI","box":[500.0,541.0,694.0,618.0],"elements":[{"text":"WIFI","box":[500.0,541.0,694.0,618.0]}]},
+    {"text":"momo_guest","box":[522.0,800.0,853.0,847.0],"elements":[{"text":"momo_guest","box":[522.0,800.0,853.0,847.0]}]},
+    {"text":"ID","box":[348.0,796.0,401.0,839.0],"elements":[{"text":"ID","box":[348.0,796.0,401.0,839.0]}]},
+    {"text":"PW","box":[348.0,924.0,433.0,965.0],"elements":[{"text":"PW","box":[348.0,924.0,433.0,965.0]}]},
+    {"text":"Ask our staff if it doesn't work","box":[386.0,1080.0,814.0,1105.0],"elements":[{"text":"Ask","box":[386.0,1081.0,434.0,1105.0]},{"text":"our","box":[446.0,1088.0,491.0,1105.0]},{"text":"staff","box":[502.0,1080.0,565.0,1105.0]},{"text":"if","box":[577.0,1080.0,593.0,1105.0]},{"text":"it","box":[604.0,1082.0,620.0,1105.0]},{"text":"doesn't","box":[632.0,1081.0,734.0,1105.0]},{"text":"work","box":[745.0,1081.0,814.0,1105.0]}]}
+  ]
+}

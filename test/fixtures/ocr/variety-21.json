@@ -1,0 +1,17 @@
+{
+  "name": "variety-21",
+  "source": "variety-21.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "SUMMER SALE\nUP TO 50% OFF\nCODE SUMMER2026",
+  "layoutText": "SUMMER SALE\nUP TO 50% OFF\nCODE SUMMER2026",
+  "lines": [
+    {"text":"SUMMER SALE","box":[678.0,501.0,919.0,524.0],"elements":[{"text":"SUMMER","box":[678.0,501.0,824.0,524.0]},{"text":"SALE","box":[839.0,501.0,919.0,524.0]}]},
+    {"text":"UP TO 50% OFF","box":[610.0,572.0,991.0,613.0],"elements":[{"text":"UP","box":[610.0,572.0,673.0,611.0]},{"text":"TO","box":[690.0,572.0,755.0,611.0]},{"text":"50%","box":[774.0,572.0,881.0,613.0]},{"text":"OFF","box":[898.0,572.0,991.0,611.0]}]},
+    {"text":"CODE SUMMER2026","box":[622.0,655.0,977.0,683.0],"elements":[{"text":"CODE","box":[622.0,655.0,717.0,683.0]},{"text":"SUMMER2026","box":[732.0,655.0,977.0,683.0]}]}
+  ]
+}

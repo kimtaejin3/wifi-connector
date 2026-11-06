@@ -1,0 +1,16 @@
+{
+  "name": "variety-10",
+  "source": "variety-10.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "와이파이는 Sunny.Cafe 예요\n비밀번호는 sunny2024 입니다",
+  "layoutText": "와이파이는 Sunny.Cafe 예요\n비밀번호는 sunny2024 입니다",
+  "lines": [
+    {"text":"와이파이는 Sunny.Cafe 예요","box":[572.0,546.0,1021.0,583.0],"elements":[{"text":"와이파이는","box":[572.0,546.0,741.0,583.0]},{"text":"Sunny.Cafe","box":[756.0,548.0,947.0,583.0]},{"text":"예요","box":[962.0,546.0,1021.0,583.0]}]},
+    {"text":"비밀번호는 sunny2024 입니다","box":[558.0,611.0,1041.0,647.0],"elements":[{"text":"비밀번호는","box":[558.0,611.0,726.0,646.0]},{"text":"sunny2024","box":[740.0,614.0,929.0,647.0]},{"text":"입니다","box":[943.0,611.0,1041.0,646.0]}]}
+  ]
+}

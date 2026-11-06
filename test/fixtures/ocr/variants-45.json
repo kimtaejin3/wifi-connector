@@ -1,0 +1,17 @@
+{
+  "name": "variants-45",
+  "source": "variants-45.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "1F WIFI : floorl_cafe\n2F WIFI: floor2_cafe\nPW : floors1212",
+  "layoutText": "1F WIFI : floorl_cafe\n2F WIFI: floor2_cafe\nPW : floors1212",
+  "lines": [
+    {"text":"1F WIFI : floorl_cafe","box":[566.0,482.0,1033.0,533.0],"elements":[{"text":"1F","box":[566.0,488.0,612.0,527.0]},{"text":"WIFI","box":[629.0,487.0,734.0,528.0]},{"text":":","box":[755.0,497.0,763.0,524.0]},{"text":"floorl_cafe","box":[781.0,484.0,1033.0,534.0]}]},
+    {"text":"2F WIFI: floor2_cafe","box":[558.0,574.0,1041.0,619.0],"elements":[{"text":"2F","box":[558.0,576.0,611.0,613.0]},{"text":"WIFI:","box":[630.0,576.0,763.0,613.0]},{"text":"floor2_cafe","box":[782.0,574.0,1041.0,619.0]}]},
+    {"text":"PW : floors1212","box":[624.0,660.0,977.0,699.0],"elements":[{"text":"PW","box":[624.0,662.0,699.0,699.0]},{"text":":","box":[718.0,670.0,725.0,697.0]},{"text":"floors1212","box":[744.0,660.0,977.0,699.0]}]}
+  ]
+}

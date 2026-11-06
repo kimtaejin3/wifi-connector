@@ -1,0 +1,20 @@
+{
+  "name": "sign4",
+  "source": "sign4.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1200,
+    "height": 1500,
+    "exifOrientation": null
+  },
+  "text": "WELCOME\nWIFI\nMOMO_GUEST\nPASSWORD\nCoffee#2024\n무료로 이용하실 수 있어요",
+  "layoutText": "WELCOME\nWIFI\nMOMO_GUEST\nPASSWORD\nCoffee#2024\n무료로 이용하실 수 있어요",
+  "lines": [
+    {"text":"WELCOME","box":[423.0,425.0,770.0,474.0],"elements":[{"text":"WELCOME","box":[423.0,425.0,770.0,474.0]}]},
+    {"text":"WIFI","box":[556.0,620.0,637.0,647.0],"elements":[{"text":"WIFI","box":[556.0,620.0,637.0,647.0]}]},
+    {"text":"MOMO_GUEST","box":[349.0,683.0,851.0,745.0],"elements":[{"text":"MOMO_GUEST","box":[349.0,683.0,851.0,745.0]}]},
+    {"text":"PASSWORD","box":[491.0,839.0,706.0,867.0],"elements":[{"text":"PASSWORD","box":[491.0,839.0,706.0,867.0]}]},
+    {"text":"Coffee#2024","box":[372.0,900.0,819.0,955.0],"elements":[{"text":"Coffee#2024","box":[372.0,900.0,819.0,955.0]}]},
+    {"text":"무료로 이용하실 수 있어요","box":[426.0,1049.0,771.0,1079.0],"elements":[{"text":"무료로","box":[426.0,1051.0,511.0,1079.0]},{"text":"이용하실","box":[524.0,1049.0,636.0,1078.0]},{"text":"수","box":[649.0,1050.0,676.0,1079.0]},{"text":"있어요","box":[689.0,1049.0,771.0,1079.0]}]}
+  ]
+}

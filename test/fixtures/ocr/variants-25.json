@@ -1,0 +1,17 @@
+{
+  "name": "variants-25",
+  "source": "variants-25.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "Wireless Network Name (SSID): TP-Link 5E2A\nWireless Password/PIN: 51837264\nDefault Access: htp://tplinkwifi.net",
+  "layoutText": "Wireless Network Name (SSID): TP-Link 5E2A\nWireless Password/PIN: 51837264\nDefault Access: htp://tplinkwifi.net",
+  "lines": [
+    {"text":"Wireless Network Name (SSID): TP-Link 5E2A","box":[507.0,536.0,1093.0,566.0],"elements":[{"text":"Wireless","box":[507.0,541.0,612.0,560.0]},{"text":"Network","box":[623.0,541.0,723.0,560.0]},{"text":"Name","box":[734.0,541.0,805.0,560.0]},{"text":"(SSID):","box":[816.0,540.0,903.0,566.0]},{"text":"TP-Link","box":[910.0,536.0,1011.0,566.0]},{"text":"5E2A","box":[1018.0,536.0,1093.0,566.0]}]},
+    {"text":"Wireless Password/PIN: 51837264","box":[507.0,589.0,937.0,609.0],"elements":[{"text":"Wireless","box":[507.0,590.0,612.0,609.0]},{"text":"Password/PIN:","box":[623.0,589.0,803.0,609.0]},{"text":"51837264","box":[815.0,589.0,937.0,609.0]}]},
+    {"text":"Default Access: htp://tplinkwifi.net","box":[508.0,638.0,928.0,663.0],"elements":[{"text":"Default","box":[508.0,638.0,594.0,658.0]},{"text":"Access:","box":[601.0,639.0,696.0,658.0]},{"text":"htp://tplinkwifi.net","box":[709.0,638.0,928.0,663.0]}]}
+  ]
+}

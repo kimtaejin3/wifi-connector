@@ -1,0 +1,16 @@
+{
+  "name": "variants-02",
+  "source": "variants-02.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "와이파이 : sodam books\n비밀번호 : books 1004",
+  "layoutText": "와이파이 : sodam books\n비밀번호 : books 1004",
+  "lines": [
+    {"text":"와이파이 : sodam books","box":[521.0,522.0,1081.0,582.0],"elements":[{"text":"와이파이","box":[521.0,524.0,715.0,576.0]},{"text":":","box":[751.0,537.0,759.0,563.0]},{"text":"sodam","box":[777.0,525.0,928.0,580.0]},{"text":"books","box":[930.0,526.0,1081.0,581.0]}]},
+    {"text":"비밀번호 : books 1004","box":[539.0,608.0,1054.0,670.0],"elements":[{"text":"비밀번호","box":[539.0,612.0,741.0,665.0]},{"text":":","box":[769.0,626.0,777.0,652.0]},{"text":"books","box":[804.0,612.0,928.0,667.0]},{"text":"1004","box":[930.0,614.0,1054.0,669.0]}]}
+  ]
+}

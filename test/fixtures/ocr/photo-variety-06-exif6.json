@@ -1,0 +1,18 @@
+{
+  "name": "photo-variety-06-exif6",
+  "source": "photo-variety-06-exif6.jpg",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1200,
+    "height": 1600,
+    "exifOrientation": 6
+  },
+  "text": "ID\nPW\nStudy _Room\nstudy4321",
+  "layoutText": "Study _Room\tstudy4321\nID\tPW",
+  "lines": [
+    {"text":"ID","box":[543.0,915.0,570.0,947.0],"elements":[{"text":"ID","box":[543.0,915.0,570.0,947.0]}]},
+    {"text":"PW","box":[619.0,902.0,649.0,959.0],"elements":[{"text":"PW","box":[619.0,902.0,649.0,959.0]}]},
+    {"text":"Study _Room","box":[538.0,642.0,577.0,863.0],"elements":[{"text":"Study","box":[538.0,749.0,577.0,863.0]},{"text":"_Room","box":[538.0,642.0,577.0,747.0]}]},
+    {"text":"study4321","box":[618.0,661.0,656.0,828.0],"elements":[{"text":"study4321","box":[618.0,661.0,656.0,828.0]}]}
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "variety-12",
+  "source": "variety-12.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "FREE WIFI ZONE\nWIFI: bread_house\nPW: bread0909\n영업시간 10:00 - 22:00\n문의 02-555-1234",
+  "layoutText": "FREE WIFI ZONE\nWIFI: bread_house\nPW: bread0909\n영업시간 10:00 - 22:00\n문의 02-555-1234",
+  "lines": [
+    {"text":"FREE WIFI ZONE","box":[663.0,467.0,935.0,491.0],"elements":[{"text":"FREE","box":[663.0,468.0,742.0,491.0]},{"text":"WIFI","box":[758.0,468.0,829.0,491.0]},{"text":"ZONE","box":[846.0,467.0,935.0,491.0]}]},
+    {"text":"WIFI: bread_house","box":[638.0,531.0,960.0,568.0],"elements":[{"text":"WIFI:","box":[638.0,534.0,733.0,564.0]},{"text":"bread_house","box":[749.0,532.0,960.0,568.0]}]},
+    {"text":"PW: bread0909","box":[661.0,598.0,939.0,627.0],"elements":[{"text":"PW:","box":[661.0,599.0,733.0,626.0]},{"text":"bread0909","box":[750.0,598.0,939.0,627.0]}]},
+    {"text":"영업시간 10:00 - 22:00","box":[664.0,656.0,934.0,680.0],"elements":[{"text":"영업시간","box":[664.0,656.0,758.0,680.0]},{"text":"10:00","box":[768.0,658.0,835.0,677.0]},{"text":"-","box":[846.0,667.0,855.0,669.0]},{"text":"22:00","box":[866.0,658.0,934.0,677.0]}]},
+    {"text":"문의 02-555-1234","box":[697.0,699.0,903.0,726.0],"elements":[{"text":"문의","box":[697.0,701.0,742.0,726.0]},{"text":"02-555-1234","box":[754.0,701.0,903.0,725.0]}]}
+  ]
+}

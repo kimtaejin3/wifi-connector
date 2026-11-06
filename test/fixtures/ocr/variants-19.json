@@ -1,0 +1,15 @@
+{
+  "name": "variants-19",
+  "source": "variants-19.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WIFI one_ line_cafe / PW oneline2468",
+  "layoutText": "WIFI one_ line_cafe / PW oneline2468",
+  "lines": [
+    {"text":"WIFI one_ line_cafe / PW oneline2468","box":[465.0,578.0,1133.0,615.0],"elements":[{"text":"WIFI","box":[465.0,582.0,538.0,609.0]},{"text":"one_","box":[554.0,578.0,634.0,615.0]},{"text":"line_cafe","box":[636.0,578.0,786.0,615.0]},{"text":"/","box":[807.0,580.0,819.0,614.0]},{"text":"PW","box":[845.0,582.0,898.0,609.0]},{"text":"oneline2468","box":[922.0,581.0,1133.0,610.0]}]}
+  ]
+}

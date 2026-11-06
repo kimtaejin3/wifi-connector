@@ -1,0 +1,18 @@
+{
+  "name": "variants-37",
+  "source": "variants-37.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "FREE WIFI\nneon_pub\nPASSWORD\nneon2580",
+  "layoutText": "FREE WIFI\nneon_pub\nPASSWORD\nneon2580",
+  "lines": [
+    {"text":"FREE WIFI","box":[671.0,434.0,928.0,474.0],"elements":[{"text":"FREE","box":[671.0,434.0,796.0,474.0]},{"text":"WIFI","box":[817.0,434.0,928.0,474.0]}]},
+    {"text":"neon_pub","box":[678.0,523.0,922.0,577.0],"elements":[{"text":"neon_pub","box":[678.0,523.0,922.0,577.0]}]},
+    {"text":"PASSWORD","box":[654.0,619.0,947.0,661.0],"elements":[{"text":"PASSWORD","box":[654.0,619.0,947.0,661.0]}]},
+    {"text":"neon2580","box":[672.0,709.0,928.0,760.0],"elements":[{"text":"neon2580","box":[672.0,709.0,928.0,760.0]}]}
+  ]
+}
