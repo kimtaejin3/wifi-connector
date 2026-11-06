@@ -28,7 +28,7 @@ class WifiCredentialParser {
     final found = <WifiCandidate>[];
 
     void add(_LabelMatch label, String value, double base, {required bool isolated}) {
-      var cleaned = _cleanValue(value);
+      var cleaned = _cleanValue(value, label.type);
       if (cleaned.isEmpty) return;
       // "d9ki88ec01 <=숫자 0" — 비밀번호 뒤에 붙은 메모는 떼고, 메모가 알려 주는 글자는 반영한다.
       if (label.type == WifiCandidateType.password) {
@@ -752,7 +752,7 @@ class WifiCredentialParser {
       // 따옴표로 감싼 값은 여러 단어여도 의도된 값이다 ('Connect to "Momo Guest"').
       final quoted = _wrappingQuotes.hasMatch(value);
       // "cafe_momo 이고" 같은 문장 종결을 먼저 떼어내야 아래 여러 단어 판정에 걸리지 않는다.
-      value = _cleanValue(value);
+      value = _cleanValue(value, m.type);
 
       var header = m.header;
       if (_isNoise(value)) {
@@ -808,8 +808,12 @@ class WifiCredentialParser {
 
   /// 앞뒤 공백, 괄호 설명, "비밀번호는 abc12345 입니다" 같은 문장 종결만 떼어낸다.
   /// 값 자체의 대소문자와 특수문자는 건드리지 않는다.
-  String _cleanValue(String value) {
-    var v = value.trim().replaceFirst(_trailingNote, '').trim();
+  ///
+  /// OcrService가 단어 간격이 좁은 자리에 넣은 표시 글자([gapMarker])는 여기서 없앤다:
+  /// 이름이면 밑줄(OCR이 놓친 밑줄 자리), 비밀번호면 빈 문자(공백이 있을 수 없다), 종류를 모르면 공백.
+  String _cleanValue(String value, [WifiCandidateType? type]) {
+    final gap = switch (type) { WifiCandidateType.ssid => '_', WifiCandidateType.password => '', null => ' ' };
+    var v = value.replaceAll(gapMarker, gap).trim().replaceFirst(_trailingNote, '').trim();
     final stripped = v.replaceFirst(_sentenceEnding, '').trim();
     if (stripped.isNotEmpty) v = stripped;
     // 'Connect to "Momo Guest"' — 양쪽을 모두 감싼 따옴표만 벗긴다.

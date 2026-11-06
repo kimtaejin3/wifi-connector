@@ -305,9 +305,6 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 | `variants-51` | SNS 홍보 카드 | (Wi-Fi 아님) | `@cafe_momo_official` · `#momo2026` | SNS 계정·해시태그를 카드의 이름·비밀번호로 봄 | G4, G5, J1 | P1-4 |
 | `variants-09` | 세로쓰기 이름표 | `maru_guest` · `maru4949` | `파` · `maru4949` | 세로 이름표를 한 글자씩 읽고, 표 열 맞추기로 한 글자 `파`를 이름으로 고름 | E6, F6 | P1-5 |
 | `photo-variety-06-exif6` | EXIF 회전 6 (variety-06) | `Study_Room` · `study4321` | — · `study4321` | 모든 줄이 한 행(`ID ⇥ PW ⇥ Study _Room ⇥ study4321`)이 되고 밑줄 앞 공백까지 겹침 | A2, A5, E3 | P2-1, P1-2 |
-| `variants-01` | 얇은 글꼴 | `Lumi_Cafe` · `lumi7788` | `Lumi Cafe` · `lumi7788` | OCR이 밑줄을 공백으로 읽음 (단어 간격 0.04×줄 높이) | F4, H1, I3 | P2-2 |
-| `variants-02` | 명조체 | `sodam_books` · `books1004` | `sodam books` · `books1004` | 위와 같음 (간격 0.03) | F4, H1, I3 | P2-2 |
-| `variants-03` | 아주 굵게·좁은 자간, 이름표 위·값 아래 | `HANA_COFFEE` · `hana0303` | `HANA COFFEE` · `hana0303` | 위와 같음 (간격 0.05) | F4, H1, I3 | P2-2 |
 | `variety-09` | 통신사 공유기 이름 | `KT_GiGA_5G_Wave2_4F1A` · `k9x2m4p8q1` | `KT_GiGA5G_Wave2_4FIA` · `k9x2m4p8q1` | OCR이 `GIGA` 뒤 밑줄을 빠뜨리고 꼬리 1을 I로 읽음 → H3의 이름 모양에 안 맞아 꼬리를 못 고침 | H2, H3, G4 | P2-3 |
 | `variants-22` | SK 공유기 스티커 | `SK_WiFiGIGA9B2E` 또는 `_5G` · `B7DE1@4410` | `SK_WIF1GIGA9B2E` · `B7DE1@4410` | OCR이 `WiFi`를 `WIF1`로 읽음 | H2, H3 | P2-3 |
 | `variants-27` | 아래 줄 메모 "0은 숫자" | `zero_cafe` · `c0ffee0909` | `zero_cafe` · `coffee0909` | OCR이 0을 o로 읽었고, 다음 줄 메모("※ 0은 모두 숫자")는 쓰지 않음 | F2 | P2-4 |

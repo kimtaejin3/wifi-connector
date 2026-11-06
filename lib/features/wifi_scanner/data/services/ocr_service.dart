@@ -195,10 +195,6 @@ class OcrWord {
 /// 측정값(docs/recognition-audit.md 1.9): 밑줄 자리 0.03~0.05, 진짜 띄어쓰기 0.28~0.60.
 const wordGapRatio = 0.12;
 
-/// 좁은 단어 간격 표시 글자 (U+2009 THIN SPACE). OCR이 밑줄을 놓쳐 공백으로 읽은 자리일 수 있다는 표시다.
-/// 파서가 값을 정리할 때 이름이면 `_`, 비밀번호면 빈 문자로 바꾼다. 결과 값에는 남지 않는다.
-const gapMarker = '\u2009';
-
 /// 단어를 이어 한 줄 글자로 만든다. 간격이 [wordGapRatio] × [lineHeight]보다 좁으면 [gapMarker],
 /// 아니면 공백. 줄 높이를 모르면(0 이하) 모두 공백.
 String joinWords(List<OcrWord> words, {required double lineHeight}) {

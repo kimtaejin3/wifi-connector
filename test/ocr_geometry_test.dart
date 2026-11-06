@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:wifi_connector/core/utils/text_normalizer.dart';
 import 'package:image/image.dart' as img;
 import 'package:wifi_connector/features/wifi_scanner/data/services/ocr_service.dart';
 import 'support/ocr_fixture.dart';
