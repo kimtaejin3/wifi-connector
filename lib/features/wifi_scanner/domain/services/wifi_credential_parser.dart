@@ -312,6 +312,24 @@ class WifiCredentialParser {
     return parts.any((p) => p.length == 1 || _hasDigit.hasMatch(p));
   }
 
+  /// 이름표 자리가 "wifi"·"와이파이"와 글자 한두 개 차이로 비슷한 낱말 (wii, wifl, 와이파, 와이).
+  bool _wifiLikeLabel(String label) {
+    final l = label.toLowerCase();
+    return _editDistance(l, 'wifi') <= 2 || _editDistance(l, '와이파이') <= 2;
+  }
+
+  int _editDistance(String a, String b) {
+    var prev = List<int>.generate(b.length + 1, (j) => j);
+    for (var i = 1; i <= a.length; i++) {
+      final cur = <int>[i];
+      for (var j = 1; j <= b.length; j++) {
+        cur.add(math.min(math.min(cur[j - 1], prev[j]) + 1, prev[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1)));
+      }
+      prev = cur;
+    }
+    return prev.last;
+  }
+
   /// 비밀번호가 아니라 안내 문장으로 보이는 값: 세 단어 이상이거나, `'`가 든 여러 단어.
   bool _sentenceLike(String v) {
     final words = v.trim().split(_whitespace).length;
@@ -360,13 +378,31 @@ class WifiCredentialParser {
   /// 1순위로 두고, 읽은 값은 후보로 남긴다. 뒤는 읽은 그대로 두며, 16진수 꼬리는 이어지는
   /// [_addIspHexVariants]가 바로잡는다.
   void _addSkPrefixFixes(List<WifiCandidate> found) {
-    for (final c in found.toList()) {
+    final before = found.toList();
+    var fixedAny = false;
+    for (final c in before) {
       if (c.type != WifiCandidateType.ssid) continue;
       final m = _skRead.firstMatch(c.value);
       if (m == null) continue;
-      final fixed = 'SK_WiFiGIGA${c.value.substring(m.end)}';
+      final rest = c.value.substring(m.end);
+      final fixed = 'SK_WiFiGIGA$rest';
       if (fixed == c.value) continue;
-      found.add(WifiCandidate(value: fixed, type: c.type, score: (c.score + 0.02).clamp(0.0, 1.0)));
+      fixedAny = true;
+      // 접두어를 고친 이름은 접두어와 16진수 사이 밑줄도 지운 실제 형식(`SK_WiFiGIGA3A2B`)을 1순위로,
+      // 밑줄을 읽은 그대로 둔 값은 그 아래 후보로 남긴다.
+      final tight = _skUnderscoreTail.firstMatch(rest);
+      final real = tight == null ? fixed : 'SK_WiFiGIGA${tight.namedGroup('hex')}${tight.namedGroup('band') ?? ''}';
+      found.add(WifiCandidate(value: real, type: c.type, score: (c.score + 0.02).clamp(0.0, 1.0)));
+      if (real != fixed) {
+        found.add(WifiCandidate(value: fixed, type: c.type, score: (c.score + 0.01).clamp(0.0, 1.0)));
+      }
+    }
+    // 같은 안내문에 이미 맞게 읽은 SK 이름이 있으면 같은 가산점을 줘서, 접두어를 고친 이름이 그것을 넘지 않게 한다.
+    if (!fixedAny) return;
+    for (final c in before) {
+      if (c.type == WifiCandidateType.ssid && c.value.startsWith('SK_WiFiGIGA')) {
+        found.add(WifiCandidate(value: c.value, type: c.type, score: (c.score + 0.02).clamp(0.0, 1.0)));
+      }
     }
   }
 
@@ -574,9 +610,13 @@ class WifiCredentialParser {
         if (v.isEmpty) continue;
         if (!hasLabeledSsid && hasLabeledPassword && row.length == 1) {
           final m = _brokenWifiLabelRow.firstMatch(v);
-          if (m != null && !_contactLabel.hasMatch(m.namedGroup('label')!) && _looksLikeSsid(m.namedGroup('value')!)) {
+          final label = m?.namedGroup('label') ?? '';
+          if (m != null &&
+              _wifiLikeLabel(label) &&
+              !_contactLabel.hasMatch(label) &&
+              _looksLikeSsid(m.namedGroup('value')!)) {
+            // 이름 후보만 더한다. 줄 전체를 이름으로 보는 아래 기존 추측은 그대로 이어서 돈다.
             found.add(WifiCandidate(value: m.namedGroup('value')!, type: WifiCandidateType.ssid, score: 0.55));
-            continue;
           }
         }
         // 이름표가 깨지거나 띄어 읽혀 알아보지 못한 줄: "비 번 : 7ba19kx719", "H| H 7ba19kx719".
@@ -1172,6 +1212,8 @@ final _ktRead = RegExp(
 );
 /// OCR이 읽은 SK 공유기 이름의 접두어 (`SK_WIF1GIGA`, `SKWiFiGIGA`, `SK_WlFlGlGA`).
 final _skRead = RegExp(r'^SK_?W[il1|]F[il1|]G[il1|]GA', caseSensitive: false);
+/// 접두어 뒤의 `_` + 16진수 네 글자 + 선택적 대역 꼬리.
+final _skUnderscoreTail = RegExp(r'^_(?<hex>[0-9A-FOoIl]{4})(?<band>_(?:2\.4|2|5)G)?$', caseSensitive: false);
 /// 접두어와 16진수 사이를 공백으로 읽은 SK 이름 ("SK WiFiGIGA 3A2B", "SK WIF1GIGA 3A2B 5G").
 final _skSpacedTail = RegExp(
   r'^SK[_\s]?W[il1|]F[il1|]G[il1|]GA\s+(?<hex>[0-9A-FOoIl]{4})(?<band>\s+(?:2\.4|2|5)G)?$',
@@ -1210,7 +1252,8 @@ final _licensePlate = RegExp(r'^\d{2,3}\s?[가-힣]\s?\d{4}$');
 /// 알아보지 못한 짧은 이름표 + (구분자 또는 공백) + 값 하나.
 final _brokenLabelRow = RegExp(r'^(?<label>[^\s:=：;|][^:=：;|]{0,11}?)\s*(?:[:=：;|]{1,3}|\s)\s*(?<value>\S+)$');
 /// 알아보지 못한 Wi-Fi 이름표 줄: 짧은 영문·한글 낱말(2~6자) + 구분자 또는 공백 + 값 하나 ("wii - hong_studio").
-final _brokenWifiLabelRow = RegExp(r'^(?<label>[A-Za-z가-힣]{2,6})\s*(?:[:=：;|.\-–—]{1,3}|\s)\s*(?<value>\S+)$');
+/// 구분자 앞뒤에 공백이 있어야 한다: 공백 없는 `TP-Link_5E2A`, `momo.cafe_5G`는 줄 전체가 이름이다.
+final _brokenWifiLabelRow = RegExp(r'^(?<label>[A-Za-z가-힣]{2,6})\s+[:=：;|.\-–—]{1,3}\s+(?<value>\S+)$');
 /// 연락처·영업 정보 줄의 이름표. 이 뒤의 값은 비밀번호로 보지 않는다.
 final _contactLabel = RegExp(
   r'tel|phone|call|fax|mobile|hp|open|close|전화|문의|연락|주소|영업|시간|휴무|예약|계좌|사업자',
