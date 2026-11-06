@@ -137,6 +137,14 @@ void main() {
       expectParsed('SSID：cafe_wifi\nKey = abc12345', ssid: 'cafe_wifi', password: 'abc12345');
     });
 
+    test('밑줄 뒤 괄호 메모: 표시 글자가 없으면 메모를 먼저 떼고 밑줄만 남는다', () {
+      expectParsed('SSID: cafe_ (2층)\nPW: abc12345', ssid: 'cafe_', password: 'abc12345');
+    });
+
+    test('비밀번호 값이 밑줄 + 괄호 메모여도 표시 글자가 없으면 예전과 같다', () {
+      expectParsed('SSID: cafe_guest\nPW: abc_ (메모)', ssid: 'cafe_guest', password: 'abc_');
+    });
+
     test('뒤에 붙은 괄호 설명은 제거한다', () {
       expectParsed('비밀번호 : 12345678 (숫자 8자리)', password: '12345678');
     });

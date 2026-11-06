@@ -1019,10 +1019,13 @@ class WifiCredentialParser {
   /// 표시 글자는 먼저 공백과 같은 부류로 보고 밑줄 옆 공백 정리와 한 규칙으로 처리한다
   /// ("Study<표시>_Room"의 표시 글자는 옆의 밑줄에 흡수된다). 정리 뒤에 남은 표시 글자만
   /// 이름이면 밑줄(OCR이 놓친 밑줄 자리), 비밀번호면 빈 문자(공백이 있을 수 없다), 종류를 모르면 공백이 된다.
-  /// 안내문에 실제로 있는 `__`는 표시 글자가 끼지 않았으니 건드리지 않는다.
+  /// 앞당긴 정리는 표시 글자가 낀 매치에만 적용한다: 표시 글자가 없으면 뒤 괄호 메모 떼기가 먼저 돌아야 하므로
+  /// 밑줄 옆 공백 정리는 아래 원래 자리에서 한다(`cafe_ (2층)`). 안내문에 실제로 있는 `__`도 건드리지 않는다.
   String _cleanValue(String value, [WifiCandidateType? type]) {
     final gap = switch (type) { WifiCandidateType.ssid => '_', WifiCandidateType.password => '', null => ' ' };
-    var v = value.replaceAll(_spaceAroundUnderscore, '_').replaceAll(gapMarker, gap).trim().replaceFirst(_trailingNote, '').trim();
+    var v = value
+        .replaceAllMapped(_spaceAroundUnderscore, (m) => m[0]!.contains(gapMarker) ? '_' : m[0]!)
+        .replaceAll(gapMarker, gap).trim().replaceFirst(_trailingNote, '').trim();
     final stripped = v.replaceFirst(_sentenceEnding, '').trim();
     if (stripped.isNotEmpty) v = stripped;
     // 'Connect to "Momo Guest"' — 양쪽을 모두 감싼 따옴표만 벗긴다.
