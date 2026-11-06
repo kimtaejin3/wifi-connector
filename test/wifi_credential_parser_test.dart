@@ -886,6 +886,51 @@ void main() {
     });
   });
 
+  group('비밀번호 아래 줄의 메모 (P2-4)', () {
+    const parser = WifiCredentialParser();
+    List<String> pwCandidates(String text) =>
+        parser.parse(text).candidatesOf(WifiCandidateType.password).map((e) => e.value).toList();
+
+    test('아래 줄 메모가 숫자 0이라고 알려 주면 O를 0으로, 원래 값은 후보로', () {
+      final c = parser.parse('PW : coffee0909\n※ 0은 모두 숫자');
+      expect(c.password, 'c0ffee0909');
+      expect(pwCandidates('PW : coffee0909\n※ 0은 모두 숫자'), contains('coffee0909'));
+      for (final memo in ['※0은 모두 숫자 영(0)이에요', '* 숫자 0 입니다', '※ zero 입니다', '참고) 0은 숫자']) {
+        expect(parser.parse('WIFI: zero_cafe\nPW : coffee0909\n$memo').password, 'c0ffee0909', reason: memo);
+      }
+    });
+
+    test('비밀번호 값이 이름표 다음 줄에 있어도 위 두 줄 안이면 적용', () {
+      expect(parser.parse('WIFI: zero_cafe\nPW\ncoffee0909\n※ 0은 모두 숫자').password, 'c0ffee0909');
+    });
+
+    test('아래 줄 메모가 영문 O라고 알려 주면 0을 O로', () {
+      expect(parser.parse('PW : m0m012345\n※ O는 영문 대문자').password, 'mOmO12345');
+    });
+
+    test('메모가 비밀번호보다 위에 있으면 그대로', () {
+      expect(parser.parse('※ 0은 모두 숫자\nPW : coffee0909').password, 'coffee0909');
+    });
+
+    test('메모가 세 줄 이상 떨어져 있으면 그대로', () {
+      final c = parser.parse('PW : coffee0909\nThanks\nEnjoy\n※ 0은 모두 숫자');
+      expect(c.password, 'coffee0909');
+      expect(pwCandidates('PW : coffee0909\nThanks\nEnjoy\n※ 0은 모두 숫자'), isNot(contains('c0ffee0909')));
+    });
+
+    test('이름이나 다른 값에는 적용하지 않는다', () {
+      final c = parser.parse('WIFI: zero_cafe\nPW : abc12345\n※ 0은 모두 숫자');
+      expect(c.ssid, 'zero_cafe');
+      expect(c.password, 'abc12345');
+      final d = parser.parse('WIFI: foo_cafe\n※ 0은 모두 숫자\nPW : abc12345');
+      expect(d.ssid, 'foo_cafe');
+    });
+
+    test('메모가 숫자 0·영문 O를 알려 주지 않는 줄은 무시', () {
+      expect(parser.parse('PW : coffee0909\n※ 대소문자 구분').password, 'coffee0909');
+    });
+  });
+
   group('비밀번호 사이에 OCR이 넣은 공백', () {
     const parser = WifiCredentialParser();
     const ssidLine = 'ID : 대전역 라운지뷰 별달5G';

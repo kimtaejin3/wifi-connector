@@ -36,7 +36,6 @@ const knownFailures = <String, String>{
   'variants-14': '이모지 아이콘을 OCR이 글자로 읽어 값에 붙임(al Sunrise_Inn, Psunrise2026) (P4-3)',
   'variants-15': 'OCR이 밑줄을 통째로 빠뜨림(nabihostel) (P4-3)',
   'variants-26': '한 줄에 두 대역(WiFi 2.4G 이름 /5G 이름)이 오면 이름표를 버림 (P3-1)',
-  'variants-27': 'OCR이 0을 o로 읽음(coffee0909). 아래 줄의 "0은 숫자" 메모를 쓰지 않음 (P2-4)',
   'variants-28': 'OCR이 메모가 붙은 PW 줄을 통째로 놓침 (P4-2)',
   'variants-31': 'OCR이 글자를 빠뜨리고 바꿔 읽음(l1Il0Oo2026 → I1l0002026) (P4-1)',
   'variants-32': '다음 줄로 넘어간 비밀번호 뒷부분(345678)을 잇지 않음 (P3-4)',

@@ -90,8 +90,11 @@ class WifiCredentialParser {
       ));
     }
 
+    // 행마다 그 행의 이름표 처리로 found에 들어간 후보 범위. 비밀번호 아래 줄의 메모(P2-4)가 쓴다.
+    final rowSpans = <(int, int)>[];
     for (var r = 0; r < rows.length; r++) {
       final segs = rows[r];
+      final spanStart = found.length;
       var i = 0;
       while (i < segs.length) {
         final seg = segs[i];
@@ -185,8 +188,10 @@ class WifiCredentialParser {
         }
         i = j;
       }
+      rowSpans.add((spanStart, found.length));
     }
 
+    _applyNoteBelow(rows, rowSpans, found);
     final wifiContext = _wifiContext.hasMatch(normalizeOcrText(rawText).replaceAll(_otherPlacePassword, ' '));
     _addUnlabeledFallbacks(rows, found, wifiContext: wifiContext);
     _addSeparatorVariants(found);
@@ -258,6 +263,32 @@ class WifiCredentialParser {
           score: (c.score + entry.value).clamp(0.0, 1.0),
         ));
       }
+    }
+  }
+
+  /// 비밀번호 아래 줄의 메모 ("PW : coffee0909" / "※ 0은 모두 숫자"). 이름표 없는 한글 줄이 숫자 0·영문 O를
+  /// 알려 주면 바로 위 한두 행의 비밀번호 후보에만 같은 힌트를 적용한 값을 후보로 더한다(+0.001).
+  /// 메모가 비밀번호보다 위에 있거나 세 행 이상 떨어져 있으면 아무것도 하지 않는다.
+  void _applyNoteBelow(List<List<_Segment>> rows, List<(int, int)> spans, List<WifiCandidate> found) {
+    for (var r = 1; r < rows.length; r++) {
+      final row = rows[r];
+      if (row.isEmpty || row.any((s) => s.isLabel)) continue;
+      final note = row.map((s) => s.value).join(' ');
+      if (!_hangulSyllable.hasMatch(note)) continue;
+      final compact = note.replaceAll(_whitespace, '').toLowerCase();
+      if (!_digitZeroNote.hasMatch(compact) && !_letterONote.hasMatch(compact)) continue;
+      final added = <WifiCandidate>[];
+      for (var k = math.max(0, r - 2); k < r; k++) {
+        final (start, end) = spans[k];
+        for (var n = start; n < end; n++) {
+          final c = found[n];
+          if (c.type != WifiCandidateType.password || c.value.isEmpty) continue;
+          final hinted = _applyNoteHint(c.value, note);
+          if (hinted == c.value) continue;
+          added.add(WifiCandidate(value: hinted, type: c.type, score: (c.score + 0.001).clamp(0.0, 1.0)));
+        }
+      }
+      found.addAll(added);
     }
   }
 
@@ -1135,7 +1166,7 @@ final _hangulSyllable = RegExp(r'[가-힣]');
 /// (`숫자 0`). 비밀번호에는 한글이 들어갈 수 없고, 공백 뒤 화살표가 비밀번호일 일도 없다.
 final _passwordNote = RegExp(r'^([^\s가-힣]+)\s+((?:<=|<-+|←|⇐|⟸|=>|->)\s*.*|[^\s]*[가-힣].*)$');
 /// "숫자0", "숫자 영", "zero", "<=0(숫자)".
-final _digitZeroNote = RegExp(r'숫자(?:0|영|제로)|(?:0|영)(?:은|는)?숫자|zero|number0|digit0');
+final _digitZeroNote = RegExp(r'숫자(?:0|영|제로)|(?:0|영)(?:은|는)?(?:모두|전부|다)?숫자|zero|number0|digit0');
 /// "영문 O", "알파벳 O", "대문자 O".
 final _letterONote = RegExp(r'(?:영문|알파벳|대문자|영어)(?:o|오)|(?:o|오)(?:은|는)?(?:영문|알파벳|대문자)');
 /// 작은 글씨의 "아이디"를 한국어 인식기가 깨뜨려 읽은 모양. 실기기에서 OFOII, OFOITI, OFOICA,
