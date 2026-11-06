@@ -806,6 +806,9 @@ class WifiCredentialParser {
   /// 화장실·현관 등 Wi-Fi가 아닌 곳의 비밀번호 이름표. 토큰 경계에서 장소 낱말 바로 뒤에
   /// 비밀번호 이름표가 올 때만 인정한다 (다른 이름표의 값 안쪽 "화장실비밀번호연구소"는 해당 없음).
   _LabelMatch? _placeLabel(String cell, int pos) {
+    // 장소 낱말이 칸 맨 앞이거나 구분자(/, |) 바로 뒤일 때만 본다. 다른 이름표의 값 안에서 만난
+    // 장소 낱말("SSID: Lobby 현관 PW: x"의 현관)은 그 값의 일부다.
+    if (!_placeTrigger.hasMatch(cell.substring(0, pos))) return null;
     final door = _otherPlaceWord.matchAsPrefix(cell, pos);
     if (door == null) return null;
     final at = _whitespace.matchAsPrefix(cell, door.end)?.end ?? door.end;
@@ -1043,13 +1046,17 @@ final _phoneLike = RegExp(r'^\+?\d[\d().]*[-.)][\d\-.()]*\d$');
 final _ispPrefix = RegExp(r'^(?:kt|skt?|lgu?|u\+|olleh|iptime|giga|anygate|netis|tp-?link)(?=[\s_]|net|wifi|giga|$)', caseSensitive: false);
 /// Wi-Fi가 아닌 곳의 비밀번호 앞말: 화장실, 현관, 도어락, 출입문, 대문, 주차장, 사물함, 보관함, 택배함, 금고(+문).
 const _otherPlace = r'(?:화장실|현관|도어락|출입문|대문|주차장|사물함|보관함|택배함|금고)(?:\s*문)?';
+/// 장소 비밀번호 이름표가 올 수 있는 자리: 칸 맨 앞, 또는 `/`·`|`·`,` 바로 뒤.
+final _placeTrigger = RegExp(r'(?:^|[/|,])\s*$');
 const _otherPlaceStart = r'(?<![\p{L}\p{N}_])(?:공동\s?)?';
 final _otherPlaceWord = RegExp('$_otherPlaceStart$_otherPlace', unicode: true);
 /// Wi-Fi 단서를 셀 때 뺄 장소 비밀번호 이름표 (토큰 경계에서만: "SSID: 화장실비밀번호연구소"는 해당 없음).
 final _otherPlacePassword = RegExp(
-  '$_otherPlaceStart$_otherPlace\\s*(?:비[\\s|Il1]*밀[\\s|Il1]*번[\\s|Il1]*호|비\\s*번|암\\s*호|패\\s*스\\s*워\\s*드|pass\\s?w[o0]r?d|passcode|pwd|pw)(?![\\p{L}\\p{N}_])',
+  r'(?<=^|\t|[/|,]\s*)(?:공동\s?)?'
+  '$_otherPlace\\s*(?:비[\\s|Il1]*밀[\\s|Il1]*번[\\s|Il1]*호|비\\s*번|암\\s*호|패\\s*스\\s*워\\s*드|pass\\s?w[o0]r?d|passcode|pwd|pw)(?![\\p{L}\\p{N}_])',
   caseSensitive: false,
   unicode: true,
+  multiLine: true,
 );
 /// 글 어딘가에 Wi-Fi 안내문이라는 단서가 있는지. "ID", "Name", "Key" 같은 일반 이름표는 단서로 치지 않는다.
 final _wifiContext = RegExp(

@@ -1195,4 +1195,41 @@ void main() {
       expectParsed('No. 1234', ssid: null, password: null);
     });
   });
+
+  group('PR #2 3차 검토: 장소 이름표는 칸 맨 앞이나 구분자 뒤에서만', () {
+    test('이름 값 끝의 장소 낱말과 뒤 Wi-Fi 이름표를 보존한다', () {
+      expectParsed('SSID: Lobby 현관 PW: abc12345', ssid: 'Lobby 현관', password: 'abc12345');
+      expectParsed('SSID: 현관 PW: abc12345', ssid: '현관', password: 'abc12345');
+      expectParsed('SSID: Lobby 화장실 Password: abc12345', ssid: 'Lobby 화장실', password: 'abc12345');
+    });
+
+    test('검토자 경계 입력 21개', () {
+      const cases = <(String, String?, String?)>[
+      ('1. ID. a_b\n2. PW. c1234567', 'a_b', 'c1234567'),
+      ('1) ID. a_b\n2) PW. c1234567', 'a_b', 'c1234567'),
+      ('01. ID. a_b\n02. PW. c1234567', 'a_b', 'c1234567'),
+      ('ID. a_b / PW. c1234567', 'a_b', 'c1234567'),
+      ('SSID: 현관비밀번호카페\nPW: abc12345', '현관비밀번호카페', 'abc12345'),
+      ('SSID: cafe_현관비밀번호\nPW: abc12345', 'cafe_현관비밀번호', 'abc12345'),
+      ('SSID: cafe현관비밀번호\nPW: abc12345', 'cafe현관비밀번호', 'abc12345'),
+      ('SSID: 현관\nPW: abc12345', '현관', 'abc12345'),
+      ('SSID: Lobby 현관 / PW: abc12345', 'Lobby 현관', 'abc12345'),
+      ('SSID: Lobby 현관 PW: abc12345', 'Lobby 현관', 'abc12345'),
+      ('SSID: 현관 PW: abc12345', '현관', 'abc12345'),
+      ('SSID: Lobby 화장실 Password: abc12345', 'Lobby 화장실', 'abc12345'),
+      ('SSID: Lobby현관 PW: abc12345', 'Lobby현관', 'abc12345'),
+      ('SSID: a_b / PW: abc12345 / 현관', 'a_b', null),
+      ('SSID: a_b / PW: abc12345 / 공동 현관 비밀번호: 1357*', 'a_b', 'abc12345'),
+      ('현관 비밀번호: 1357* / SSID: a_b / PW: abc12345', 'a_b', 'abc12345'),
+      ('현관 와이파이 비밀번호: abc12345', null, 'abc12345'),
+      ('WIFI: a_b\n현관 비밀번호\n1357*\nPW: abc12345', 'a_b', 'abc12345'),
+      ('화장실 비밀번호\n1234*', null, null),
+      ('SSID: a_b / Password. abc12345', 'a_b', 'abc12345'),
+      ('Please ask for password. Next sentence', null, null),
+      ];
+      for (final (text, ssid, password) in cases) {
+        expectParsed(text, ssid: ssid, password: password);
+      }
+    });
+  });
 }
