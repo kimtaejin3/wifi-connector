@@ -59,7 +59,6 @@ const knownFailures = <String, String>{
   'variants-50': '공동현관·도어락 비밀번호를 Wi-Fi 비밀번호로 냄 (P1-3)',
   'variants-51': 'SNS 계정(@…)과 해시태그를 이름표 없는 카드의 이름·비밀번호로 냄 (P1-4)',
   'sign3': 'OCR이 비밀번호 값(hello1234)을 놓쳐 아래 안내 문장을 비밀번호로 고름 (P2-6, P4-2)',
-  'photo-sign4-exif8': 'EXIF 회전(8) 사진의 상자가 옆으로 누운 좌표라 행 순서가 뒤집혀 WELCOME / MOMO_GUEST를 고름 (P2-1)',
   'photo-variety-06-exif6': 'EXIF 회전(6) 사진이라 모든 줄이 한 행으로 묶이고 밑줄 앞 공백(Study _Room)까지 겹쳐 이름을 못 찾음 (P2-1, P1-2)',
 };
 

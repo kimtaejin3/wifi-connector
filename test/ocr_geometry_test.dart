@@ -4,8 +4,10 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:wifi_connector/features/wifi_scanner/data/services/ocr_service.dart';
+import 'support/ocr_fixture.dart';
 
 void main() {
+  exifFixtureTests();
   group('uprightBox: EXIF 회전 좌표 바로 세우기', () {
     // 저장 크기 W×H = 1500×1200 (옆으로 누운 픽셀 기준)
     const stored = Size(1500, 1200);
@@ -99,5 +101,24 @@ void main() {
     test('가로로 겹치거나 순서가 뒤집힌 단어도 보통 공백이 아닌 표시 글자(간격 0 이하)', () {
       expect(joinWords([w('a', 0, 10), w('b', 9, 20)], lineHeight: 50), 'a${gapMarker}b');
     });
+  });
+}
+
+void exifFixtureTests() {
+  group('EXIF 회전 사진 fixture: 원본과 같은 행 구조', () {
+    final photos = OcrFixture.names().where((n) => n.startsWith('photo-') && RegExp(r'-exif\d$').hasMatch(n)).toList();
+
+    test('EXIF 사진 fixture가 10장 있다', () => expect(photos.length, 10));
+
+    for (final name in photos) {
+      test('$name의 layoutText는 원본 fixture와 같은 행 구조다 (행 수·행별 칸 수)', () {
+        final source = name.substring('photo-'.length).replaceFirst(RegExp(r'-exif\d$'), '');
+        final photo = OcrFixture.load(name).toOcrResult().layoutText;
+        final original = OcrFixture.load(source).toOcrResult().layoutText;
+        // 회전 사진은 픽셀이 달라 OCR이 글자를 조금 다르게 읽을 수 있다 (예: "SSID:" ↔ "SSID :"). 행 구조만 비교한다.
+        List<int> shape(String t) => [for (final row in t.split('\n')) row.split('\t').length];
+        expect(shape(photo), shape(original), reason: '회전 사진:\n$photo\n원본:\n$original');
+      });
+    }
   });
 }

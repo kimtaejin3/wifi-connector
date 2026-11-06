@@ -304,7 +304,6 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 | `variety-23` | 예약 안내 (영문+숫자 두 줄) | (Wi-Fi 아님) | `table07` · `guest2026` | 제목 `Reservation` + 두 줄을 이름표 없는 카드로 봄 | G1, J1 | P1-4 |
 | `variants-51` | SNS 홍보 카드 | (Wi-Fi 아님) | `@cafe_momo_official` · `#momo2026` | SNS 계정·해시태그를 카드의 이름·비밀번호로 봄 | G4, G5, J1 | P1-4 |
 | `variants-09` | 세로쓰기 이름표 | `maru_guest` · `maru4949` | `파` · `maru4949` | 세로 이름표를 한 글자씩 읽고, 표 열 맞추기로 한 글자 `파`를 이름으로 고름 | E6, F6 | P1-5 |
-| `photo-sign4-exif8` | EXIF 회전 8 (sign4) | `MOMO_GUEST` · `Coffee#2024` | `WELCOME` · `MOMO_GUEST` | 상자가 누운 좌표라 모든 줄이 한 행에 거꾸로 이어짐 → 이름표 다음 칸이 엉뚱한 값 | A2, A5, E4 | P2-1 |
 | `photo-variety-06-exif6` | EXIF 회전 6 (variety-06) | `Study_Room` · `study4321` | — · `study4321` | 모든 줄이 한 행(`ID ⇥ PW ⇥ Study _Room ⇥ study4321`)이 되고 밑줄 앞 공백까지 겹침 | A2, A5, E3 | P2-1, P1-2 |
 | `variants-01` | 얇은 글꼴 | `Lumi_Cafe` · `lumi7788` | `Lumi Cafe` · `lumi7788` | OCR이 밑줄을 공백으로 읽음 (단어 간격 0.04×줄 높이) | F4, H1, I3 | P2-2 |
 | `variants-02` | 명조체 | `sodam_books` · `books1004` | `sodam books` · `books1004` | 위와 같음 (간격 0.03) | F4, H1, I3 | P2-2 |
