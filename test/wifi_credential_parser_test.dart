@@ -1012,4 +1012,50 @@ void main() {
       expect(parser.parse('WIFI : cafe_momo\nPW : .ab12').password, '.ab12');
     });
   });
+
+  group('P1-1 구분자·이름표 모양 넓히기', () {
+    test('공백 뒤 마침표 구분자: ID. / PW.', () {
+      expectParsed('ID. orange_box\nPW. orange8282', ssid: 'orange_box', password: 'orange8282');
+    });
+
+    test('화살표 글자 구분자', () {
+      for (final arrow in ['▶', '►', '▷', '▸', '➤', '➢', '☞', '»', '›']) {
+        expectParsed('WiFi $arrow star_lounge\nPW $arrow star7979', ssid: 'star_lounge', password: 'star7979');
+      }
+    });
+
+    test('괄호 이름표: [WIFI] [PW]', () {
+      expectParsed('[WIFI] a_b\n[PW] c1234567', ssid: 'a_b', password: 'c1234567');
+    });
+
+    test('괄호 이름표: 【】 〔〕 <> ()', () {
+      expectParsed('【WIFI】 a_b\n【PW】 c1234567', ssid: 'a_b', password: 'c1234567');
+      expectParsed('〔WIFI〕 a_b\n〔PW〕 c1234567', ssid: 'a_b', password: 'c1234567');
+      expectParsed('<WIFI> a_b\n<PW> c1234567', ssid: 'a_b', password: 'c1234567');
+      expectParsed('(WIFI) a_b\n(PW) c1234567', ssid: 'a_b', password: 'c1234567');
+    });
+
+    test('괄호 안이 이름표가 아니면 그대로 둔다', () {
+      expectParsed('[영수증] a_b\nPW: c1234567', ssid: null, password: 'c1234567');
+    });
+
+    test('떨어진 값 앞의 콜론·등호 기호를 뗀다', () {
+      expectParsed('WIFI\t:spaced_wifi\nP W :spaced2468', ssid: 'spaced_wifi', password: 'spaced2468');
+      expectParsed('WIFI\t=a_b\nPW\t：c1234567', ssid: 'a_b', password: 'c1234567');
+    });
+
+    test('Password/PIN: 의 /PIN은 이름표에 넣는다', () {
+      expectParsed('SSID: a_b\nPassword/PIN: 12345678', ssid: 'a_b', password: '12345678');
+      expectParsed('Wireless Network Name (SSID): TP-Link 5E2A\nWireless Password/PIN: 51837264',
+          ssid: 'TP-Link_5E2A', password: '51837264');
+    });
+
+    test('ID/PW : a / b 는 그대로 나눠 읽는다', () {
+      expectParsed('ID/PW : momo_cafe / abc12345', ssid: 'momo_cafe', password: 'abc12345');
+    });
+
+    test('이름표가 아닌 No. 1234', () {
+      expectParsed('No. 1234', ssid: null, password: null);
+    });
+  });
 }

@@ -292,11 +292,6 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 <!-- known-failures:start -->
 | fixture | 형태 | 기대 (이름 · 비밀번호) | 실제 (이름 · 비밀번호) | 원인 | 셀 | 개선 |
 |---|---|---|---|---|---|---|
-| `variants-17` | ID. / PW. (마침표 구분) | `orange_box` · `orange8282` | — · `orange8282` | `ID.`의 마침표를 구분자로 모름 → 약한 이름표 뒤 여러 단어로 보고 버림 | D5, D8 | P1-1 |
-| `variants-18` | ▶ 기호 구분 | `star_lounge` · `star7979` | — · — | `►`(OCR이 읽은 ▶)를 구분자로 모름 | D5, D8 | P1-1 |
-| `variants-20` | 이름표 자간이 넓음 | `spaced_wifi` · `spaced2468` | `:spaced_wifi` · `spaced2468` | 콜론이 값 칸(`:spaced_wifi`)에 붙어 같은 행 다음 칸 값으로 그대로 씀 | E4 | P1-1 |
-| `variants-25` | 영문 공유기 라벨 | `TP-Link_5E2A` · `51837264` | `TP-Link_5E2A` · `/PIN:51837264` | `Password/PIN:`의 `/PIN`이 값에 붙음 | D4 | P1-1 |
-| `variants-35` | 영수증 아래 와이파이 | `snack_bar_free` · `snack1004` | — · — | `[WIFI]`, `[PW]` 괄호 이름표를 모름 | C1, D1, D2 | P1-1 |
 | `variety-06` | ID / PW 표 | `Study_Room` · `study4321` | `Study__Room` · `study4321` | OCR이 밑줄 앞에 공백을 넣음(`Study _Room`) → 공백까지 밑줄로 이음 | F4, D9 | P1-2 |
 | `variants-19` | 한 줄에 모두 | `one_line_cafe` · `oneline2468` | — · `oneline2468` | OCR이 밑줄 뒤에 공백을 넣음(`one_ line_cafe`) → 여러 단어로 보고 이름표 버림 | D8, D9 | P1-2 |
 | `variants-49` | 화장실 비밀번호 | (Wi-Fi 아님) | — · `1234*` | "화장실 비밀번호"를 비밀번호 이름표·Wi-Fi 단서로 씀 | D1, J1 | P1-3 |

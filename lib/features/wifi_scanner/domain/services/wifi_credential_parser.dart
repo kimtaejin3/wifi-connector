@@ -342,7 +342,10 @@ class WifiCredentialParser {
   }) {
     // "FREE WIFI" 같은 제목 다음에 오는 문장은 값으로 보지 않는다.
     if (label.header && value.value.contains(_whitespace)) return;
-    add(label.label!, value.value, _detachedBase(label, sameRow: sameRow), isolated: true);
+    // 값 칸에 붙어 읽힌 구분자 (":spaced_wifi")는 값이 아니다.
+    final text = value.value.replaceFirst(_leadingSeparator, '');
+    if (text.isEmpty) return;
+    add(label.label!, text, _detachedBase(label, sameRow: sameRow), isolated: true);
     value.consumed = true;
   }
 
@@ -659,9 +662,10 @@ class WifiCredentialParser {
       final cells = normalizeOcrText(line).split('\t');
       for (var c = 0; c < cells.length; c++) {
         // "• Password: ..." 같은 글머리 기호는 라벨 인식을 막으므로 떼어낸다.
-        final cell = cells[c].trim().replaceFirst(_bullet, '').trim().replaceFirst(_iconPrefix, '');
+        var cell = cells[c].trim().replaceFirst(_bullet, '').trim().replaceFirst(_iconPrefix, '');
         // Wi-Fi·자물쇠 아이콘을 OCR이 "令", "?", "🔒" 같은 한두 글자로 읽은 셀은 버린다.
         if (cell.isEmpty || _iconOnly.hasMatch(cell)) continue;
+        cell = _unbracketLabel(cell);
         // 작은 글씨의 "아이디"를 한국어 인식기가 영문처럼 깨뜨려 읽은 셀은 원래 이름표로 되돌린다.
         // 그대로 두면 위의 "WIFI" 제목이 이 글자를 Wi-Fi 이름으로 가져간다.
         if (_garbledIdLabel.hasMatch(cell)) {
@@ -719,6 +723,17 @@ class WifiCredentialParser {
       return [value];
     }
     return [left, ..._splitBands(right)];
+  }
+
+  /// 칸 맨 앞의 괄호 이름표 `[WIFI] x`, `【PW】 x`, `<ID> x`를 `WIFI : x`로 바꾼다.
+  /// 괄호 안이 통째로 이름표일 때만 바꾼다 (`[영수증] x`는 그대로).
+  String _unbracketLabel(String cell) {
+    final m = _bracketLabel.firstMatch(cell);
+    if (m == null) return cell;
+    final inner = m.group(1)!.trim();
+    if (inner.isEmpty || _matchLabel(inner, 0)?.valueStart != inner.length) return cell;
+    final rest = m.group(2)!.replaceFirst(_leadingSeparator, '').trim();
+    return '$inner : $rest'.trim();
   }
 
   List<_Segment> _segmentCell(String cell, int cellIndex) {
@@ -792,7 +807,14 @@ class WifiCredentialParser {
     final slash = _slash.matchAsPrefix(cell, end);
     if (slash != null) {
       final second = re.matchAsPrefix(cell, slash.end);
-      if (second != null) end = second.end;
+      if (second != null) {
+        end = second.end;
+      } else {
+        // "Password/PIN:" — 뒤에 구분자가 오는 짧은 낱말이 다른 이름표가 아니면 이름표의 일부다.
+        // "ID/PW : a / b"의 PW처럼 다른 이름표면 따로 둬서 값을 나눠 쓰게 한다.
+        final word = _slashWord.matchAsPrefix(cell, slash.end);
+        if (word != null && _matchLabel(cell, slash.end) == null) end = word.end;
+      }
     }
 
     final sep = _separator.matchAsPrefix(cell, end);
@@ -912,7 +934,10 @@ final _ssidLabel = RegExp(
 
 final _freePrefix = RegExp(r'^(?:free|무료)', caseSensitive: false);
 // OCR은 ':'를 ';'로, 표의 세로선을 '|'로 읽기도 한다.
-final _separator = RegExp(r'\s*(?:[:=：;|]{1,3}>?|(?:[-–—>→➜➔⇒]|=>)(?=\s))\s*');
+// "ID. x", "PW. x"처럼 공백이 뒤따르는 마침표, "WiFi ► x"의 화살표 글자도 구분자로 본다.
+final _separator = RegExp(r'\s*(?:[:=：;|]{1,3}>?|(?:[-–—>→➜➔⇒▶►▷▸➤➢☞»›.]|=>)(?=\s))\s*');
+final _bracketLabel = RegExp(r'^[\[【〔<(]([^\]】〕>)]{1,24})[\]】〕>)]\s*(.*)$');
+final _leadingSeparator = RegExp(r'^[:=：;|]+\s*');
 final _bullet = RegExp(r'^(?:[•·▪▶►☞→■□●○◆◇✔✓※★☆*]+|-(?=\s))\s*');
 final _sentenceEnding = RegExp(
   r'\s*(?:입니다|이에요|예요|에요|이며|이고|이구요|이라고|이에용|입니당|임다|이야|이에요)[.!。]?$',
@@ -924,6 +949,7 @@ final _openKeywords = RegExp(
 final _labelNote = RegExp(r'\s*[(\[（][^)\]）]{0,24}[)\]）](?=\s*(?:[:=：]|$))');
 final _bandQualifier = RegExp(r'\s*(?:\d(?:\.\d)?\s*g(?:hz)?|\d)(?=\s*[:=：])', caseSensitive: false);
 final _slash = RegExp(r'\s*/\s*');
+final _slashWord = RegExp(r'[A-Za-z가-힣]{1,8}(?=\s*[:=：;|])');
 final _delimiter = RegExp(r'[\s/|,;·]');
 final _trailingDelimiters = RegExp(r'[\s/|,;·]+$');
 final _prefixTrailing = RegExp(r'[\s/|,;·:=：\-–—→]+$');
