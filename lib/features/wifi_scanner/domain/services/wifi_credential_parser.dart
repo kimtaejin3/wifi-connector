@@ -56,11 +56,18 @@ class WifiCredentialParser {
       // 밑줄로 이은 값을 1순위로 두되, 추측이므로 확신도는 낮추고 원래 값도 후보로 남긴다.
       if (label.type == WifiCandidateType.ssid && cleaned.contains(_whitespace) && _machineLikeSsid(cleaned)) {
         final joined = cleaned.replaceAll(_whitespace, '_');
-        found.add(WifiCandidate(
-          value: joined,
-          type: label.type,
-          score: (base * _ssidFactor(joined, isolated: true) * 0.9).clamp(0.0, 1.0),
-        ));
+        final joinedScore = (base * _ssidFactor(joined, isolated: true) * 0.9).clamp(0.0, 1.0);
+        // "SK WiFiGIGA 3A2B" — 실제 SK 이름은 접두어 바로 뒤에 16진수가 붙는다 (`SK_WiFiGIGA3A2B`).
+        // 접두어 뒤 공백은 밑줄이 아니라 OCR이 넣은 틈이므로 지운 값을 1순위로 둔다.
+        final tight = _skSpacedTail.firstMatch(cleaned);
+        if (tight != null) {
+          found.add(WifiCandidate(
+            value: 'SK_WiFiGIGA${tight.namedGroup('hex')}${(tight.namedGroup('band') ?? '').replaceAll(_whitespace, '_')}',
+            type: label.type,
+            score: (joinedScore + 0.02).clamp(0.0, 1.0),
+          ));
+        }
+        found.add(WifiCandidate(value: joined, type: label.type, score: joinedScore));
         found.add(WifiCandidate(value: cleaned, type: label.type, score: (base * 0.7).clamp(0.0, 1.0)));
         return;
       }
@@ -183,6 +190,8 @@ class WifiCredentialParser {
     final wifiContext = _wifiContext.hasMatch(normalizeOcrText(rawText).replaceAll(_otherPlacePassword, ' '));
     _addUnlabeledFallbacks(rows, found, wifiContext: wifiContext);
     _addSeparatorVariants(found);
+    _addKtNormalized(found);
+    _addSkPrefixFixes(found);
     _addKtGigaVariants(found);
     _addIspHexVariants(found);
     final result = _select(found);
@@ -291,6 +300,36 @@ class WifiCredentialParser {
       final fixed = c.value.replaceAllMapped(_ktGiga, (_) => 'GiGA');
       if (fixed == c.value) continue;
       found.add(WifiCandidate(value: fixed, type: c.type, score: (c.score + 0.01).clamp(0.0, 1.0)));
+    }
+  }
+
+  /// KT 공유기 이름의 실제 형식은 `KT_GiGA_<대역>_<Wave2_><16진수 네 글자>`다. OCR이 `GIGA` 뒤 밑줄을 빠뜨리거나
+  /// 꼬리 1을 I로 읽은 값(`KT_GiGA5G_Wave2_4FIA`)을 실제 형식으로 고친 값을 1순위로 두고, 읽은 값도 후보로 남긴다.
+  void _addKtNormalized(List<WifiCandidate> found) {
+    for (final c in found.toList()) {
+      if (c.type != WifiCandidateType.ssid) continue;
+      final m = _ktRead.firstMatch(c.value);
+      if (m == null) continue;
+      final hex = m.namedGroup('hex')!.replaceAll(RegExp('[Oo]'), '0').replaceAll(RegExp('[IiLl]'), '1');
+      final wave = m.namedGroup('wave') == null ? '' : 'Wave2_';
+      final fixed = 'KT_GiGA_${m.namedGroup('band')!.toUpperCase()}_$wave$hex';
+      if (fixed == c.value) continue;
+      found.add(WifiCandidate(value: fixed, type: c.type, score: (c.score + 0.02).clamp(0.0, 1.0)));
+    }
+  }
+
+  /// SK 공유기 이름의 실제 형식은 `SK_WiFiGIGA` + 16진수 네 글자(밑줄 없음) + 선택적 `_5G`/`_2.4G`다.
+  /// OCR이 `WiFi`를 `WIF1`·`WlFl`로 읽거나 접두어 밑줄을 빠뜨린 값은 접두어만 `SK_WiFiGIGA`로 고친 값을
+  /// 1순위로 두고, 읽은 값은 후보로 남긴다. 뒤는 읽은 그대로 두며, 16진수 꼬리는 이어지는
+  /// [_addIspHexVariants]가 바로잡는다.
+  void _addSkPrefixFixes(List<WifiCandidate> found) {
+    for (final c in found.toList()) {
+      if (c.type != WifiCandidateType.ssid) continue;
+      final m = _skRead.firstMatch(c.value);
+      if (m == null) continue;
+      final fixed = 'SK_WiFiGIGA${c.value.substring(m.end)}';
+      if (fixed == c.value) continue;
+      found.add(WifiCandidate(value: fixed, type: c.type, score: (c.score + 0.02).clamp(0.0, 1.0)));
     }
   }
 
@@ -1074,6 +1113,18 @@ final _routerName = RegExp(
 );
 /// KT 공유기 이름의 `GiGA` 자리. 맨 앞이나 `_`, `KT`, `olleh` 뒤에 오고 뒤에는 구분자·숫자·끝이 온다.
 final _ktGiga = RegExp(r'(?<=^|[_\s\-]|kt|olleh)g[il1|]ga(?=[_\s\-]|\d|wifi|$)', caseSensitive: false);
+/// OCR이 읽은 KT 공유기 이름: `KT_GiGA_<대역>_<Wave2_><16진수>`에서 밑줄·글자가 틀어진 모양.
+final _ktRead = RegExp(
+  r'^KT_?G[il1|]GA_?(?<band>2G|5G)_?(?<wave>Wave2_?)?(?<hex>[0-9A-FOIL]{4})$',
+  caseSensitive: false,
+);
+/// OCR이 읽은 SK 공유기 이름의 접두어 (`SK_WIF1GIGA`, `SKWiFiGIGA`, `SK_WlFlGlGA`).
+final _skRead = RegExp(r'^SK_?W[il1|]F[il1|]G[il1|]GA', caseSensitive: false);
+/// 접두어와 16진수 사이를 공백으로 읽은 SK 이름 ("SK WiFiGIGA 3A2B", "SK WIF1GIGA 3A2B 5G").
+final _skSpacedTail = RegExp(
+  r'^SK[_\s]?W[il1|]F[il1|]G[il1|]GA\s+(?<hex>[0-9A-FOoIl]{4})(?<band>\s+(?:2\.4|2|5)G)?$',
+  caseSensitive: false,
+);
 /// 통신사 공유기 이름: 접두어 + 16진수 네 글자(OCR 혼동 글자 O·o·I·l 포함) + 선택적 대역 꼬리.
 final _ispHexName = RegExp(
   r'^(?<prefix>sk_wifigiga|kt_g[il1|]ga_(?:(?:2\.4|2|5)g_)?(?:wave2_)?|u\+net)(?<hex>[0-9A-FOoIl]{4})(?:_(?:2\.4|2|5)g)?$',

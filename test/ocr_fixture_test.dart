@@ -24,7 +24,6 @@ import 'support/sign_answers.dart';
 /// 사유 끝의 P1-1 같은 번호는 그 문서 "5. 개선 항목"의 번호다.
 const knownFailures = <String, String>{
   'variety-07': 'OCR이 끝의 1을 l로 읽음(b83kd02jql). 글자만으로는 못 가림 (P4-1)',
-  'variety-09': 'OCR이 GIGA 뒤 밑줄을 빠뜨리고 1을 I로 읽음(KT_GIGA5G_Wave2_4FIA) (P2-3)',
   'variety-10': 'OCR이 밑줄을 마침표로 읽음(Sunny.Cafe) (P3-2)',
   'variety-16': 'OCR이 O와 0을 서로 바꿔 읽음(0CEAN_00, 00o00cean). 글자만으로는 못 가림 (P4-1)',
   'variants-01': 'OCR이 밑줄을 공백으로 읽음(Lumi Cafe). 가게 이름의 띄어쓰기와 글자로는 못 가림 (P2-2)',
@@ -36,7 +35,6 @@ const knownFailures = <String, String>{
   'variants-08': '손글씨체를 OCR이 잘못 읽음(dream_hou9e, drearm2580) (P4-3)',
   'variants-14': '이모지 아이콘을 OCR이 글자로 읽어 값에 붙임(al Sunrise_Inn, Psunrise2026) (P4-3)',
   'variants-15': 'OCR이 밑줄을 통째로 빠뜨림(nabihostel) (P4-3)',
-  'variants-22': 'OCR이 WiFi를 WIF1로 읽음(SK_WIF1GIGA9B2E). SK 접두어를 SK_WiFiGIGA로 고치면 맞음 (P2-3)',
   'variants-26': '한 줄에 두 대역(WiFi 2.4G 이름 /5G 이름)이 오면 이름표를 버림 (P3-1)',
   'variants-27': 'OCR이 0을 o로 읽음(coffee0909). 아래 줄의 "0은 숫자" 메모를 쓰지 않음 (P2-4)',
   'variants-28': 'OCR이 메모가 붙은 PW 줄을 통째로 놓침 (P4-2)',

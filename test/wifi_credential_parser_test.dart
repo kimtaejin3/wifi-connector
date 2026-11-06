@@ -579,7 +579,7 @@ void main() {
     });
 
     test('다른 통신사·공유기 이름도', () {
-      expectParsed('WIFI : SK WiFiGIGA 3A2B\nPW : 1234567890', ssid: 'SK_WiFiGIGA_3A2B', password: '1234567890');
+      expectParsed('WIFI : SK WiFiGIGA 3A2B\nPW : 1234567890', ssid: 'SK_WiFiGIGA3A2B', password: '1234567890');
       expectParsed('SSID : U+Net 4C1D 5G\nPW : abcd1234', ssid: 'U+Net_4C1D_5G', password: 'abcd1234');
       expectParsed('Wi-Fi : iptime 5G 2F\nPW : abcd1234', ssid: 'iptime_5G_2F', password: 'abcd1234');
     });
@@ -929,7 +929,7 @@ void main() {
       for (final (read, fixed) in [
         ('SK_WiFiGIGA7COD_5G', 'SK_WiFiGIGA7C0D_5G'),
         ('SK_WiFiGIGA1A2O', 'SK_WiFiGIGA1A20'),
-        ('SK_WIFiGIGA7COD_2.4G', 'SK_WIFiGIGA7C0D_2.4G'),
+        ('SK_WIFiGIGA7COD_2.4G', 'SK_WiFiGIGA7C0D_2.4G'),
         ('KT_GiGA_5G_F3DO', 'KT_GiGA_5G_F3D0'),
         ('KT_GIGA_2G_I3D6', 'KT_GiGA_2G_13D6'),
         ('U+NetDO5C', 'U+NetD05C'),
@@ -945,6 +945,63 @@ void main() {
       expectParsed('Wi-Fi : SK_WiFiGIGAHOME_5G\nPW : momo12345', ssid: 'SK_WiFiGIGAHOME_5G', password: 'momo12345');
       expectParsed('Wi-Fi : iptime_COOL\nPW : momo12345', ssid: 'iptime_COOL', password: 'momo12345');
       expectParsed('Wi-Fi : momo_OIOI\nPW : momo12345', ssid: 'momo_OIOI', password: 'momo12345');
+    });
+  });
+
+  group('통신사 공유기 이름 정규화 (P2-3, 운영자 결정판)', () {
+    const parser = WifiCredentialParser();
+
+    // 정답은 안내문에 실제로 적힌 형식이다. OCR이 읽은 모양은 정답이 될 수 없고 후보로만 남는다.
+    test('SK: 접두어를 SK_WiFiGIGA로 고치고, 읽은 값은 후보로 남긴다', () {
+      for (final (read, fixed) in [
+        ('SK_WIF1GIGA9B2E', 'SK_WiFiGIGA9B2E'),
+        ('SK_WlFlGlGA1A2B_5G', 'SK_WiFiGIGA1A2B_5G'),
+        ('SKWiFiGIGA1A2B', 'SK_WiFiGIGA1A2B'),
+        ('SK_WIFiGIGA7COD_2.4G', 'SK_WiFiGIGA7C0D_2.4G'),
+        ('SK_WIF1GIGA7COD_5G', 'SK_WiFiGIGA7C0D_5G'),
+      ]) {
+        final c = parser.parse('Wi-Fi : $read\nPW : momo12345');
+        expect(c.ssid, fixed, reason: read);
+        expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), contains(read), reason: read);
+      }
+    });
+
+    test('KT: GiGA·대역·Wave2 밑줄을 채우고 꼬리를 16진수로 고친다', () {
+      for (final (read, fixed) in [
+        ('KT_GIGA5G_Wave2_4FIA', 'KT_GiGA_5G_Wave2_4F1A'),
+        ('KT_GiGA5G_Wave2_4FIA', 'KT_GiGA_5G_Wave2_4F1A'),
+        ('KTGIGA5GWave24FIA', 'KT_GiGA_5G_Wave2_4F1A'),
+        ('KT_GIGA_2G_I3D6', 'KT_GiGA_2G_13D6'),
+        ('KT_G1GA2G1A2B', 'KT_GiGA_2G_1A2B'),
+      ]) {
+        final c = parser.parse('Wi-Fi : $read\nPW : momo12345');
+        expect(c.ssid, fixed, reason: read);
+        expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), contains(read), reason: read);
+      }
+    });
+
+    test('띄어 읽은 SK 이름은 접두어와 16진수 사이에 밑줄을 넣지 않는다', () {
+      final c = parser.parse('WIFI : SK WiFiGIGA 3A2B\nPW : 1234567890');
+      expect(c.ssid, 'SK_WiFiGIGA3A2B');
+      expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), contains('SK_WiFiGIGA_3A2B'));
+      expect(parser.parse('WIFI : SK WIF1GIGA 3A2B 5G\nPW : 1234567890').ssid, 'SK_WiFiGIGA3A2B_5G');
+    });
+
+    test('이미 맞게 읽은 이름과 통신사가 아닌 이름은 그대로', () {
+      for (final name in [
+        'SK_WiFiGIGA_3A2B',
+        'SK_WiFiGIGA1A2B',
+        'SK_WiFiGIGA1A2B_5G',
+        'SK_WiFiGIGAHOME_5G',
+        'KT_GiGA_5G_Wave2_4F1A',
+        'KT_GiGA_2G_1A2B',
+        'GIGABYTE_5G',
+        'MEGAGIGA2',
+        'SKY_cafe',
+        'KT_momo_free',
+      ]) {
+        expect(parser.parse('Wi-Fi : $name\nPW : momo12345').ssid, name, reason: name);
+      }
     });
   });
 

@@ -293,8 +293,6 @@ Wi-Fi가 아닌 글 11장은 모두 맞게 걸러진다(P1-3, P1-4로 `variety-2
 | `variants-01` | 얇은 글꼴 | `Lumi_Cafe` · `lumi7788` | `Lumi Cafe` · `lumi7788` | OCR이 밑줄을 공백으로 읽음 (단어 간격 0.04×줄 높이) | F4, H1, I3 | P2-2 |
 | `variants-02` | 명조체 | `sodam_books` · `books1004` | `sodam books` · `books1004` | 위와 같음 (간격 0.03) | F4, H1, I3 | P2-2 |
 | `variants-03` | 아주 굵게·좁은 자간, 이름표 위·값 아래 | `HANA_COFFEE` · `hana0303` | `HANA COFFEE` · `hana0303` | 위와 같음 (간격 0.05) | F4, H1, I3 | P2-2 |
-| `variety-09` | 통신사 공유기 이름 | `KT_GiGA_5G_Wave2_4F1A` · `k9x2m4p8q1` | `KT_GiGA5G_Wave2_4FIA` · `k9x2m4p8q1` | OCR이 `GIGA` 뒤 밑줄을 빠뜨리고 꼬리 1을 I로 읽음 → H3의 이름 모양에 안 맞아 꼬리를 못 고침 | H2, H3, G4 | P2-3 |
-| `variants-22` | SK 공유기 스티커 | `SK_WiFiGIGA9B2E` 또는 `_5G` · `B7DE1@4410` | `SK_WIF1GIGA9B2E` · `B7DE1@4410` | OCR이 `WiFi`를 `WIF1`로 읽음 | H2, H3 | P2-3 |
 | `variants-27` | 아래 줄 메모 "0은 숫자" | `zero_cafe` · `c0ffee0909` | `zero_cafe` · `coffee0909` | OCR이 0을 o로 읽었고, 다음 줄 메모("※ 0은 모두 숫자")는 쓰지 않음 | F2 | P2-4 |
 | `variants-07` | 포스트잇 마커, 살짝 기울임 | `hong_studio` · `hong0812` | — · `hong0812` | OCR이 `wifi`를 `wii`로 읽어 이름표를 못 찾음(`wii - hong_studio`) | D2, G2 | P2-5 |
 | `sign3` | WIFI 제목 아래 ID / PW 두 열 | `momo_guest` · `hello1234` | `momo_guest` · `Ask our staff if it doesn't work` | OCR이 값 `hello1234`를 놓침 → PW 다음 줄 안내 문장을 비밀번호로 고름 | E6, F6 | P2-6 (+P4-2) |
@@ -497,8 +495,7 @@ Wi-Fi가 아닌 글 11장은 모두 맞게 걸러진다(P1-3, P1-4로 `variety-2
 | P2-1 | EXIF 좌표 (+로더) | `photo-sign4-exif8` | 없음 |
 | P2-1 + P2-2 | EXIF + 단어 간격 (+로더) | `photo-sign4-exif8`, `variants-01`, `variants-02`, `variants-03` | 없음 |
 | P2-3 | 첫 판: KT 정규화 + SK 이름 전체를 다시 씀(접두어 뒤 밑줄도 지움) | `variety-09`, `variants-22` | 3개 (`SK WiFiGIGA와 단어 속 giga는 건드리지 않는다`, `다른 통신사·공유기 이름도`, `16진수에 없는 O·I는 0·1로…`) |
-| P2-3 | 보수판: KT 정규화 + SK는 숫자·세로선만 | `variety-09` | 없음 |
-| P2-3 | **결정판**: KT 정규화 + SK 접두어만 `SK_WiFiGIGA`로, 뒤는 읽은 그대로 | `variety-09`, `variants-22` | 1개 — `16진수에 없는 O·I는 0·1로…`의 `SK_WIFiGIGA7COD_2.4G` 기대 (운영자 결정으로 바꿀 기대) |
+| P2-3 | 보수판: KT 정규화 + SK는 숫자·세로선만 | P2-3 | **결정판**: KT 정규화 + SK 접두어만 `SK_WiFiGIGA`로, 뒤는 읽은 그대로 | `variety-09`, `variants-22` | 1개 — `16진수에 없는 O·I는 0·1로…`의 `SK_WIFiGIGA7COD_2.4G` 기대 (운영자 결정으로 바꿀 기대) |
 | P2-4 | 아래 줄 메모 | `variants-27` | 없음 |
 | P2-5 | 깨진 Wi-Fi 이름표 | `variants-07` | 없음 |
 | P2-6 | 문장 거르기 | 없음 (`sign3` 비밀번호가 문장 → 없음) | 없음 |
