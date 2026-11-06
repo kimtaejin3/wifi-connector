@@ -312,6 +312,12 @@ class WifiCredentialParser {
     return parts.any((p) => p.length == 1 || _hasDigit.hasMatch(p));
   }
 
+  /// 비밀번호가 아니라 안내 문장으로 보이는 값: 세 단어 이상이거나, `'`가 든 여러 단어.
+  bool _sentenceLike(String v) {
+    final words = v.trim().split(_whitespace).length;
+    return words >= 3 || (words >= 2 && v.contains("'"));
+  }
+
   /// 비밀번호로 쓸 수 없는 값. WPA 비밀번호는 ASCII라 한글이 들어가면 안내문의 다른 글귀다.
   /// "없음"처럼 공개 네트워크를 뜻하는 말은 예외.
   bool _impossiblePassword(String value) =>
@@ -426,6 +432,9 @@ class WifiCredentialParser {
     // 값 칸에 붙어 읽힌 구분자 (":spaced_wifi")는 값이 아니다.
     final text = value.value.replaceFirst(_leadingSeparator, '');
     if (text.isEmpty) return;
+    // 이름표 아래·옆 칸에 있던 안내 문장 ("Ask our staff if it doesn't work")은 비밀번호가 아니다.
+    // 이름표 바로 뒤의 값은 이 함수를 지나지 않으므로 띄어쓰기 든 비밀번호 문구는 그대로다.
+    if (label.label!.type == WifiCandidateType.password && _sentenceLike(text)) return;
     // 세로쓰기 이름표 조각("파")이 표 열 맞추기로 이름이 되는 것을 막는다. 값 행의 칸이 모두 한 글자
     // 조각일 때만 감점하고, 이름표가 바로 앞 칸·바로 위 행에 있는 한 글자 값("SSID\nA")은 깎지 않는다.
     final fragment = fragmentRow && label.label!.type == WifiCandidateType.ssid && text.runes.length < 2;
@@ -553,11 +562,23 @@ class WifiCredentialParser {
       r++; // 아랫줄은 비밀번호이므로 다시 이름 후보로 보지 않는다.
     }
 
+    // 비밀번호는 이름표로 확실히 찾았는데 이름은 못 찾았을 때, 깨진 Wi-Fi 이름표 줄("wii - hong_studio")의
+    // 값을 이름 후보로 둔다. 짧은 영문·한글 낱말 + 구분자(또는 공백) + 이름 모양 값 한 칸짜리 행만 본다.
+    final hasLabeledPassword =
+        found.any((c) => c.type == WifiCandidateType.password && c.value.isNotEmpty && c.score >= 0.9);
+
     for (final row in rows) {
       for (final seg in row) {
         if (seg.isLabel || seg.consumed) continue;
         final v = seg.value.trim();
         if (v.isEmpty) continue;
+        if (!hasLabeledSsid && hasLabeledPassword && row.length == 1) {
+          final m = _brokenWifiLabelRow.firstMatch(v);
+          if (m != null && !_contactLabel.hasMatch(m.namedGroup('label')!) && _looksLikeSsid(m.namedGroup('value')!)) {
+            found.add(WifiCandidate(value: m.namedGroup('value')!, type: WifiCandidateType.ssid, score: 0.55));
+            continue;
+          }
+        }
         // 이름표가 깨지거나 띄어 읽혀 알아보지 못한 줄: "비 번 : 7ba19kx719", "H| H 7ba19kx719".
         // 이름을 이미 찾았고 앞부분이 짧은 글자뿐이면 오른쪽 값을 비밀번호 후보로 둔다.
         if (hasLabeledSsid && wifiContext) {
@@ -1188,6 +1209,8 @@ final _camelCase = RegExp(r'[a-z][A-Z]');
 final _licensePlate = RegExp(r'^\d{2,3}\s?[가-힣]\s?\d{4}$');
 /// 알아보지 못한 짧은 이름표 + (구분자 또는 공백) + 값 하나.
 final _brokenLabelRow = RegExp(r'^(?<label>[^\s:=：;|][^:=：;|]{0,11}?)\s*(?:[:=：;|]{1,3}|\s)\s*(?<value>\S+)$');
+/// 알아보지 못한 Wi-Fi 이름표 줄: 짧은 영문·한글 낱말(2~6자) + 구분자 또는 공백 + 값 하나 ("wii - hong_studio").
+final _brokenWifiLabelRow = RegExp(r'^(?<label>[A-Za-z가-힣]{2,6})\s*(?:[:=：;|.\-–—]{1,3}|\s)\s*(?<value>\S+)$');
 /// 연락처·영업 정보 줄의 이름표. 이 뒤의 값은 비밀번호로 보지 않는다.
 final _contactLabel = RegExp(
   r'tel|phone|call|fax|mobile|hp|open|close|전화|문의|연락|주소|영업|시간|휴무|예약|계좌|사업자',

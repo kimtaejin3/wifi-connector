@@ -293,8 +293,7 @@ Wi-Fi가 아닌 글 11장은 모두 맞게 걸러진다(P1-3, P1-4로 `variety-2
 | `variants-01` | 얇은 글꼴 | `Lumi_Cafe` · `lumi7788` | `Lumi Cafe` · `lumi7788` | OCR이 밑줄을 공백으로 읽음 (단어 간격 0.04×줄 높이) | F4, H1, I3 | P2-2 |
 | `variants-02` | 명조체 | `sodam_books` · `books1004` | `sodam books` · `books1004` | 위와 같음 (간격 0.03) | F4, H1, I3 | P2-2 |
 | `variants-03` | 아주 굵게·좁은 자간, 이름표 위·값 아래 | `HANA_COFFEE` · `hana0303` | `HANA COFFEE` · `hana0303` | 위와 같음 (간격 0.05) | F4, H1, I3 | P2-2 |
-| `variants-07` | 포스트잇 마커, 살짝 기울임 | `hong_studio` · `hong0812` | — · `hong0812` | OCR이 `wifi`를 `wii`로 읽어 이름표를 못 찾음(`wii - hong_studio`) | D2, G2 | P2-5 |
-| `sign3` | WIFI 제목 아래 ID / PW 두 열 | `momo_guest` · `hello1234` | `momo_guest` · `Ask our staff if it doesn't work` | OCR이 값 `hello1234`를 놓침 → PW 다음 줄 안내 문장을 비밀번호로 고름 | E6, F6 | P2-6 (+P4-2) |
+| `sign3` | WIFI 제목 아래 ID / PW 두 열 | `momo_guest` · `hello1234` | `momo_guest` · — | OCR이 값 `hello1234`를 놓침 → 비밀번호 없음 (PW 아래 안내 문장은 P2-6이 거름) | E6, F6 | P4-2 |
 | `variants-26` | 두 대역을 한 줄에 | `mint_house` 또는 `_5G` · `mint9090` | — · `mint9090` | `WiFi 2.4G 이름 /5G 이름` 한 칸을 여러 단어 값으로 보고 이름표 버림 | C3, D8 | P3-1 |
 | `variety-10` | 문장형 | `Sunny_Cafe` · `sunny2024` | `Sunny.Cafe` · `sunny2024` | OCR이 밑줄을 마침표로 읽음 | H1 | P3-2 |
 | `variants-04` | 값의 자간이 넓음 | `cozy_home` · `cozy2026` | `co_z_y_ho_me` · `cozy2026` | OCR이 글자 사이에 공백을 넣음(`co z y_ho me`) → 밑줄이 있으니 공유기 이름으로 보고 공백을 모두 밑줄로 | F4 | P3-3 |
@@ -495,7 +494,6 @@ Wi-Fi가 아닌 글 11장은 모두 맞게 걸러진다(P1-3, P1-4로 `variety-2
 | P2-1 + P2-2 | EXIF + 단어 간격 (+로더) | `photo-sign4-exif8`, `variants-01`, `variants-02`, `variants-03` | 없음 |
 | P2-3 | 첫 판: KT 정규화 + SK 이름 전체를 다시 씀(접두어 뒤 밑줄도 지움) | `variety-09`, `variants-22` | 3개 (`SK WiFiGIGA와 단어 속 giga는 건드리지 않는다`, `다른 통신사·공유기 이름도`, `16진수에 없는 O·I는 0·1로…`) |
 | P2-3 | 보수판: KT 정규화 + SK는 숫자·세로선만 | P2-3 | **결정판**: KT 정규화 + SK 접두어만 `SK_WiFiGIGA`로, 뒤는 읽은 그대로 | `variety-09`, `variants-22` | 1개 — `16진수에 없는 O·I는 0·1로…`의 `SK_WIFiGIGA7COD_2.4G` 기대 (운영자 결정으로 바꿀 기대) |
-| P2-4 | 아래 줄 메모 | P2-5 | 깨진 Wi-Fi 이름표 | `variants-07` | 없음 |
-| P2-6 | 문장 거르기 | 없음 (`sign3` 비밀번호가 문장 → 없음) | 없음 |
+| P2-4 | 아래 줄 메모 | P2-5 | 깨진 Wi-Fi 이름표 | P2-6 | 문장 거르기 | 없음 (`sign3` 비밀번호가 문장 → 없음) | 없음 |
 | P1 + P2 전체 (P2-3은 보수판) | | 20개 (53 → 73), P1-2+P2-1로 `photo-variety-06-exif6`도 | 없음 |
 | P1 + P2 전체 (P2-3은 결정판) | | 21개 (53 → 74) | 위 1개 (바꿀 기대) |

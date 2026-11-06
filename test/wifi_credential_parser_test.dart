@@ -704,6 +704,62 @@ void main() {
     });
   });
 
+  group('깨진 Wi-Fi 이름표 줄에서 이름 찾기 (P2-5)', () {
+    const parser = WifiCredentialParser();
+
+    test('비밀번호는 이름표로 찾았고 이름표가 깨진 줄은 이름 후보로 (wii - hong_studio)', () {
+      for (final line in ['wii - hong_studio', 'wii : hong_studio', 'wii hong_studio', '와이 - hong_studio']) {
+        final c = parser.parse('$line\npw - hong0812');
+        expect(c.ssid, 'hong_studio', reason: line);
+        expect(c.password, 'hong0812', reason: line);
+        expect(c.ssidConfidence, lessThan(WifiCredential.confidentThreshold), reason: line);
+      }
+    });
+
+    test('연락처 이름표 줄은 이름이 아니다', () {
+      for (final line in ['Tel - 02_1234', 'Fax : 02_1234', '전화 - 02_1234']) {
+        expect(parser.parse('$line\npw - hong0812').ssid, isNull, reason: line);
+      }
+    });
+
+    test('이름 모양이 아닌 값이나 긴 이름표는 이름이 아니다', () {
+      expect(parser.parse('wii - hong\npw - hong0812').ssid, isNull);
+      expect(parser.parse('information - hong_studio\npw - hong0812').ssid, isNull);
+    });
+
+    test('이름표로 이름을 찾았으면 쓰지 않고, 비밀번호를 이름표로 못 찾았으면 켜지 않는다', () {
+      expect(parser.parse('WIFI : cafe_momo\nwii - hong_studio\npw - hong0812').ssid, 'cafe_momo');
+      expect(parser.parse('wii - hong_studio\nhong0812').ssid, isNull);
+    });
+  });
+
+  group('문장을 비밀번호로 고르지 않기 (P2-6)', () {
+    const parser = WifiCredentialParser();
+
+    test('이름표 다음 줄의 영어 문장은 비밀번호가 아니다', () {
+      for (final sentence in ["Ask our staff if it doesn't work", 'Please ask the staff', "Can't connect? Ask us"]) {
+        final c = parser.parse('WIFI\nID\tmomo_guest\nPW\n$sentence');
+        expect(c.ssid, 'momo_guest', reason: sentence);
+        expect(c.password, isNull, reason: sentence);
+        expect(c.candidatesOf(WifiCandidateType.password), isEmpty, reason: sentence);
+      }
+      expect(parser.parse("PW\nIt doesn't work well").password, isNull);
+    });
+
+    test('같은 줄 옆 칸의 문장도 비밀번호가 아니다', () {
+      expect(parser.parse('WIFI : momo_guest\nPW\tAsk our staff please').password, isNull);
+    });
+
+    test('이름표 바로 뒤의 띄어쓰기 든 문구는 그대로 (E1)', () {
+      expect(parser.parse('Password: my secret pass').password, 'my secret pass');
+    });
+
+    test('떨어진 값이 두 단어 이하이면 그대로', () {
+      expect(parser.parse('WIFI : momo_guest\nPW\nmy secret').password, 'my secret');
+      expect(parser.parse('WIFI : momo_guest\nPW\nCoffee! 123').password, 'Coffee!123');
+    });
+  });
+
   group('Wi-Fi와 관계없는 글은 인식하지 않는다', () {
     const parser = WifiCredentialParser();
     for (final text in [
