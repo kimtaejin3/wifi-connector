@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui';
 
@@ -78,6 +79,72 @@ void main() {
 
     test('JPEG가 아니면 null', () {
       expect(exifFrameOf(Uint8List.fromList([1, 2, 3, 4])), isNull);
+    });
+  });
+
+  group('플랫폼: Android는 ML Kit이 이미 EXIF를 반영한 좌표를 준다', () {
+    Uint8List jpeg6() {
+      final image = img.Image(width: 40, height: 30)..exif.imageIfd.orientation = 6;
+      return Uint8List.fromList(img.encodeJpg(image));
+    }
+
+    test('상자가 저장 픽셀 좌표인 플랫폼(iOS)만 EXIF 보정을 한다', () {
+      expect(exifFrameForBoxes(jpeg6(), boxesInStoredPixels: true)?.orientation, 6);
+    });
+
+    test('Android 경로는 EXIF가 있어도 상자를 바꾸지 않는다 (이중 회전 방지)', () {
+      expect(exifFrameForBoxes(jpeg6(), boxesInStoredPixels: false), isNull);
+    });
+  });
+
+  group('lineFromWords: 믿을 수 없는 가로 간격은 건드리지 않는다', () {
+    // 실측(variants-43)의 "WIFI : Momo Coffee Roasters"를 [degrees]만큼 기울여 네 모서리를 회전한 뒤 축 정렬 상자로 만든다.
+    List<OcrWord> tilted(double degrees) {
+      final rad = degrees * 3.141592653589793 / 180;
+      final c = math.cos(rad), s = math.sin(rad);
+      const origin = Offset(800, 550);
+      Offset rot(double x, double y) => Offset(origin.dx + (x - origin.dx) * c - (y - origin.dy) * s,
+          origin.dy + (x - origin.dx) * s + (y - origin.dy) * c);
+      Rect box(double l, double t, double r, double b) {
+        final p = [rot(l, t), rot(r, t), rot(l, b), rot(r, b)];
+        return Rect.fromLTRB(p.map((o) => o.dx).reduce(math.min), p.map((o) => o.dy).reduce(math.min),
+            p.map((o) => o.dx).reduce(math.max), p.map((o) => o.dy).reduce(math.max));
+      }
+
+      return [
+        OcrWord('WIFI', box(451, 533, 554, 570)),
+        OcrWord(':', box(578, 542, 584, 567)),
+        OcrWord('Momo', box(607, 533, 752, 570)),
+        OcrWord('Coffee', box(771, 530, 924, 570)),
+        OcrWord('Roasters', box(945, 533, 1147, 570)),
+      ];
+    }
+
+    OcrLine build(List<OcrWord> words, {ExifFrame? frame}) => lineFromWords(
+          text: 'WIFI : Momo Coffee Roasters',
+          box: words.map((w) => w.box).reduce((a, b) => a.expandToInclude(b)),
+          words: words,
+          frame: frame,
+        );
+
+    test('똑바른 줄은 진짜 띄어쓰기를 공백으로 둔다', () {
+      expect(build(tilted(0)).text, 'WIFI : Momo Coffee Roasters');
+    });
+
+    test('기울어진 줄(8도)은 상자 높이가 부풀어 정상 공백이 좁아 보여도 글자를 바꾸지 않는다', () {
+      expect(build(tilted(8)).text, 'WIFI : Momo Coffee Roasters');
+      expect(build(tilted(-8)).text, 'WIFI : Momo Coffee Roasters');
+    });
+
+    test('거울상(EXIF 5·7)·지원하지 않는 방향이면 간격 보정을 건너뛴다', () {
+      final words = [OcrWord('Lumi', const Rect.fromLTRB(0, 0, 100, 50)), OcrWord('Cafe', const Rect.fromLTRB(102, 0, 200, 50))];
+      for (final o in [5, 7, 2, 4]) {
+        final line = lineFromWords(
+            text: 'Lumi Cafe', box: const Rect.fromLTRB(0, 0, 200, 50), words: words, frame: ExifFrame(o, const Size(300, 200)));
+        expect(line.text, 'Lumi Cafe', reason: '방향 $o');
+      }
+      // 같은 입력이 똑바른 줄이면 표시 글자가 들어간다
+      expect(lineFromWords(text: 'Lumi Cafe', box: const Rect.fromLTRB(0, 0, 200, 50), words: words).text, 'Lumi${gapMarker}Cafe');
     });
   });
 

@@ -56,7 +56,7 @@ const knownFailures = <String, String>{
   'variants-50': '공동현관·도어락 비밀번호를 Wi-Fi 비밀번호로 냄 (P1-3)',
   'variants-51': 'SNS 계정(@…)과 해시태그를 이름표 없는 카드의 이름·비밀번호로 냄 (P1-4)',
   'sign3': 'OCR이 비밀번호 값(hello1234)을 놓쳐 아래 안내 문장을 비밀번호로 고름 (P2-6, P4-2)',
-  'photo-variety-06-exif6': 'EXIF 회전(6) 사진의 상자는 이제 바로 서서 두 행이 되지만(값 행이 이름표 행보다 먼저 옴) 밑줄 앞 공백(Study _Room)이 겹쳐 Study__Room (P1-2)',
+  'photo-variety-06-exif6': 'EXIF 보정 뒤 ID ⇥ Study[표시]_Room / PW ⇥ study4321 두 행이 되지만 밑줄 앞 좁은 간격이 표시 글자(→ _)가 되어 Study__Room (P1-2)',
 };
 
 const _extractor = WifiCredentialExtractor();

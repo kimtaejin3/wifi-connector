@@ -10,8 +10,8 @@
   정답과 비교한다(`test/ocr_fixture_test.dart`). 폰 없이, 같은 결과가 매번 나온다.
 - **fixture 91개**: 기존 variety 24장 + 이번에 늘린 변형 51장(`test_signs/variants/`) + 낱장 6장(`sign1~4`,
   `sign-hotspot`, `sign-sk-band`) + EXIF 회전 사진 10장. 이 중 Wi-Fi가 아닌 글이 11장(variety 17~24, 변형 49~51).
-- **지금 결과**: 통과 57 · 알려진 실패 34 (`skip` + 사유, 4장 표; 감사 때는 53/38이었고 P2-1·P2-2 구현으로 `photo-sign4-exif8`, `variants-01~03`이 고쳐졌다). 실패 원인은 바로 고칠 수 있는 파서 규칙 22건
-  (P1·P2), 설계가 더 필요한 파서 규칙 5건(P3), 파서로는 못 고치는 OCR 단계 11건(P4).
+- **지금 결과**: 통과 57 · 알려진 실패 34 (`skip` + 사유, 4장 표; 감사 때는 53/38이었고 P2-1·P2-2 구현으로 `photo-sign4-exif8`, `variants-01~03`이 고쳐졌다). 실패 원인은 바로 고칠 수 있는 파서 규칙 18건
+  (P1·P2; 감사 때 22건에서 P2-1·P2-2로 4건 줄었다), 설계가 더 필요한 파서 규칙 5건(P3), 파서로는 못 고치는 OCR 단계 11건(P4).
 - **개선 항목 19개** (5장). 파서·`OcrService`에 임시 시제품을 넣어 재 보니 P1 다섯 항목만으로 통과가 53 → 65,
   시제품을 만든 P1·P2 항목 11개를 다 합치면 53 → 74(21개 고침)다. 기존 테스트는 P2-3에서 운영자 결정으로 기대를
   바꾸기로 한 1개(`SK_WIFiGIGA7COD_2.4G` 경우) 말고는 하나도 깨지지 않았다(7장). 시제품은 모두 되돌렸고 `lib/`는
@@ -156,7 +156,7 @@ OCR_FIXTURE_REPORT=build/ocr_fixture_report.md flutter test test/ocr_fixture_tes
 | A2 | `text` = ML Kit 원문(블록 → 줄 순서, `\n`). `layoutText` = 줄 상자의 세로 중심이 `min(높이)*0.5` 안이면 같은 행으로 묶고, 행 안은 왼쪽부터 탭(`\t`)으로 잇는다 (`layoutRows`). |
 | A3 | iOS 플러그인은 글자 신뢰도를 주지 않는다(`confidence: nil`, `symbols: []`). 그래서 iOS의 "불확실 글자"는 기호 오인식 글자(`ㅡ 一 ー ㅣ 丨 〇 ○ 井 ©`)에서만 생긴다. |
 | A4 | 실시간 인식은 가이드 영역 안 줄만 남긴다(`withLines`). 셔터 사진은 가이드 영역을 잘라 인식하고, 빠진 값이 있으면 전체 사진으로 다시 인식해 채운다. 갤러리 사진은 전체를 읽는다. |
-| A5 | 사진 파일(`recognizeFile`)은 JPEG의 EXIF 방향(3·6·8)과 저장 크기를 읽어 줄·단어 상자를 `uprightBox`로 똑바로 세운다(P2-1 구현). EXIF가 없는 파일(셔터 경로의 크롭 결과)·크기를 못 읽은 파일·거울상(2·4·5·7)은 그대로 둔다. 카메라 프레임(`recognizeImage`)은 건드리지 않는다. |
+| A5 | **iOS**의 사진 파일(`recognizeFile`)은 JPEG의 EXIF 방향(3·6·8)과 저장 크기를 읽어 줄·단어 상자를 `uprightBox`로 똑바로 세운다(P2-1 구현). Android는 `InputImage.fromFilePath`가 이미 EXIF대로 비트맵을 돌려 읽어 상자가 똑바로 서 있으므로 보정하지 않는다(두 번 돌리면 망가진다, 검토에서 확인). EXIF가 없는 파일(셔터 경로의 크롭 결과)·크기를 못 읽은 파일·거울상(2·4·5·7)은 그대로 둔다. 카메라 프레임(`recognizeImage`)은 건드리지 않는다. |
 
 ### B. 정규화 (`core/utils/text_normalizer.dart`, 파서 입력 전에 줄마다)
 
@@ -275,11 +275,10 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 | 원인 | 건수 | 개선 |
 |---|---|---|
 | 구분자·이름표 모양을 모름 (`ID.`, `▶`, `[WIFI]`, 값 칸에 붙은 `:`, `Password/PIN:`) | 5 | P1-1 |
-| OCR이 밑줄 옆에 공백을 넣음 (`Study _Room`, `one_ line_cafe`) | 2 | P1-2 |
+| OCR이 밑줄 옆에 공백을 넣음 (`Study _Room`, `one_ line_cafe`; EXIF 보정 뒤 `photo-variety-06-exif6` 포함) | 3 | P1-2 |
 | Wi-Fi가 아닌 글을 Wi-Fi로 냄 (화장실·현관 비밀번호, 예약 안내, SNS 카드) | 4 | P1-3, P1-4 |
 | 한 글자 이름 (세로쓰기 이름표) | 1 | P1-5 |
-| EXIF 회전 사진의 상자 좌표 | 2 | P2-1 (+P1-2) |
-| OCR이 밑줄을 공백으로 읽음 (가게 이름 띄어쓰기와 글자로는 못 가림) | 4 | P2-2, P3-5 |
+| OCR이 밑줄을 공백으로 읽음 (가게 이름 띄어쓰기와 글자로는 못 가림; 간격이 넓은 `Harbor Guest`만 남음) | 1 | P3-5 |
 | 통신사 공유기 이름을 OCR이 깨뜨림 | 2 | P2-3 |
 | 비밀번호 아래 줄 메모, 깨진 Wi-Fi 이름표, 비밀번호 대신 고른 문장 | 3 | P2-4, P2-5, P2-6 |
 | 한 줄 두 대역, 이름 속 `.`, 자간 넓은 이름, 줄바꿈된 비밀번호 | 4 | P3-1~P3-4 |
@@ -305,7 +304,7 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 | `variety-23` | 예약 안내 (영문+숫자 두 줄) | (Wi-Fi 아님) | `table07` · `guest2026` | 제목 `Reservation` + 두 줄을 이름표 없는 카드로 봄 | G1, J1 | P1-4 |
 | `variants-51` | SNS 홍보 카드 | (Wi-Fi 아님) | `@cafe_momo_official` · `#momo2026` | SNS 계정·해시태그를 카드의 이름·비밀번호로 봄 | G4, G5, J1 | P1-4 |
 | `variants-09` | 세로쓰기 이름표 | `maru_guest` · `maru4949` | `파` · `maru4949` | 세로 이름표를 한 글자씩 읽고, 표 열 맞추기로 한 글자 `파`를 이름으로 고름 | E6, F6 | P1-5 |
-| `photo-variety-06-exif6` | EXIF 회전 6 (variety-06) | `Study_Room` · `study4321` | `Study__Room` · `study4321` | 상자는 이제 바로 서서 두 행(`Study _Room ⇥ study4321` / `ID ⇥ PW`, 값 행이 이름표 행보다 먼저 옴)이 된다. 이름은 찾지만 밑줄 앞 공백이 겹쳐 `Study__Room` | E3, F4 | P1-2 |
+| `photo-variety-06-exif6` | EXIF 회전 6 (variety-06) | `Study_Room` · `study4321` | `Study__Room` · `study4321` | 보정 전에는 값 행이 이름표 행보다 먼저 오는 두 행(`Study _Room ⇥ study4321` / `ID ⇥ PW`)이었다. 보정 뒤에는 `ID ⇥ Study[표시]_Room` / `PW ⇥ study4321` 두 행이 되어 이름을 찾지만, 밑줄 앞 좁은 간격이 표시 글자(→ `_`)가 되어 `Study__Room` | E3, F4 | P1-2 |
 | `variety-09` | 통신사 공유기 이름 | `KT_GiGA_5G_Wave2_4F1A` · `k9x2m4p8q1` | `KT_GiGA5G_Wave2_4FIA` · `k9x2m4p8q1` | OCR이 `GIGA` 뒤 밑줄을 빠뜨리고 꼬리 1을 I로 읽음 → H3의 이름 모양에 안 맞아 꼬리를 못 고침 | H2, H3, G4 | P2-3 |
 | `variants-22` | SK 공유기 스티커 | `SK_WiFiGIGA9B2E` 또는 `_5G` · `B7DE1@4410` | `SK_WIF1GIGA9B2E` · `B7DE1@4410` | OCR이 `WiFi`를 `WIF1`로 읽음 | H2, H3 | P2-3 |
 | `variants-27` | 아래 줄 메모 "0은 숫자" | `zero_cafe` · `c0ffee0909` | `zero_cafe` · `coffee0909` | OCR이 0을 o로 읽었고, 다음 줄 메모("※ 0은 모두 숫자")는 쓰지 않음 | F2 | P2-4 |
@@ -381,7 +380,7 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 
 - **고치는 fixture (1~2)**: `photo-sign4-exif8`, P1-2와 함께면 `photo-variety-06-exif6`. 지금 통과하는 EXIF 사진 8장도 `layoutText`가 한 행으로 뭉개지지 않게 된다. 가장 위험한 실패(높은 신뢰도로 엉뚱한 값)라 P2 첫 번째로 둔다.
 - **구현 방향**: `OcrService.recognizeFile(path)`에서 JPEG의 EXIF Orientation과 저장 크기를 읽고, 줄 상자를 1.9의 식으로 바꾼 뒤 `layoutRows`에 넘긴다(방향 3·6·8; 5·7은 거울상이라 드묾). 같은 함수(예: `uprightBox`)를 `ocr_service.dart`에 두고 `OcrFixture.toOcrResult()`도 fixture의 `image` 값으로 그 함수를 부르게 한다. 다른 길: 갤러리 사진도 `cropImageFile`처럼 `bakeOrientation`으로 똑바로 다시 저장한 뒤 인식(디코딩 비용).
-- **구현됨 (fix-geometry)**: `ocr_service.dart`의 `exifFrameOf`(헤더만 읽어 방향·저장 크기), `uprightBox`, `lineFromWords`. `recognizeFile`과 `OcrFixture.toOcrResult()`가 같은 함수를 쓴다. `photo-sign4-exif8` 통과, EXIF 사진 10장의 행 구조가 원본과 같다(`test/ocr_geometry_test.dart`).
+- **구현됨 (fix-geometry)**: `ocr_service.dart`의 `exifFrameOf`(헤더만 읽어 방향·저장 크기), `uprightBox`, `lineFromWords`. `recognizeFile`(iOS만)과 `OcrFixture.toOcrResult()`가 같은 함수를 쓴다. `photo-sign4-exif8` 통과, EXIF 사진 10장의 행 구조가 원본과 같다(`test/ocr_geometry_test.dart`).
 - **위험**: 저장 크기를 잘못 읽으면 모든 상자가 틀어져 오히려 망가진다. 셔터 경로의 크롭 이미지는 이미 `bakeOrientation`을 거치므로 두 번 돌리면 안 된다 — EXIF가 없는 파일(크롭 결과)은 그대로 둔다.
 - **회귀 검사**: fixture EXIF 사진 10장(방향 3·6·8, 이름표·값 같은 줄/다른 줄/표)과 원본 fixture의 결과가 같아야 한다. `ocr_layout_test.dart`, `integration_test/ocr_pipeline_test.dart`(기기).
 
@@ -389,7 +388,7 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 
 - **고치는 fixture (3)**: `variants-01`, `variants-02`, `variants-03`. 실제 안내문에서 가장 흔할 실패 묶음이다(얇은·작은 글씨에서 밑줄이 사라짐).
 - **구현 방향**: `OcrService`가 줄 글자를 단어 상자로 다시 잇되, 단어 사이 간격이 줄 높이의 0.12배보다 좁으면 보통 공백 대신 표시 글자(시제품은 U+2009)를 넣는다. 파서는 값을 정리할 때 표시 글자를 이름이면 `_`, 비밀번호면 빈 문자로 바꾼다(1.9의 간격 수치 참고: 밑줄 자리 0.03~0.05, 진짜 띄어쓰기 0.28~0.60). fixture에는 단어 상자가 이미 있으니 로더가 같은 lib 함수로 줄 글자를 만들면 다시 뽑지 않아도 된다.
-- **구현됨 (fix-geometry)**: `joinWords`·`lineFromWords`가 간격 < 줄 높이 × 0.12(`wordGapRatio`)이면 `gapMarker`(U+2009)를 넣고, 파서 `_cleanValue`가 이름은 `_`, 비밀번호는 빈 문자로 바꾼다. `variants-01~03` 통과, `variants-43`·`sign3`은 그대로. 표시 글자는 `normalizeOcrText`를 그대로 지나가고, 불확실 글자 위치(`uncertainCharIndexes`)는 표시 글자를 공백/없음으로 보고 맞춘다. 결과 값·후보·투표기에는 남지 않는다(`test/gap_marker_leak_test.dart`). 부작용: 밑줄 옆의 좁은 공백이 `_`가 되어 `variants-19`가 `one__line_cafe`, `photo-variety-06-exif6`이 `Study__Room`이 된다 — 둘 다 P1-2(`\s*_\s*` → `_`)와 합치면 맞는다.
+- **구현됨 (fix-geometry)**: `joinWords`·`lineFromWords`가 간격 < 글자 높이(단어 상자 높이 중앙값) × 0.12(`wordGapRatio`)이면 `gapMarker`(U+2009)를 넣고, 파서 `_cleanValue`가 이름은 `_`, 비밀번호는 빈 문자로 바꾼다. `variants-01~03` 통과, `variants-43`·`sign3`은 그대로. 기울어진 줄(단어 중심 세로 편차 > 글자 높이의 절반)과 거울상·미지원 EXIF 방향(2·4·5·7)은 가로 간격을 믿을 수 없어 ML Kit 글자를 그대로 둔다(검토에서 8도 기울인 `variants-43`이 `Momo_Coffee_Roasters`가 되는 회귀 확인). 표시 글자는 `normalizeOcrText`를 그대로 지나가고, 불확실 글자 위치(`uncertainCharIndexes`)는 표시 글자를 공백/없음으로 보고 맞춘다. 결과 값·후보·투표기에는 남지 않는다(`test/gap_marker_leak_test.dart`). 부작용: 밑줄 옆의 좁은 공백이 `_`가 되어 `variants-19`가 `one__line_cafe`, `photo-variety-06-exif6`이 `Study__Room`이 된다 — 둘 다 P1-2(`\s*_\s*` → `_`)와 합치면 맞는다.
 - **위험**: 좁은 글꼴·작은 글씨에서 진짜 띄어쓰기가 좁게 잡히면 `Lemon House` 같은 이름에 밑줄이 생긴다. 기울어진 줄(`variants-11`)은 가로 간격이 왜곡될 수 있다. 표시 글자가 `normalizeOcrText`·불확실 글자 위치(K2)·투표기(L1, 글자 위치 다수결)에서 다른 글자로 섞이지 않게 해야 한다.
 - **회귀 검사**: fixture `variants-43`(진짜 띄어쓰기 이름 `Momo Coffee Roasters`가 그대로여야 함), `sign3` 안내 문장, 단위 테스트 `일반 가게 이름의 공백은 그대로 둔다`. 문턱값을 바꿀 때는 fixture 전체의 간격 분포를 다시 본다.
 
