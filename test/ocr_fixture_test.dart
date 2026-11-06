@@ -40,7 +40,6 @@ const knownFailures = <String, String>{
   'variants-46': 'OCR이 밑줄을 빠뜨리고 z를 Z로 읽음(guestZone) (P4-3)',
   'variants-48': 'OCR이 f와 밑줄을 빠뜨림(OficeGuest 3F) (P4-3)',
   'sign3': 'OCR이 값을 놓침, 비밀번호 없음 (hello1234를 못 읽어 PW 아래 안내 문장은 P2-6이 거름) (P4-2)',
-  'photo-variety-06-exif6': 'EXIF 보정 뒤 ID ⇥ Study[표시]_Room / PW ⇥ study4321 두 행이 되지만 밑줄 앞 좁은 간격이 표시 글자(→ _)가 되어 Study__Room (P1-2)',
 };
 
 const _extractor = WifiCredentialExtractor();
