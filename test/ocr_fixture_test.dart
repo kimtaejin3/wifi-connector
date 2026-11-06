@@ -24,7 +24,6 @@ import 'support/sign_answers.dart';
 /// 사유 끝의 P1-1 같은 번호는 그 문서 "5. 개선 항목"의 번호다.
 const knownFailures = <String, String>{
   'variety-07': 'OCR이 끝의 1을 l로 읽음(b83kd02jql). 글자만으로는 못 가림 (P4-1)',
-  'variety-09': 'OCR이 GIGA 뒤 밑줄을 빠뜨리고 1을 I로 읽음(KT_GIGA5G_Wave2_4FIA) (P2-3)',
   'variety-10': 'OCR이 밑줄을 마침표로 읽음(Sunny.Cafe) (P3-2)',
   'variety-16': 'OCR이 O와 0을 서로 바꿔 읽음(0CEAN_00, 00o00cean). 글자만으로는 못 가림 (P4-1)',
   'variants-01': 'OCR이 밑줄을 공백으로 읽음(Lumi Cafe). 가게 이름의 띄어쓰기와 글자로는 못 가림 (P2-2)',
@@ -32,13 +31,10 @@ const knownFailures = <String, String>{
   'variants-03': 'OCR이 밑줄을 공백으로 읽음(HANA COFFEE) (P2-2)',
   'variants-04': '값의 자간이 넓어 OCR이 글자 사이에 공백을 넣음(co z y_ho me → co_z_y_ho_me) (P3-3)',
   'variants-06': 'OCR(칠판 손글씨체)이 PW 줄을 통째로 놓침 (P4-2)',
-  'variants-07': 'OCR이 wifi를 wii로 읽어 이름표를 못 찾음(wii - hong_studio) (P2-5)',
   'variants-08': '손글씨체를 OCR이 잘못 읽음(dream_hou9e, drearm2580) (P4-3)',
   'variants-14': '이모지 아이콘을 OCR이 글자로 읽어 값에 붙임(al Sunrise_Inn, Psunrise2026) (P4-3)',
   'variants-15': 'OCR이 밑줄을 통째로 빠뜨림(nabihostel) (P4-3)',
-  'variants-22': 'OCR이 WiFi를 WIF1로 읽음(SK_WIF1GIGA9B2E). SK 접두어를 SK_WiFiGIGA로 고치면 맞음 (P2-3)',
   'variants-26': '한 줄에 두 대역(WiFi 2.4G 이름 /5G 이름)이 오면 이름표를 버림 (P3-1)',
-  'variants-27': 'OCR이 0을 o로 읽음(coffee0909). 아래 줄의 "0은 숫자" 메모를 쓰지 않음 (P2-4)',
   'variants-28': 'OCR이 메모가 붙은 PW 줄을 통째로 놓침 (P4-2)',
   'variants-31': 'OCR이 글자를 빠뜨리고 바꿔 읽음(l1Il0Oo2026 → I1l0002026) (P4-1)',
   'variants-32': '다음 줄로 넘어간 비밀번호 뒷부분(345678)을 잇지 않음 (P3-4)',
@@ -46,7 +42,7 @@ const knownFailures = <String, String>{
   'variants-45': 'OCR이 1을 l로 읽은 floorl_cafe를 고름 (P4-1)',
   'variants-46': 'OCR이 밑줄을 빠뜨리고 z를 Z로 읽음(guestZone) (P4-3)',
   'variants-48': 'OCR이 f와 밑줄을 빠뜨림(OficeGuest 3F) (P4-3)',
-  'sign3': 'OCR이 비밀번호 값(hello1234)을 놓쳐 아래 안내 문장을 비밀번호로 고름 (P2-6, P4-2)',
+  'sign3': 'OCR이 값을 놓침, 비밀번호 없음 (hello1234를 못 읽어 PW 아래 안내 문장은 P2-6이 거름) (P4-2)',
   'photo-sign4-exif8': 'EXIF 회전(8) 사진의 상자가 옆으로 누운 좌표라 행 순서가 뒤집혀 WELCOME / MOMO_GUEST를 고름 (P2-1)',
   'photo-variety-06-exif6': 'EXIF 회전(6) 사진이라 모든 줄이 한 행으로 묶이고 밑줄 앞 공백(Study _Room)까지 겹쳐 이름을 못 찾음 (P2-1, P1-2)',
 };
