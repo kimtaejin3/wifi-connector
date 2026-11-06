@@ -1160,4 +1160,34 @@ void main() {
       expectParsed('ID. a_b\nPW. c1234567', ssid: 'a_b', password: 'c1234567');
     });
   });
+
+  group('PR #2 2차 검토: 마침표 이름표·장소 비밀번호 설계', () {
+    test('칸 맨 앞 이름표 뒤 마침표는 구분자이고 뒤 이름표 분리도 그대로 탄다', () {
+      expectParsed('Password. abc12345 / SSID: a_b', ssid: 'a_b', password: 'abc12345');
+      expectParsed('ID. a_b\nPW. c1234567', ssid: 'a_b', password: 'c1234567');
+      expectParsed('ID. a_b / PW. c1234567', ssid: 'a_b', password: 'c1234567');
+    });
+
+    test('문장 가운데 마침표는 구분자가 아니다', () {
+      expectParsed('Please ask for password. Next sentence', ssid: null, password: null);
+    });
+
+    test('장소 비밀번호 낱말이 SSID 값 안쪽이면 건드리지 않는다', () {
+      expectParsed('SSID: 화장실비밀번호연구소\nPW: abc12345', ssid: '화장실비밀번호연구소', password: 'abc12345');
+    });
+
+    test('한 줄에 Wi-Fi·현관 비밀번호가 함께 있어도 Wi-Fi 값을 고른다', () {
+      expectParsed('WIFI : a_b / PW : c1234567 / 현관 비밀번호 : 1357*', ssid: 'a_b', password: 'c1234567');
+      expectParsed('현관 비밀번호 : 1357* / WIFI : a_b / PW : c1234567', ssid: 'a_b', password: 'c1234567');
+    });
+
+    test('방어 입력 모음', () {
+      expectParsed('SSID\nA\nPW\nabc12345', ssid: 'A', password: 'abc12345');
+      expectParsed('SSID\tA\nPW\tabc12345', ssid: 'A', password: 'abc12345');
+      expectParsed('SSID:\nA\nPW: abc12345', ssid: 'A', password: 'abc12345');
+      expectParsed('SSID: a_b\nPassword/PIN: 12345678', ssid: 'a_b', password: '12345678');
+      expectParsed('ID/PW : momo_cafe / abc12345', ssid: 'momo_cafe', password: 'abc12345');
+      expectParsed('No. 1234', ssid: null, password: null);
+    });
+  });
 }
