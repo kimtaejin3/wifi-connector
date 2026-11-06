@@ -179,7 +179,7 @@ class WifiCredentialParser {
       }
     }
 
-    final wifiContext = _wifiContext.hasMatch(normalizeOcrText(rawText));
+    final wifiContext = _wifiContext.hasMatch(normalizeOcrText(rawText).replaceAll(_otherPlacePassword, ' '));
     _addUnlabeledFallbacks(rows, found, wifiContext: wifiContext);
     _addSeparatorVariants(found);
     _addKtGigaVariants(found);
@@ -202,6 +202,15 @@ class WifiCredentialParser {
     if (ssid == null || password == null || password.isEmpty) return false;
     final lines = rows.where((r) => r.any((s) => s.value.trim().isNotEmpty || s.isLabel)).length;
     if (lines > 3) return false;
+    // SNS 계정("@cafe_momo")은 Wi-Fi 이름이 아니다.
+    if (ssid.startsWith('@')) return false;
+    // 예약·주문·쿠폰·회원·영수증 안내의 두 줄은 이름표 없는 Wi-Fi 카드가 아니다.
+    // 이름·비밀번호로 고른 줄 자신은 제목으로 보지 않는다 ("code_cafe7").
+    final titled = rows.any((r) {
+      final first = r.first.value.trim();
+      return first != ssid && first != password && _notCardTitle.hasMatch(first);
+    });
+    if (titled) return false;
     // 영어 단어 하나("ORANGE", "Alice")나 한글 낱말은 이름으로 보지 않는다.
     // 숫자·밑줄·하이픈이 섞였거나 "MomoCafe"처럼 단어를 붙여 쓴 이름만 받는다.
     final ssidOk = (_hasDigit.hasMatch(ssid) || ssid.contains(RegExp(r'[_\-]')) || _camelCase.hasMatch(ssid)) &&
@@ -542,6 +551,7 @@ class WifiCredentialParser {
       !_greetingWords.contains(v.toLowerCase().replaceAll(_noisePunctuation, ''));
 
   bool _looksLikeSsid(String v) =>
+      !v.startsWith('@') &&
       utf8.encode(v).length <= 32 &&
       !_bandOnly.hasMatch(v) &&
       _ssidShape.hasMatch(v) &&
@@ -798,6 +808,13 @@ class WifiCredentialParser {
     // RegExp.matchAsPrefix는 항상 RegExpMatch를 돌려준다.
     final m = re.matchAsPrefix(cell, pos) as RegExpMatch?;
     if (m == null) return null;
+    // "화장실 비밀번호", "공동현관 비밀번호" — Wi-Fi 비밀번호가 아니다. "현관 와이파이 비밀번호"처럼
+    // 비밀번호 앞에 와이파이 말이 붙어 있으면 앞말이 바로 붙지 않으므로 그대로 이름표다.
+    if (type == WifiCandidateType.password &&
+        m.namedGroup('wifi') == null &&
+        _otherPlaceBefore.hasMatch(cell.substring(0, pos))) {
+      return null;
+    }
     final strength = m.namedGroup('strong') != null
         ? _Strength.strong
         : (m.namedGroup('weak') != null ? _Strength.weak : _Strength.medium);
@@ -917,7 +934,7 @@ const _particle = r'(?:(?:는|은|이|가|를|을)(?=\s|[:=：;|]|$)|\s+is(?=\s|
 const _boundary = r'(?![\p{L}\p{N}_]|-[\p{L}\p{N}])';
 
 final _passwordLabel = RegExp(
-  '$_free(?:(?:$_wifiWord|$_network)\\s*)?'
+  '$_free(?:(?<wifi>$_wifiWord|$_network)\\s*)?'
   '(?:(?<strong>pass\\s?w[o0]r?d|p\\s?a\\s?s\\s?s\\s?w\\s?[o0]\\s?r\\s?d|passward|passwd|passcode|pwd|p\\s?/\\s?w|p\\.w\\.?|p\\s{0,2}(?:w|vv)'
   '|비[\\s|Il1]*밀[\\s|Il1]*번[\\s|Il1]*호|비\\s*번|암\\s*호(?:\\s*키)?|보\\s*안\\s*키|네트\\s?워크\\s*키|패\\s*스\\s*워\\s*드)|(?<weak>pass|key))'
   '$_particle$_boundary',
@@ -986,6 +1003,13 @@ final _hasSymbol = RegExp(r'[^A-Za-z0-9\s]');
 /// 02-1234-5678, 010.1234.5678, +82-10-1234-5678 같은 전화번호 모양.
 final _phoneLike = RegExp(r'^\+?\d[\d().]*[-.)][\d\-.()]*\d$');
 final _ispPrefix = RegExp(r'^(?:kt|skt?|lgu?|u\+|olleh|iptime|giga|anygate|netis|tp-?link)(?=[\s_]|net|wifi|giga|$)', caseSensitive: false);
+/// Wi-Fi가 아닌 곳의 비밀번호 앞말: 화장실, 현관, 도어락, 출입문, 대문, 주차장, 사물함, 보관함, 택배함, 금고(+문).
+const _otherPlace = r'(?:화장실|현관|도어락|출입문|대문|주차장|사물함|보관함|택배함|금고)(?:\s*문)?';
+final _otherPlaceBefore = RegExp('$_otherPlace\\s*\$');
+final _otherPlacePassword = RegExp(
+  '$_otherPlace\\s*(?:비[\\s|Il1]*밀[\\s|Il1]*번[\\s|Il1]*호|비\\s*번|암\\s*호|패\\s*스\\s*워\\s*드|pass\\s?w[o0]r?d|passcode|pwd|pw)',
+  caseSensitive: false,
+);
 /// 글 어딘가에 Wi-Fi 안내문이라는 단서가 있는지. "ID", "Name", "Key" 같은 일반 이름표는 단서로 치지 않는다.
 final _wifiContext = RegExp(
   '(?<![a-z])(?:$_wifi|wlan|s\\s?[s5]\\s?[i1l]\\s?d)'
@@ -1022,6 +1046,11 @@ final _garbledIdLabel = RegExp(r'^[O0][FHE][O0][Il1|][CTIAl1|]{0,2}$');
 /// 날짜·시각 (20261007, 2026-10-07, 10:00, 09:00~22:00).
 final _dateOrTime = RegExp(
   r'^(?:(?:19|20)\d{2}[-./]?\d{2}[-./]?\d{2}|\d{1,2}:\d{2}(?:\s*[~\-–]\s*\d{1,2}:\d{2})?)$',
+);
+/// 이름표 없는 카드 위나 아래에 이 낱말로 시작하는 줄이 있으면 Wi-Fi 안내가 아닌 글이다.
+final _notCardTitle = RegExp(
+  r'^(?:reservation|예약|order|주문|coupon|쿠폰|code|member(?:ship)?|회원|follow(?:\s+us)?|팔로우|ticket|티켓|receipt|영수증)',
+  caseSensitive: false,
 );
 /// 단어를 붙여 쓴 이름 (MomoCafe, iPhone).
 final _camelCase = RegExp(r'[a-z][A-Z]');

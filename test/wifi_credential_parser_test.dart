@@ -1091,4 +1091,56 @@ void main() {
       );
     });
   });
+
+  group('P1-3 화장실·현관 비밀번호는 Wi-Fi 비밀번호가 아니다', () {
+    test('화장실 비밀번호', () {
+      expectParsed('화장실 비밀번호\n1234*', ssid: null, password: null);
+    });
+
+    test('공동현관·도어락 비밀번호', () {
+      expectParsed('공동현관 비밀번호 : #2580*', ssid: null, password: null);
+      expectParsed('도어락 비밀번호 : 0909*\n분리수거는 목요일', ssid: null, password: null);
+    });
+
+    test('Wi-Fi 단서가 아닌 다른 장소 비밀번호들', () {
+      expectParsed('출입문 비밀번호: abc12345678\n주차장 비번: 99887766aa', ssid: null, password: null);
+      expectParsed('사물함 문 비밀번호: abc12345678', ssid: null, password: null);
+    });
+
+    test('Wi-Fi 비밀번호와 함께 적힌 안내문은 Wi-Fi 쪽이 이긴다', () {
+      expectParsed('WIFI : a_b\nPW : c1234567\n현관 비밀번호 : 1357*', ssid: 'a_b', password: 'c1234567');
+      expectParsed('Wi-Fi:stay_ocean_view\nPW: ocean7777\n현관 비밀번호 : 1357*\n체크아웃 11:00',
+          ssid: 'stay_ocean_view', password: 'ocean7777');
+    });
+
+    test('앞말이 바로 붙지 않은 와이파이 비밀번호는 그대로 인식한다', () {
+      expectParsed('현관 와이파이 비밀번호 : abc12345', ssid: null, password: 'abc12345');
+    });
+  });
+
+  group('P1-4 이름표 없는 카드 모양 오탐', () {
+    test('예약 안내 두 줄', () {
+      expectParsed('Reservation\ntable07\nguest2026', ssid: null, password: null);
+      expectParsed('예약 안내\ntable07\nguest2026', ssid: null, password: null);
+    });
+
+    test('SNS 계정·해시태그', () {
+      expectParsed('FOLLOW US\n@cafe_momo_official\n#momo2026', ssid: null, password: null);
+      expectParsed('@cafe_momo\nabc12345xyz', ssid: null, password: null);
+    });
+
+    test('주문·쿠폰·회원·영수증 제목의 두 줄', () {
+      for (final title in ['Order', '쿠폰', 'COUPON', 'Membership', '회원 가입', 'Ticket', '영수증', 'receipt no']) {
+        expectParsed('$title\nsale_2026\nabc12345xyz', ssid: null, password: null);
+      }
+    });
+
+    test('가게 이름 제목이 붙은 이름표 없는 카드는 그대로 인식한다', () {
+      expectParsed('CAFE LUNAHOUSE\nlunahouse7\nb83kd02jq1', ssid: 'lunahouse7', password: 'b83kd02jq1');
+    });
+
+    test('이름이 제목 낱말로 시작해도 이름·비밀번호 줄은 제목으로 보지 않는다', () {
+      expectParsed('CAFE\ncode_cafe7\nb83kd02jq1', ssid: 'code_cafe7', password: 'b83kd02jq1');
+    });
+  });
 }
