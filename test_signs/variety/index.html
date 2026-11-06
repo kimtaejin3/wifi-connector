@@ -61,22 +61,7 @@
 
 <div class="num" id="num"></div>
 <div class="nav">← → 또는 클릭으로 넘기기</div>
-<script>
-  const slides = [...document.querySelectorAll('.slide')];
-  let i = 0;
-  try { i = Math.min(+localStorage.getItem('sign') || 0, slides.length - 1); } catch (e) {}
-  function show(n) {
-    i = (n + slides.length) % slides.length;
-    slides.forEach((s, k) => s.classList.toggle('on', k === i));
-    document.getElementById('num').textContent = `${i + 1} / ${slides.length}`;
-    try { localStorage.setItem('sign', i); } catch (e) {}
-  }
-  document.addEventListener('keydown', e => {
-    if (e.key === 'ArrowRight' || e.key === ' ') show(i + 1);
-    if (e.key === 'ArrowLeft') show(i - 1);
-  });
-  document.addEventListener('click', e => show(e.clientX > innerWidth / 3 ? i + 1 : i - 1));
-  show(i);
-</script>
+<!-- 넘기기와 ?slide=N 한 장 보기 (tool/render_signs.sh가 씀) -->
+<script src="../slides.js"></script>
 </body>
 </html>

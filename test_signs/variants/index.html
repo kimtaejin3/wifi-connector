@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>안내문 변형 테스트</title>
+<!-- 한국 카페·식당·숙소·사무실 안내문에서 흔한 변형을 모은 슬라이드. 모든 이름·비밀번호는 지어낸 값이다.
+     정답은 answers.md. tool/render_signs.sh가 ?slide=N 으로 한 장씩 PNG로 찍는다. -->
+<style>
+  :root { --bg:#d9d9d9; --paper:#fff; --ink:#111; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); font-family:-apple-system,"Apple SD Gothic Neo",sans-serif; color:var(--ink); }
+  .slide { display:none; height:100vh; align-items:center; justify-content:center; padding:24px; }
+  .slide.on { display:flex; }
+  .paper { background:var(--paper); padding:48px 72px; border:1px solid #bbb; box-shadow:0 2px 10px rgba(0,0,0,.12); text-align:center; max-width:1100px; }
+  .big { font-size:54px; font-weight:700; line-height:1.6; }
+  .mid { font-size:40px; font-weight:600; line-height:1.6; }
+  .small { font-size:26px; line-height:1.6; color:#444; }
+  .tiny { font-size:20px; line-height:1.5; color:#555; }
+  .title { font-size:34px; font-weight:800; margin-bottom:18px; letter-spacing:2px; }
+  .left { text-align:left; }
+  .wide { letter-spacing:22px; }
+  table { border-collapse:collapse; margin:0 auto; }
+  td, th { border:2px solid #222; padding:14px 26px; font-size:38px; }
+  th, td.k { font-weight:700; background:#f2f2f2; }
+  .mono { font-family:Menlo,"Courier New",monospace; }
+  .sticker { background:#f7f7f2; border:2px solid #999; border-radius:10px; text-align:left; font-size:26px; line-height:1.75; padding:30px 44px; }
+  .pill { display:inline-block; background:#2c5fd6; color:#fff; border-radius:40px; padding:2px 26px; margin-right:22px; font-size:34px; }
+  .hand { font-family:"Bradley Hand","Comic Sans MS",cursive; }
+  .row2 { display:flex; align-items:flex-start; gap:40px; justify-content:center; }
+</style>
+</head>
+<body>
+
+<!-- 1 얇은 글꼴 -->
+<section class="slide"><div class="paper" style="font-size:56px; font-weight:200; color:#555; line-height:1.7">WIFI : Lumi_Cafe<br>PW : lumi7788</div></section>
+<!-- 2 명조체 -->
+<section class="slide"><div class="paper" style="font-family:AppleMyungjo,serif; font-size:52px; line-height:1.7">와이파이 : sodam_books<br>비밀번호 : books1004</div></section>
+<!-- 3 아주 굵게, 좁은 자간, 이름표 위·값 아래 -->
+<section class="slide"><div class="paper" style="font-weight:900; letter-spacing:-3px; line-height:1.35"><div style="font-size:34px">WI-FI</div><div style="font-size:64px">HANA_COFFEE</div><div style="font-size:34px; margin-top:24px">PASSWORD</div><div style="font-size:64px">hana0303</div></div></section>
+<!-- 4 값의 자간이 넓음 -->
+<section class="slide"><div class="paper mid">Wi-Fi : <span style="letter-spacing:16px">cozy_home</span><br>PW : <span style="letter-spacing:16px">cozy2026</span></div></section>
+<!-- 5 둥근 글꼴 기울임 -->
+<section class="slide"><div class="paper" style="font-family:'Arial Rounded MT Bold',sans-serif; font-style:italic; font-size:54px; line-height:1.7; color:#c2407a">WiFi: Peach_Garden<br>Pass: peach5959</div></section>
+<!-- 6 칠판 손글씨 -->
+<section class="slide"><div class="paper" style="background:#24382c; border:14px solid #7a5a3a; color:#f4f4ec; font-family:Chalkduster,fantasy; font-size:50px; line-height:1.8; padding:56px 90px">Today's WiFi<br>ID : chalk_cafe<br>PW : chalk1234</div></section>
+<!-- 7 포스트잇 마커, 살짝 기울임 -->
+<section class="slide"><div class="paper" style="background:#fff59a; border:none; font-family:'Marker Felt',fantasy; font-size:60px; line-height:1.6; transform:rotate(2deg); padding:70px 80px">wifi - hong_studio<br>pw - hong0812</div></section>
+<!-- 8 한글 이름표 + 손글씨 값 -->
+<section class="slide"><div class="paper" style="font-size:52px; line-height:1.8">와이파이: <span style="font-family:Noteworthy,cursive">dream_house</span><br>비번: <span style="font-family:Noteworthy,cursive">dream2580</span></div></section>
+<!-- 9 세로쓰기 이름표 -->
+<section class="slide"><div class="paper" style="display:flex; gap:40px; align-items:center; font-size:46px; font-weight:700"><div style="writing-mode:vertical-rl; font-size:40px; letter-spacing:6px; border-right:3px solid #333; padding-right:24px">와이파이</div><div style="text-align:left; line-height:2">maru_guest<br>maru4949</div><div style="writing-mode:vertical-rl; font-size:40px; letter-spacing:6px; border-left:3px solid #333; padding-left:24px">비밀번호</div></div></section>
+<!-- 10 작은 이름표 위에 아주 큰 값 -->
+<section class="slide"><div class="paper"><div style="font-size:24px; color:#888; letter-spacing:4px">NETWORK</div><div style="font-size:84px; font-weight:800">Bloom_Flower</div><div style="font-size:24px; color:#888; letter-spacing:4px; margin-top:30px">PASSWORD</div><div style="font-size:84px; font-weight:800">bloom2024!!</div></div></section>
+<!-- 11 기울어지게 찍힌 안내문 -->
+<section class="slide"><div class="paper big" style="transform:rotate(-7deg)">WIFI : tilt_cafe<br>PW : tilt5678</div></section>
+<!-- 12 표: 헤더 행 + 값 행 -->
+<section class="slide"><div class="paper"><table><tr><th>SSID</th><th>PASSWORD</th></tr><tr><td>grid_cafe</td><td>grid1357</td></tr></table></div></section>
+<!-- 13 표: 대역별 두 이름 -->
+<section class="slide"><div class="paper"><table><tr><th>구분</th><th>와이파이 이름</th><th>비밀번호</th></tr><tr><td>2.4G</td><td>duo_net</td><td>duo24680</td></tr><tr><td>5G</td><td>duo_net_5G</td><td>duo24680</td></tr></table></div></section>
+<!-- 14 이모지 아이콘만 -->
+<section class="slide"><div class="paper big">📶 Sunrise_Inn<br>🔑 sunrise2026</div></section>
+<!-- 15 와이파이명 / 패스워드 -->
+<section class="slide"><div class="paper big">와이파이명 : nabi_hostel<br>패스워드 : nabi0505</div></section>
+<!-- 16 네트워크 / 암호 -->
+<section class="slide"><div class="paper big">네트워크 : SEOUL_LOFT<br>암호 : loft3030</div></section>
+<!-- 17 ID. / PW. (마침표 구분) -->
+<section class="slide"><div class="paper big">ID. orange_box<br>PW. orange8282</div></section>
+<!-- 18 ▶ 기호 구분 -->
+<section class="slide"><div class="paper big">WiFi ▶ star_lounge<br>PW ▶ star7979</div></section>
+<!-- 19 한 줄에 모두 -->
+<section class="slide"><div class="paper mid">WIFI&nbsp; one_line_cafe &nbsp;/&nbsp; PW&nbsp; oneline2468</div></section>
+<!-- 20 이름표 자간이 넓음 -->
+<section class="slide"><div class="paper big"><span class="wide">WIFI</span> : spaced_wifi<br><span class="wide">PW</span> : spaced2468</div></section>
+<!-- 21 KT 공유기 스티커 (관리자 암호·MAC 함께) -->
+<section class="slide"><div class="sticker mono"><b>KT GiGA WiFi</b><br>SSID(2.4GHz) : KT_GiGA_2G_7A3F<br>SSID(5GHz) : KT_GiGA_5G_7A3F<br>비밀번호 : 3f8kd02pa7<br>MAC : 00:1A:2B:3C:4D:5E<br>S/N : KTA2026B0099<br>관리자 암호 : admin7a3f</div></section>
+<!-- 22 SK 공유기 스티커 -->
+<section class="slide"><div class="sticker"><b>SK broadband</b><br>무선랜 이름(SSID)<br><span class="mono">SK_WiFiGIGA9B2E</span><br><span class="mono">SK_WiFiGIGA9B2E_5G</span><br>무선랜 암호(KEY)<br><span class="mono">B7DE1@4410</span></div></section>
+<!-- 23 LG U+ 공유기 스티커 (표) -->
+<section class="slide"><div class="sticker"><b>U+ 와이파이</b><table style="margin-top:12px"><tr><td class="k" style="font-size:26px">무선랜 이름</td><td class="mono" style="font-size:26px">U+Net9F3C</td></tr><tr><td class="k" style="font-size:26px">무선랜 이름(5G)</td><td class="mono" style="font-size:26px">U+Net9F3C_5G</td></tr><tr><td class="k" style="font-size:26px">무선랜 암호</td><td class="mono" style="font-size:26px">9F3CA4E8D1</td></tr><tr><td class="k" style="font-size:26px">웹관리 암호</td><td class="mono" style="font-size:26px">9F3C000001</td></tr></table></div></section>
+<!-- 24 ipTIME 라벨 -->
+<section class="slide"><div class="sticker mono" style="font-size:30px"><b>ipTIME A3004NS</b><br>SSID : iptime_A1C9<br>Password : 87420631<br>Model : A3004NS-M</div></section>
+<!-- 25 영문 공유기 라벨 -->
+<section class="slide"><div class="sticker" style="font-family:Arial,sans-serif; font-size:28px">Wireless Network Name (SSID): TP-Link_5E2A<br>Wireless Password/PIN: 51837264<br>Default Access: http://tplinkwifi.net</div></section>
+<!-- 26 두 대역을 한 줄에 -->
+<section class="slide"><div class="paper mid">WiFi 2.4G mint_house / 5G mint_house_5G<br>비밀번호 mint9090</div></section>
+<!-- 27 아래 줄의 메모 "0은 숫자" -->
+<section class="slide"><div class="paper big">WIFI : zero_cafe<br>PW : c0ffee0909<div class="small">※ 0은 모두 숫자 영(0)이에요</div></div></section>
+<!-- 28 같은 줄의 메모 "← 0은 숫자" (영문 O도 섞임) -->
+<section class="slide"><div class="paper big">WIFI : loop_cafe<br>PW : LOOP0909 <span class="small">← 0은 숫자</span></div></section>
+<!-- 29 특수문자 비밀번호 -->
+<section class="slide"><div class="paper big">WIFI : symbol_bar<br>PW : m@cha#2026!</div></section>
+<!-- 30 마침표·밑줄이 든 비밀번호, 하이픈 이름 -->
+<section class="slide"><div class="paper big">WIFI : dot-cafe<br>PW : grape.juice_77</div></section>
+<!-- 31 O/0, I/l/1 혼동 -->
+<section class="slide"><div class="paper big">WIFI : HILL_TOP_10<br>PW : l1Il0Oo2026</div></section>
+<!-- 32 긴 비밀번호가 다음 줄로 넘어감 -->
+<section class="slide"><div class="paper big" style="width:760px; text-align:left">WIFI : long_pw_cafe<br>PW : abcdefgh12<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;345678</div></section>
+<!-- 33 작은 이름표와 큰 값의 높이가 어긋남 -->
+<section class="slide"><div class="paper"><div class="row2"><div style="font-size:26px; color:#666; padding-top:6px">SSID</div><div style="font-size:78px; font-weight:800">BIG_SKY_CAFE</div></div><div class="row2" style="margin-top:20px"><div style="font-size:26px; color:#666; padding-top:6px">PW</div><div style="font-size:78px; font-weight:800">sky55555</div></div></div></section>
+<!-- 34 포스터 속 와이파이 (행사·SNS·전화번호와 섞임) -->
+<section class="slide"><div class="paper" style="width:1000px"><div style="font-size:70px; font-weight:900; color:#b8321f">GRAND OPEN</div><div class="mid">아메리카노 1+1 이벤트</div><div class="small">2026.11.01 ~ 11.30 · @momo_bakery · #빵스타그램</div><div style="border:3px dashed #555; display:inline-block; margin:26px 0 10px; padding:14px 34px; font-size:34px; font-weight:700">WIFI momo_bakery_guest &nbsp; PW bake2026</div><div class="small">TEL 031-123-4567</div></div></section>
+<!-- 35 영수증 아래 와이파이 -->
+<section class="slide"><div class="paper mono left" style="font-size:28px; line-height:1.6; width:620px">모모분식<br>김밥 2&nbsp;&nbsp;&nbsp;&nbsp;7,000<br>라면 1&nbsp;&nbsp;&nbsp;&nbsp;4,500<br>합계&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;11,500<br>카드 ****1234<br>------------------<br>[WIFI] snack_bar_free<br>[PW] snack1004<br>감사합니다</div></section>
+<!-- 36 숙소 안내 (현관 비밀번호 함께) -->
+<section class="slide"><div class="paper left mid" style="line-height:1.7"><div class="title">WELCOME</div>Wi-Fi : stay_ocean_view<br>PW : ocean7777<br>현관 비밀번호 : 1357*<br>체크아웃 11:00</div></section>
+<!-- 37 네온 간판 -->
+<section class="slide"><div class="paper" style="background:#0b0b12; border:none; color:#ffd6f4; text-shadow:0 0 8px #ff3fb4,0 0 22px #ff3fb4; font-size:58px; font-weight:700; line-height:1.6; padding:60px 100px">FREE WIFI<br>neon_pub<br>PASSWORD<br>neon2580</div></section>
+<!-- 38 색 알약 이름표 -->
+<section class="slide"><div class="paper left" style="font-size:52px; font-weight:700; line-height:2"><span class="pill">WIFI</span>pill_cafe<br><span class="pill">PW</span>pill3690</div></section>
+<!-- 39 비밀번호 없음 (공개 네트워크) -->
+<section class="slide"><div class="paper mid"><div class="title">FREE WIFI</div>와이파이 : open_park<br>비밀번호 없음</div></section>
+<!-- 40 비밀번호는 카운터 문의 -->
+<section class="slide"><div class="paper mid">WIFI : ask_counter_cafe<br>비밀번호는 카운터에 문의해 주세요</div></section>
+<!-- 41 영문 문장 -->
+<section class="slide"><div class="paper mid" style="font-family:Georgia,serif">Connect to: Harbor_Guest<br>The password is harbor2026</div></section>
+<!-- 42 따옴표 문장 -->
+<section class="slide"><div class="paper mid">와이파이 : 햇살카페<br>와이파이 비밀번호는 “sun1234!” 입니다</div></section>
+<!-- 43 공백이 든 이름 -->
+<section class="slide"><div class="paper big">WIFI : Momo Coffee Roasters<br>PW : roast0101</div></section>
+<!-- 44 한글 이름 + 대역 꼬리 -->
+<section class="slide"><div class="paper big">와이파이 : 모모커피_5G<br>비밀번호 : momo5g5g</div></section>
+<!-- 45 층별 두 네트워크 -->
+<section class="slide"><div class="paper big">1F WIFI : floor1_cafe<br>2F WIFI : floor2_cafe<br>PW : floors1212</div></section>
+<!-- 46 손님용 / 직원용 -->
+<section class="slide"><div class="paper mid left">손님용 WIFI : guest_zone<br>PW : guest3333<br><span style="color:#999">직원용 WIFI : staff_only<br>PW : staff9999</span></div></section>
+<!-- 47 QR 코드 옆 -->
+<section class="slide"><div class="paper" style="display:flex; gap:50px; align-items:center"><canvas id="qr" width="252" height="252"></canvas><div class="mid left">WiFi : qr_corner<br>PW : qrcode2026<div class="small">QR을 스캔하면 바로 연결돼요</div></div></div></section>
+<!-- 48 사무실 회의실 게스트 와이파이 -->
+<section class="slide"><div class="paper left mid" style="line-height:1.7"><div class="title">3층 회의실 게스트 Wi-Fi</div>네트워크 : Office_Guest_3F<br>비밀번호 : visit2026#<div class="small">직원용 네트워크는 IT팀에 문의하세요</div></div></section>
+
+<!-- Wi-Fi가 아닌 글 -->
+<!-- 49 화장실 비밀번호 -->
+<section class="slide"><div class="paper big">화장실 비밀번호<br>1234*<div class="small">※ 영수증 하단에도 있어요</div></div></section>
+<!-- 50 공동현관·도어락 -->
+<section class="slide"><div class="paper mid left">공동현관 비밀번호 : #2580*<br>도어락 비밀번호 : 0909*<br>분리수거는 목요일</div></section>
+<!-- 51 SNS 홍보 카드 -->
+<section class="slide"><div class="paper mid">FOLLOW US<br>@cafe_momo_official<br>#momo2026</div></section>
+
+<div class="num" id="num" style="position:fixed; left:14px; bottom:10px; font-size:13px; color:#777"></div>
+<div class="nav" style="position:fixed; right:14px; bottom:10px; font-size:13px; color:#777">← → 또는 클릭으로 넘기기</div>
+<script>
+  // 47번의 QR 자리: 정해진 무늬(실제 QR 아님)를 그린다. 매번 같은 그림이 나오게 씨앗을 고정한다.
+  (() => {
+    const c = document.getElementById('qr').getContext('2d');
+    const n = 21, s = 12;
+    let seed = 20261106;
+    const rand = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    c.fillStyle = '#fff'; c.fillRect(0, 0, n * s, n * s); c.fillStyle = '#000';
+    const finder = (x, y) => { c.fillRect(x * s, y * s, 7 * s, 7 * s); c.clearRect((x + 1) * s, (y + 1) * s, 5 * s, 5 * s); c.fillRect((x + 2) * s, (y + 2) * s, 3 * s, 3 * s); };
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const inFinder = (x < 8 && y < 8) || (x > 12 && y < 8) || (x < 8 && y > 12);
+      if (!inFinder && rand() < 0.5) c.fillRect(x * s, y * s, s, s);
+    }
+    finder(0, 0); finder(14, 0); finder(0, 14);
+  })();
+</script>
+<script src="../slides.js"></script>
+</body>
+</html>
