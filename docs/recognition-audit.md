@@ -18,6 +18,9 @@
   바뀌지 않았다.
 - **상위 3개**: P1-1 구분자·이름표 모양 넓히기(5개 고침), P1-2 밑줄 옆 공백 지우기(2개, EXIF 보정과 함께 3개),
   P1-3 화장실·현관 비밀번호 거르기(Wi-Fi 아닌 글 2개).
+- **원칙 (운영자)**: 정답(기대값)은 **무조건 정상 인식**, 즉 안내문에 실제로 적힌 값이다. OCR이 잘못 읽은 모양은
+  정답이 될 수 없고, 남기더라도 결과 화면의 "다른 후보"로만 남긴다. 오인식 모양을 정답으로 고정한 기존 테스트는
+  정상 인식 값으로 고친다(6장 목록).
 - **결정 (2026-11-06, 운영자)**: `SK_WIF1GIGA`·`SK_WIFiGIGA`처럼 읽힌 SK 공유기 이름은 오인식으로 보고 실제 형식
   `SK_WiFiGIGA`로 고친다(P2-3). 기존 테스트 하나의 기대를 이에 맞춰 바꾼다.
 - **variety 8번**: `variety/answers.md`에 적혀 있던 "이름을 `2.4G`/`5G`로 잘못 고르는 문제"는 이 fixture에서는 재현되지
@@ -83,6 +86,9 @@ flutter test test/ocr_fixture_test.dart       # fixture 검사 (flutter test 전
 
 ### 1.4 판정
 
+- 기준: 정답은 언제나 **정상 인식** — 안내문에 실제로 적힌 값이다. 정답표 91개(`answers.md`, `sign_answers.dart`)는
+  모두 이 기준으로 적었고, OCR이 잘못 읽은 모양은 4장의 "실제"와 보고서의 후보 목록에만 나온다. fixture를 다시 뽑아
+  OCR 결과가 달라져도 정답은 바꾸지 않는다.
 - 경로: 갤러리에서 사진을 고른 경우와 같다 — `WifiCredentialExtractor().fromOcrResults([fixture.toOcrResult()])`.
   (`layoutText` 파싱 → 빠진 쪽만 원문 파싱으로 채움 → 불확실 글자 후보, K1~K2)
 - Wi-Fi 안내문: 1순위 이름이 정답 중 하나이고 1순위 비밀번호가 정답과 같아야 통과. `(공개)`는 빈 비밀번호,
@@ -490,7 +496,15 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 2. fixture 검사의 "알려진 실패 목록이 실제 결과와 같다"가 두 방향을 다 잡는다 — 고쳐진 fixture(목록과 이 문서 4장에서 지운다)와, 맞다가 틀리게 된 fixture(회귀).
 3. 항목마다 위 "새 테스트"를 단위 테스트(`test/wifi_credential_parser_test.dart`)로 먼저 넣는다. fixture는 OCR 원문의 회귀 감시이고, 규칙의 경계는 단위 테스트로 정한다.
 4. 항목 하나씩 넣고 fixture 차이를 본다(7장처럼). 한 항목이 다른 항목의 fixture를 깨지 않는지 보려면 `OCR_FIXTURE_REPORT`로 보고서를 뽑아 이전 보고서와 비교한다.
-5. `OcrService`를 바꾸는 항목(P2-1, P2-2)은 fixture 로더가 같은 lib 함수를 쓰게 하고, 가능하면 `tool/ocr_dump.sh`로 다시 뽑아 원문이 그대로인지(단어 상자 외) 확인한 뒤 `integration_test/ocr_pipeline_test.dart`를 시뮬레이터에서 돌린다.
+5. 기대값은 정상 인식으로 둔다. 규칙을 고치다 기존 테스트가 깨지면, 그 테스트의 기대가 오인식 모양을 정답으로
+   고정한 것인지 먼저 본다 — 그렇다면 기대를 정상 인식 값으로 고치고(읽은 값은 후보에 남는지 검사), 아니라면 규칙을
+   고친다. 지금 기존 단위 테스트에서 오인식 모양을 정답으로 둔 곳:
+   - `통신사 공유기 이름의 16진수 꼬리`: `('SK_WIFiGIGA7COD_2.4G', 'SK_WIFiGIGA7C0D_2.4G')` — 꼬리의 `O`는 고치면서
+     오인식 `WIFi`는 그대로 둠. 정상 인식 `SK_WiFiGIGA7C0D_2.4G`로 고친다(P2-3).
+   - 확인할 것: `다른 통신사·공유기 이름도`의 `SK WiFiGIGA 3A2B` → `SK_WiFiGIGA_3A2B` — OCR이 넣은 공백 두 곳을 모두
+     밑줄로 바꾼 기대다. 실제 SK 형식이 코드 주석·`_ispHexName`처럼 `SK_WiFiGIGA` + 16진수 4자(사이 밑줄 없음)라면
+     정상 인식은 `SK_WiFiGIGA3A2B`이므로, 실제 형식을 확인해 맞으면 기대와 P2-3 규칙(접두어 뒤 공백·밑줄 처리)을 함께 고친다.
+6. `OcrService`를 바꾸는 항목(P2-1, P2-2)은 fixture 로더가 같은 lib 함수를 쓰게 하고, 가능하면 `tool/ocr_dump.sh`로 다시 뽑아 원문이 그대로인지(단어 상자 외) 확인한 뒤 `integration_test/ocr_pipeline_test.dart`를 시뮬레이터에서 돌린다.
 
 ## 7. 시제품 측정 기록
 
