@@ -275,22 +275,26 @@ Set<int> uncertainCharIndexes(
   final probes = {value, value.replaceAll('_', ' '), value.replaceAll('-', ' ')};
   for (final line in lines) {
     if (line.chars.isEmpty) continue;
-    final text = StringBuffer();
-    final uncertain = <bool>[];
-    for (final c in line.chars) {
-      final ambiguous = (c.confidence ?? 1.0) < threshold || _ambiguousSymbols.contains(c.text);
-      // 파서와 같은 정규화를 거쳐야 값과 글자가 1:1로 맞는다.
-      for (final rune in normalizeOcrText(c.text).runes) {
-        text.writeCharCode(rune);
-        uncertain.add(ambiguous);
+    // 단어 간격 표시 글자([gapMarker])는 파서가 이름에서는 `_`, 비밀번호에서는 빈 문자로 바꿨다.
+    // 두 경우를 모두 값과 맞춰 본다: 표시 글자를 공백으로 둔 글, 표시 글자를 뺀 글.
+    for (final gap in const [' ', '']) {
+      final text = StringBuffer();
+      final uncertain = <bool>[];
+      for (final c in line.chars) {
+        final ambiguous = (c.confidence ?? 1.0) < threshold || _ambiguousSymbols.contains(c.text);
+        // 파서와 같은 정규화를 거쳐야 값과 글자가 1:1로 맞는다.
+        for (final rune in (c.text == gapMarker ? gap : normalizeOcrText(c.text)).runes) {
+          text.writeCharCode(rune);
+          uncertain.add(ambiguous);
+        }
       }
-    }
-    final lineText = text.toString();
-    for (final probe in probes) {
-      if (probe.length != value.length) continue;
-      final start = lineText.indexOf(probe);
-      if (start < 0) continue;
-      return {for (var i = 0; i < value.length; i++) if (uncertain[start + i]) i};
+      final lineText = text.toString();
+      for (final probe in probes) {
+        if (probe.length != value.length) continue;
+        final start = lineText.indexOf(probe);
+        if (start < 0) continue;
+        return {for (var i = 0; i < value.length; i++) if (uncertain[start + i]) i};
+      }
     }
   }
   return const {};
