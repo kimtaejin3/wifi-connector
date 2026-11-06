@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:wifi_connector/core/utils/text_normalizer.dart';
 import 'package:wifi_connector/features/wifi_scanner/data/models/wifi_credential.dart';
 import 'package:wifi_connector/features/wifi_scanner/domain/services/wifi_credential_parser.dart';
 
@@ -1259,6 +1260,36 @@ void main() {
 
     test('하이픈 옆 공백은 지우지 않는다', () {
       expect(parser.parse('SSID: Cafe - Guest\nPW: abc12345').ssid, isNot('Cafe-Guest'));
+    });
+  });
+
+  group('P1-2 + P2-2 단어 간격 표시 글자와 밑줄 옆 공백', () {
+    const m = gapMarker;
+
+    test('밑줄 앞 표시 글자: Study<표시>_Room → Study_Room (밑줄이 두 개가 되지 않는다)', () {
+      expectParsed('ID\tStudy${m}_Room\nPW\tstudy4321', ssid: 'Study_Room', password: 'study4321');
+    });
+
+    test('밑줄 뒤 표시 글자: one_<표시>line_cafe → one_line_cafe', () {
+      expectParsed('WIFI one_${m}line_cafe / PW x1234567', ssid: 'one_line_cafe', password: 'x1234567');
+    });
+
+    test('공백과 표시 글자가 함께 밑줄 옆에 있어도 밑줄 하나: Study _<표시>Room', () {
+      expectParsed('ID\tStudy _${m}Room\nPW\tstudy4321', ssid: 'Study_Room', password: 'study4321');
+    });
+
+    test('밑줄과 떨어진 표시 글자는 이름에서 밑줄 하나가 된다', () {
+      expectParsed('SSID: Lumi${m}Cafe\nPW: lumi7788', ssid: 'Lumi_Cafe', password: 'lumi7788');
+    });
+
+    test('안내문에 실제로 있는 밑줄 두 개는 그대로 둔다', () {
+      expectParsed('SSID: my__cafe\nPW: abc12345', ssid: 'my__cafe', password: 'abc12345');
+    });
+
+    test('비밀번호의 표시 글자는 빈 문자로, 밑줄 옆이면 밑줄 하나로', () {
+      expectParsed('SSID: Lumi_Cafe\nPW: lumi${m}7788', ssid: 'Lumi_Cafe', password: 'lumi7788');
+      expectParsed('SSID: Lumi_Cafe\nPW: lumi${m}_7788', ssid: 'Lumi_Cafe', password: 'lumi_7788');
+      expectParsed('SSID: Lumi_Cafe\nPW: lumi_${m}7788', ssid: 'Lumi_Cafe', password: 'lumi_7788');
     });
   });
 

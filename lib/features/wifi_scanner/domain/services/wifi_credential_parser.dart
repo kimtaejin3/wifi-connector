@@ -1016,10 +1016,13 @@ class WifiCredentialParser {
   /// 값 자체의 대소문자와 특수문자는 건드리지 않는다.
   ///
   /// OcrService가 단어 간격이 좁은 자리에 넣은 표시 글자([gapMarker])는 여기서 없앤다:
-  /// 이름이면 밑줄(OCR이 놓친 밑줄 자리), 비밀번호면 빈 문자(공백이 있을 수 없다), 종류를 모르면 공백.
+  /// 표시 글자는 먼저 공백과 같은 부류로 보고 밑줄 옆 공백 정리와 한 규칙으로 처리한다
+  /// ("Study<표시>_Room"의 표시 글자는 옆의 밑줄에 흡수된다). 정리 뒤에 남은 표시 글자만
+  /// 이름이면 밑줄(OCR이 놓친 밑줄 자리), 비밀번호면 빈 문자(공백이 있을 수 없다), 종류를 모르면 공백이 된다.
+  /// 안내문에 실제로 있는 `__`는 표시 글자가 끼지 않았으니 건드리지 않는다.
   String _cleanValue(String value, [WifiCandidateType? type]) {
     final gap = switch (type) { WifiCandidateType.ssid => '_', WifiCandidateType.password => '', null => ' ' };
-    var v = value.replaceAll(gapMarker, gap).trim().replaceFirst(_trailingNote, '').trim();
+    var v = value.replaceAll(_spaceAroundUnderscore, '_').replaceAll(gapMarker, gap).trim().replaceFirst(_trailingNote, '').trim();
     final stripped = v.replaceFirst(_sentenceEnding, '').trim();
     if (stripped.isNotEmpty) v = stripped;
     // 'Connect to "Momo Guest"' — 양쪽을 모두 감싼 따옴표만 벗긴다.
@@ -1156,7 +1159,8 @@ final _trailingNote = RegExp(r'\s+[(\[（【][^)\]）】]*[)\]）】]$');
 final _valueSplitters = [RegExp(r'\s+/\s+'), RegExp(r'\s*\|\s*'), RegExp(r'\s*/\s*'), RegExp(r'\s+')];
 final _whitespace = RegExp(r'\s+');
 final _spaces = RegExp(r' +');
-final _spaceAroundUnderscore = RegExp(r'\s*_\s*');
+/// 밑줄 옆의 공백과 단어 간격 표시 글자([gapMarker])를 함께 잡는다.
+final _spaceAroundUnderscore = RegExp('[\\s$gapMarker]*_[\\s$gapMarker]*');
 final _separators = RegExp(r'[ _-]');
 /// 대역 표시만 있는 값, 값 앞의 대역 표시, 값 가운데의 다음 대역 표시.
 /// 값 앞의 대역 표시에는 "5G 전용 :", "2.4G전용 :"처럼 짧은 한글 말과 구분자가 붙기도 하고,
