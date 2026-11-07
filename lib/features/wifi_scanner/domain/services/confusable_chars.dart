@@ -1,7 +1,7 @@
 /// 연결에 실패했을 때 사용자에게 "이 글자가 맞는지" 확인을 권할 후보.
 ///
 /// OCR 인식 로직과는 별개다. 이미 정해진 값에서 눈으로 구분하기 어려운 글자를
-/// 한 자리씩 바꾼 값을 만든다 (l·I·1, O·0, S·5, B·8, Z·2).
+/// 한 자리씩 바꾼 값을 만든다 (l·I·1, O·0, S·5, B·8, Z·2, 비밀번호 끝의 ~·-).
 class ConfusableVariant {
   const ConfusableVariant({required this.value, required this.index, required this.from, required this.to});
 
@@ -49,13 +49,27 @@ const _names = <String, String>{
   '8': '숫자 8',
   'Z': '대문자 제트',
   '2': '숫자 2',
+  '~': '물결표',
+  '-': '하이픈',
 };
 
 String describeChar(String ch) => _names.containsKey(ch) ? '$ch(${_names[ch]})' : ch;
 
+/// 비밀번호 끝 글자만 `~` ↔ `-`로 바꾼 값. 끝이 둘 다 아니거나 두 글자 미만이면 null.
+/// 굵은 글씨의 끝 물결표를 OCR이 하이픈으로 자주 읽어서다. 가운데 글자는 건드리지 않는다.
+String? trailingTildeSwap(String? password) {
+  if (password == null || password.length < 2) return null;
+  final other = switch (password[password.length - 1]) {
+    '-' => '~',
+    '~' => '-',
+    _ => null,
+  };
+  return other == null ? null : password.replaceRange(password.length - 1, null, other);
+}
+
 /// [value]에서 헷갈리는 글자를 한 자리씩 바꾼 후보. l·I·1과 O·0을 먼저, 그다음 나머지를
-/// 앞자리부터 최대 [limit]개.
-List<ConfusableVariant> confusableVariants(String value, {int limit = 6}) {
+/// 앞자리부터 최대 [limit]개. [password]면 끝 글자의 `~` ↔ `-`를 맨 뒤에 더한다(자리가 남을 때만).
+List<ConfusableVariant> confusableVariants(String value, {int limit = 6, bool password = false}) {
   final primary = <ConfusableVariant>[];
   final secondary = <ConfusableVariant>[];
   for (var i = 0; i < value.length; i++) {
@@ -71,5 +85,11 @@ List<ConfusableVariant> confusableVariants(String value, {int limit = 6}) {
       ));
     }
   }
-  return [...primary, ...secondary].take(limit).toList();
+  final tilde = password ? trailingTildeSwap(value) : null;
+  return [
+    ...primary,
+    ...secondary,
+    if (tilde != null)
+      ConfusableVariant(value: tilde, index: value.length - 1, from: value[value.length - 1], to: tilde[tilde.length - 1]),
+  ].take(limit).toList();
 }

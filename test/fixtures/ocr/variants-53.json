@@ -1,0 +1,17 @@
+{
+  "name": "variants-53",
+  "source": "variants-53.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WIFI\n.달빛꼬치,\nDalbit2580~",
+  "layoutText": "WIFI\n.달빛꼬치,\nDalbit2580~",
+  "lines": [
+    {"text":"WIFI","box":[674.0,526.0,913.0,593.0],"elements":[{"text":"WIFI","box":[674.0,526.0,913.0,593.0]}]},
+    {"text":".달빛꼬치,","box":[681.0,640.0,921.0,697.0],"elements":[{"text":".달빛꼬치,","box":[681.0,640.0,921.0,697.0]}]},
+    {"text":"Dalbit2580~","box":[576.0,790.0,1021.0,841.0],"elements":[{"text":"Dalbit2580~","box":[576.0,790.0,1021.0,841.0]}]}
+  ]
+}

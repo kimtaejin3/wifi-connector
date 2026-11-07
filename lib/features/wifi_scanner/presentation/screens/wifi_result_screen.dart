@@ -334,7 +334,7 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
               if (_connectionDoubtful)
                 _SuspectChars(
                   ssid: confusableVariants(_ssid.text.trim()),
-                  password: confusableVariants(_password.text.trim()),
+                  password: confusableVariants(_password.text.trim(), password: true),
                   onSelected: _retryWith,
                 ),
             ],
@@ -463,15 +463,18 @@ class _WifiResultScreenState extends State<WifiResultScreen> {
     final floor = candidates.isEmpty ? 0.0 : candidates.first.score - _chipScoreMargin;
     // 값을 고치면 처음 인식한 값을 맨 앞 후보로 남겨 한 번에 되돌릴 수 있게 한다.
     final original = type == WifiCandidateType.ssid ? _found.ssid : _found.password;
+    // 비밀번호 끝 `~` ↔ `-` 후보는 다른 칩 세 개와 자리를 다투지 않고 그 뒤에 따로 붙인다.
+    final tilde = type == WifiCandidateType.password ? trailingTildeSwap(original) : null;
+    final hasTilde = tilde != null && candidates.any((c) => c.value == tilde);
     final values = [
       if (original != null && original.isNotEmpty) original,
       ...candidates.where((c) => c.score >= floor).map((c) => c.value),
     ];
-    final seen = <String>{};
-    return values
-        .where((v) => v.isNotEmpty && v != current.trim() && seen.add(v))
-        .take(3)
-        .toList();
+    final seen = <String>{if (hasTilde) tilde};
+    return [
+      ...values.where((v) => v.isNotEmpty && v != current.trim() && seen.add(v)).take(3),
+      if (hasTilde && tilde != current.trim()) tilde,
+    ];
   }
 }
 

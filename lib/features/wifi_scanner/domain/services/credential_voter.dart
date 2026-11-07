@@ -9,6 +9,7 @@ class VotedField {
     required this.support,
     required this.agreement,
     required this.uncertainIndexes,
+    this.tildeAtEnd = false,
   });
 
   final String value;
@@ -21,6 +22,9 @@ class VotedField {
 
   /// 다수결 비율이 낮은 글자 위치.
   final Set<int> uncertainIndexes;
+
+  /// 비밀번호 끝 자리의 다수는 `-`인데 `~`로 읽은 판독도 있었는지. 결과 화면에 `~` 후보를 둔다.
+  final bool tildeAtEnd;
 
   bool get isStable => support >= CredentialVoter.minSupport && agreement >= CredentialVoter.minAgreement;
 }
@@ -111,6 +115,18 @@ class CredentialVoter {
 
     promote(ssid, WifiCandidateType.ssid, result.ssid);
     promote(password, WifiCandidateType.password, result.password);
+    // 끝 `-`를 `~`로 읽은 프레임이 있었으면 끝만 `~`로 바꾼 값을 뽑힌 값 바로 아래 후보로 둔다.
+    final votedPassword = result.password;
+    if (password != null && votedPassword != null && votedPassword.tildeAtEnd && password == votedPassword.value) {
+      final tilde = '${password.substring(0, password.length - 1)}~';
+      final key = '${WifiCandidateType.password.name}\u0000$tilde';
+      final below = (best['${WifiCandidateType.password.name}\u0000$password']!.score - 0.01).clamp(0.0, 1.0);
+      best[key] = WifiCandidate(
+        value: tilde,
+        type: WifiCandidateType.password,
+        score: math.max(below, best[key]?.score ?? 0),
+      );
+    }
     final candidates = best.values.toList()..sort((a, b) => b.score.compareTo(a.score));
 
     double confidence(VotedField? field, double fallback) {
@@ -143,11 +159,11 @@ class CredentialVoter {
         password: voteValues([
           for (final r in readings)
             if (r.credential.password != null) (r.credential.password!, r.weight),
-        ]),
+        ], trailingTilde: true),
       );
 
   /// 가장 흔한 길이의 판독끼리 글자 위치별 다수결.
-  static VotedField? voteValues(List<(String, int)> readings) {
+  static VotedField? voteValues(List<(String, int)> readings, {bool trailingTilde = false}) {
     if (readings.isEmpty) return null;
 
     final weightByLength = <int, int>{};
@@ -161,6 +177,7 @@ class CredentialVoter {
     final buffer = StringBuffer();
     var agreement = 1.0;
     final uncertain = <int>{};
+    var tildeAtEnd = false;
     for (var i = 0; i < length; i++) {
       final weights = <String, int>{};
       for (final (value, weight) in group) {
@@ -178,6 +195,12 @@ class CredentialVoter {
       buffer.write(top.key);
       agreement = math.min(agreement, agreed / support);
       if (top.value / support < uncertainBelow) uncertain.add(i);
+      // 비밀번호 끝 물결표는 굵은 글씨에서 `-`로 자주 읽힌다. 다수결은 그대로 두고, 끝 자리의 다수가 `-`인데
+      // `~` 표가 하나라도 있으면 그 자리만 불확실로 표시한다(`~` 후보는 [toCredential]이 둔다). 가운데 자리와 이름은 건드리지 않는다.
+      if (trailingTilde && i == length - 1 && top.key == '-' && weights.containsKey('~')) {
+        uncertain.add(i);
+        tildeAtEnd = true;
+      }
     }
 
     return VotedField(
@@ -185,6 +208,7 @@ class CredentialVoter {
       support: support,
       agreement: agreement,
       uncertainIndexes: uncertain,
+      tildeAtEnd: tildeAtEnd,
     );
   }
 }

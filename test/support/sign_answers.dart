@@ -116,6 +116,10 @@ const variantAnswers = <SignAnswer>[
   SignAnswer.notWifi('variants-49', '화장실 비밀번호'),
   SignAnswer.notWifi('variants-50', '공동현관·도어락 비밀번호'),
   SignAnswer.notWifi('variants-51', 'SNS 홍보 카드'),
+  SignAnswer.wifi('variants-52', '검은 판 이름 앞뒤 마름모 + 끝 물결표 (굵은 고딕 1)',
+      ssids: ['모모양꼬치'], password: 'Momok123~'),
+  SignAnswer.wifi('variants-53', '검은 판 이름 앞뒤 마름모 + 끝 물결표 (굵은 고딕 2)',
+      ssids: ['달빛꼬치'], password: 'Dalbit2580~'),
 ];
 
 const singleSignAnswers = <SignAnswer>[

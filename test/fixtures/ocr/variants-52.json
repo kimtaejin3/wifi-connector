@@ -1,0 +1,17 @@
+{
+  "name": "variants-52",
+  "source": "variants-52.png",
+  "recognizer": "ML Kit TextRecognizer(korean) via OcrService · ios Version 18.4 (Build 22E238)",
+  "image": {
+    "width": 1600,
+    "height": 1200,
+    "exifOrientation": null
+  },
+  "text": "WIFI\n·모모양꼬치·\nMomok123~",
+  "layoutText": "WIFI\n·모모양꼬치·\nMomok123~",
+  "lines": [
+    {"text":"WIFI","box":[696.0,534.0,894.0,599.0],"elements":[{"text":"WIFI","box":[696.0,534.0,894.0,599.0]}]},
+    {"text":"·모모양꼬치·","box":[664.0,653.0,935.0,701.0],"elements":[{"text":"·모모양꼬치·","box":[664.0,653.0,935.0,701.0]}]},
+    {"text":"Momok123~","box":[641.0,779.0,960.0,823.0],"elements":[{"text":"Momok123~","box":[641.0,779.0,960.0,823.0]}]}
+  ]
+}
