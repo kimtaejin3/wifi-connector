@@ -24,11 +24,18 @@ class OcrFixture {
 
   factory OcrFixture.fromJson(Map<String, dynamic> json) {
     final image = (json['image'] as Map<String, dynamic>?) ?? const {};
+    // 앱의 recognizeFile과 같이: EXIF 방향이 있고 저장 크기를 알면 상자를 똑바로 세운다.
+    final orientation = (image['exifOrientation'] as num?)?.toInt();
+    final width = (image['width'] as num?)?.toInt();
+    final height = (image['height'] as num?)?.toInt();
+    final frame = (orientation != null && orientation > 1 && width != null && height != null && width > 0 && height > 0)
+        ? ExifFrame(orientation, Size(width.toDouble(), height.toDouble()))
+        : null;
     return OcrFixture._(
       name: json['name'] as String,
       text: json['text'] as String,
       dumpedLayoutText: json['layoutText'] as String,
-      lines: [for (final l in json['lines'] as List) _line(l as Map<String, dynamic>)],
+      lines: [for (final l in json['lines'] as List) _line(l as Map<String, dynamic>, frame)],
       imageWidth: (image['width'] as num?)?.toInt(),
       imageHeight: (image['height'] as num?)?.toInt(),
       exifOrientation: (image['exifOrientation'] as num?)?.toInt(),
@@ -57,7 +64,8 @@ class OcrFixture {
   /// layoutRows를 다시 돌린다 ([toOcrResult]) — 행 재구성을 고치면 fixture를 다시 뽑지 않아도 반영된다.
   final String dumpedLayoutText;
 
-  /// ML Kit 줄과 상자 좌표 (OcrResult.lines 순서).
+  /// 앱이 만드는 것과 같은 줄 (OcrResult.lines 순서): EXIF 회전 사진은 상자를 똑바로 세웠고
+  /// (`uprightBox`), 단어 간격이 좁은 곳에는 표시 글자가 들어 있다 (`lineFromWords`).
   final List<OcrLine> lines;
 
   /// 저장된 픽셀 크기와 EXIF 회전 값 (EXIF가 없으면 null).
@@ -73,11 +81,15 @@ class OcrFixture {
         lines: lines,
       );
 
-  static OcrLine _line(Map<String, dynamic> json) {
+  static OcrLine _line(Map<String, dynamic> json, ExifFrame? frame) {
     final box = [for (final v in json['box'] as List) (v as num).toDouble()];
     final text = json['text'] as String;
     final chars = json['chars'];
     final conf = json['conf'] as List?;
+    final words = [
+      for (final e in (json['elements'] as List?) ?? const [])
+        OcrWord((e as Map<String, dynamic>)['text'] as String, _rect(e['box'] as List)),
+    ];
     final List<OcrChar> parsed;
     if (chars is List) {
       parsed = [
@@ -87,6 +99,17 @@ class OcrFixture {
       // iOS: 글자 신뢰도가 없다. OcrService와 같이 글자 하나씩 신뢰도 없이 펼친다.
       parsed = [for (final r in ((chars as String?) ?? text).runes) OcrChar(String.fromCharCode(r), null)];
     }
-    return OcrLine(text, Rect.fromLTRB(box[0], box[1], box[2], box[3]), chars: parsed);
+    return lineFromWords(
+      text: text,
+      box: Rect.fromLTRB(box[0], box[1], box[2], box[3]),
+      words: words,
+      chars: parsed,
+      frame: frame,
+    );
+  }
+
+  static Rect _rect(List box) {
+    final v = [for (final x in box) (x as num).toDouble()];
+    return Rect.fromLTRB(v[0], v[1], v[2], v[3]);
   }
 }

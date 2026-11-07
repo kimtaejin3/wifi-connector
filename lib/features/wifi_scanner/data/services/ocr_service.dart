@@ -1,8 +1,11 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:image/image.dart' as img;
 
 import '../../../../core/utils/text_normalizer.dart';
 
@@ -61,22 +64,37 @@ class OcrService {
   final TextRecognizer _korean;
 
   /// 사진 파일을 인식한다.
-  Future<List<OcrResult>> recognizeFile(String path) => recognizeImage(InputImage.fromFilePath(path));
+  ///
+  /// iOS에서는 JPEG에 EXIF 회전이 있으면 ML Kit이 글자는 똑바로 읽지만 상자는 저장된(누운) 픽셀 기준으로 준다.
+  /// 그래서 방향 3·6·8은 상자를 똑바로 세워 행 구성에 넘긴다 ([uprightBox]). Android는 `InputImage.fromFilePath`가
+  /// 이미 EXIF대로 비트맵을 돌려 읽어 상자가 똑바로 서 있으므로 한 번 더 돌리면 안 된다 (이중 회전). EXIF가 없는 파일
+  /// (셔터 경로의 크롭 결과는 이미 똑바로 구워져 있다)이나 크기를 못 읽은 파일은 상자를 그대로 둔다.
+  Future<List<OcrResult>> recognizeFile(String path) async {
+    final frame = await _readExifFrame(path, boxesInStoredPixels: Platform.isIOS);
+    return [await _recognize(_korean, TextRecognitionScript.korean, InputImage.fromFilePath(path), frame)];
+  }
 
   /// 카메라 프리뷰 프레임 등 이미 만들어진 [InputImage]를 인식한다.
   Future<List<OcrResult>> recognizeImage(InputImage image) async =>
-      [await _recognize(_korean, TextRecognitionScript.korean, image)];
+      [await _recognize(_korean, TextRecognitionScript.korean, image, null)];
 
   Future<OcrResult> _recognize(
     TextRecognizer recognizer,
     TextRecognitionScript script,
     InputImage image,
+    ExifFrame? frame,
   ) async {
     final recognized = await recognizer.processImage(image);
     final lines = [
       for (final block in recognized.blocks)
         for (final line in block.lines)
-          OcrLine(line.text, line.boundingBox, chars: _charsOf(line)),
+          lineFromWords(
+            text: line.text,
+            box: line.boundingBox,
+            words: [for (final e in line.elements) OcrWord(e.text, e.boundingBox)],
+            chars: _charsOf(line),
+            frame: frame,
+          ),
     ];
     return OcrResult(
       script: script,
@@ -106,6 +124,150 @@ class OcrService {
   }
 
   Future<void> close() => _korean.close();
+}
+
+/// JPEG에서 읽은 EXIF 방향과 저장된 픽셀 크기.
+class ExifFrame {
+  const ExifFrame(this.orientation, this.stored);
+
+  final int orientation;
+  final Size stored;
+
+  /// [uprightBox]가 바로 세울 수 있는 방향(3·6·8). 거울상(2·4·5·7)은 상자를 못 세우므로 가로 간격도 믿을 수 없다.
+  bool get isSupported => orientation == 3 || orientation == 6 || orientation == 8;
+}
+
+/// 파일의 EXIF 방향과 저장 크기를 읽는다. JPEG가 아니거나 EXIF가 없거나 크기를 못 읽으면 null
+/// (그러면 상자를 바꾸지 않는다). 디코딩 없이 헤더만 읽는다.
+Future<ExifFrame?> _readExifFrame(String path, {required bool boxesInStoredPixels}) async {
+  try {
+    final bytes = await File(path).readAsBytes();
+    return exifFrameForBoxes(bytes, boxesInStoredPixels: boxesInStoredPixels);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// ML Kit 상자가 저장 픽셀 좌표(iOS)일 때만 [exifFrameOf]를 돌려준다. 이미 EXIF가 반영된 좌표(Android)면 null이라
+/// 상자를 바꾸지 않는다.
+@visibleForTesting
+ExifFrame? exifFrameForBoxes(Uint8List bytes, {required bool boxesInStoredPixels}) =>
+    boxesInStoredPixels ? exifFrameOf(bytes) : null;
+
+/// [bytes]가 EXIF 방향(2 이상)이 있는 JPEG면 방향과 저장 크기를 돌려준다.
+@visibleForTesting
+ExifFrame? exifFrameOf(Uint8List bytes) {
+  final decoder = img.JpegDecoder();
+  if (!decoder.isValidFile(bytes)) return null;
+  final info = decoder.startDecode(bytes);
+  if (info == null) return null;
+  final orientation = img.decodeJpgExif(bytes)?.imageIfd.orientation;
+  if (orientation == null || orientation <= 1) return null;
+  if (info.width <= 0 || info.height <= 0) return null;
+  return ExifFrame(orientation, Size(info.width.toDouble(), info.height.toDouble()));
+}
+
+/// 저장된(누운) 픽셀 기준의 [box]를 EXIF 방향 [orientation]으로 똑바로 세운 좌표로 바꾼다.
+/// [stored]는 저장된 픽셀 크기 W×H. 변환식 (docs/recognition-audit.md 1.9):
+/// - 6: `(l, t, r, b) → (H−b, l, H−t, r)` · 8: `→ (t, W−r, b, W−l)` · 3: `→ (W−r, H−b, W−l, H−t)`
+///
+/// 방향이 없거나 1이거나, 거울상(2·4·5·7)이거나, 크기를 모르면 [box]를 그대로 돌려준다.
+Rect uprightBox(Rect box, {required int? orientation, required Size stored}) {
+  final w = stored.width, h = stored.height;
+  if (w <= 0 || h <= 0) return box;
+  switch (orientation) {
+    case 6:
+      return Rect.fromLTRB(h - box.bottom, box.left, h - box.top, box.right);
+    case 8:
+      return Rect.fromLTRB(box.top, w - box.right, box.bottom, w - box.left);
+    case 3:
+      return Rect.fromLTRB(w - box.right, h - box.bottom, w - box.left, h - box.top);
+    default:
+      return box;
+  }
+}
+
+/// 줄 상자들을 [uprightBox]로 똑바로 세운다 (글자는 그대로).
+List<OcrLine> uprightLines(List<OcrLine> lines, {required int? orientation, required Size stored}) => [
+      for (final l in lines)
+        OcrLine(l.text, uprightBox(l.box, orientation: orientation, stored: stored), chars: l.chars),
+    ];
+
+/// 단어 상자 (ML Kit element).
+class OcrWord {
+  const OcrWord(this.text, this.box);
+
+  final String text;
+  final Rect box;
+}
+
+/// 단어 사이 간격이 이 줄 높이 비율보다 좁으면 보통 공백이 아니라 [gapMarker]를 넣는다.
+/// 측정값(docs/recognition-audit.md 1.9): 밑줄 자리 0.03~0.05, 진짜 띄어쓰기 0.28~0.60.
+const wordGapRatio = 0.12;
+
+/// 단어를 이어 한 줄 글자로 만든다. 간격이 [wordGapRatio] × [lineHeight](글자 높이)보다 좁으면 [gapMarker],
+/// 아니면 공백. 글자 높이를 모르면(0 이하) 모두 공백.
+String joinWords(List<OcrWord> words, {required double lineHeight}) {
+  final out = StringBuffer();
+  for (var i = 0; i < words.length; i++) {
+    if (i > 0) out.write(_isNarrowGap(words[i - 1].box, words[i].box, lineHeight) ? gapMarker : ' ');
+    out.write(words[i].text);
+  }
+  return out.toString();
+}
+
+bool _isNarrowGap(Rect a, Rect b, double lineHeight) =>
+    lineHeight > 0 && b.left - a.right < lineHeight * wordGapRatio;
+
+/// ML Kit 줄([text]·[box]·[words])로 [OcrLine]을 만든다. [frame]이 있으면 상자를 똑바로 세우고,
+/// 단어 상자를 바탕으로 좁은 간격에 [gapMarker]를 넣는다. 글자를 단어로 다시 이은 것이 [text]와
+/// 다르면(ML Kit이 다른 공백을 줬으면) 글자는 건드리지 않는다.
+OcrLine lineFromWords({
+  required String text,
+  required Rect box,
+  required List<OcrWord> words,
+  List<OcrChar>? chars,
+  ExifFrame? frame,
+}) {
+  Rect fix(Rect r) => frame == null ? r : uprightBox(r, orientation: frame.orientation, stored: frame.stored);
+  final upBox = fix(box);
+  final upWords = [for (final w in words) OcrWord(w.text, fix(w.box))];
+  var lineText = text;
+  var lineChars = chars;
+  // 가로 간격을 믿을 수 있을 때만 표시 글자를 넣는다: 방향을 못 세우는 사진(거울상)이나 기울어진 줄은
+  // 축 정렬 상자의 가로 간격이 실제 단어 간격이 아니므로 ML Kit이 준 글자를 그대로 둔다.
+  final reliable = (frame == null || frame.isSupported) && _isLevel(upWords);
+  if (reliable && upWords.length > 1 && words.map((w) => w.text).join(' ') == text) {
+    final joined = joinWords(upWords, lineHeight: _glyphHeight(upWords));
+    if (joined != text) {
+      lineText = joined;
+      lineChars = lineChars == null ? null : _markGaps(lineChars, joined);
+    }
+  }
+  return OcrLine(lineText, upBox, chars: lineChars ?? [for (final r in lineText.runes) OcrChar(String.fromCharCode(r), null)]);
+}
+
+/// 단어 상자 높이의 중앙값. 줄 상자 전체 높이보다 글자 높이에 가깝다 (콜론 같은 작은 상자에 흔들리지 않게 중앙값).
+double _glyphHeight(List<OcrWord> words) {
+  final heights = [for (final w in words) w.box.height]..sort();
+  return heights[heights.length ~/ 2];
+}
+
+/// 단어들의 세로 중심이 글자 높이의 절반 안에 모여 있으면 가로로 놓인 줄이다. 기울어진 줄은 단어 상자가
+/// 비스듬한 글자를 감싸 부풀고 가로 간격이 줄어 보여 정상 공백이 좁게 읽힌다.
+bool _isLevel(List<OcrWord> words) {
+  if (words.length < 2) return true;
+  final centers = [for (final w in words) w.box.center.dy];
+  return centers.reduce(math.max) - centers.reduce(math.min) <= _glyphHeight(words) * 0.5;
+}
+
+/// 단어 사이에 넣은 공백 글자([OcrChar] ' ')를 [joined]의 같은 자리 표시 글자로 바꾼다.
+List<OcrChar> _markGaps(List<OcrChar> chars, String joined) {
+  final spaces = joined.runes.where((r) => r == 0x20 || r == 0x2009).length;
+  if (chars.where((c) => c.text == ' ').length != spaces) return chars;
+  final marks = joined.runes.where((r) => r == 0x20 || r == 0x2009).toList();
+  var k = 0;
+  return [for (final c in chars) c.text == ' ' ? OcrChar(String.fromCharCode(marks[k++]), c.confidence) : c];
 }
 
 class OcrLine {
@@ -140,22 +302,26 @@ Set<int> uncertainCharIndexes(
   final probes = {value, value.replaceAll('_', ' '), value.replaceAll('-', ' ')};
   for (final line in lines) {
     if (line.chars.isEmpty) continue;
-    final text = StringBuffer();
-    final uncertain = <bool>[];
-    for (final c in line.chars) {
-      final ambiguous = (c.confidence ?? 1.0) < threshold || _ambiguousSymbols.contains(c.text);
-      // 파서와 같은 정규화를 거쳐야 값과 글자가 1:1로 맞는다.
-      for (final rune in normalizeOcrText(c.text).runes) {
-        text.writeCharCode(rune);
-        uncertain.add(ambiguous);
+    // 단어 간격 표시 글자([gapMarker])는 파서가 이름에서는 `_`, 비밀번호에서는 빈 문자로 바꿨다.
+    // 두 경우를 모두 값과 맞춰 본다: 표시 글자를 공백으로 둔 글, 표시 글자를 뺀 글.
+    for (final gap in const [' ', '']) {
+      final text = StringBuffer();
+      final uncertain = <bool>[];
+      for (final c in line.chars) {
+        final ambiguous = (c.confidence ?? 1.0) < threshold || _ambiguousSymbols.contains(c.text);
+        // 파서와 같은 정규화를 거쳐야 값과 글자가 1:1로 맞는다.
+        for (final rune in (c.text == gapMarker ? gap : normalizeOcrText(c.text)).runes) {
+          text.writeCharCode(rune);
+          uncertain.add(ambiguous);
+        }
       }
-    }
-    final lineText = text.toString();
-    for (final probe in probes) {
-      if (probe.length != value.length) continue;
-      final start = lineText.indexOf(probe);
-      if (start < 0) continue;
-      return {for (var i = 0; i < value.length; i++) if (uncertain[start + i]) i};
+      final lineText = text.toString();
+      for (final probe in probes) {
+        if (probe.length != value.length) continue;
+        final start = lineText.indexOf(probe);
+        if (start < 0) continue;
+        return {for (var i = 0; i < value.length; i++) if (uncertain[start + i]) i};
+      }
     }
   }
   return const {};

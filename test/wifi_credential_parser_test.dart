@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:wifi_connector/core/utils/text_normalizer.dart';
 import 'package:wifi_connector/features/wifi_scanner/data/models/wifi_credential.dart';
 import 'package:wifi_connector/features/wifi_scanner/domain/services/wifi_credential_parser.dart';
 
@@ -134,6 +135,14 @@ void main() {
 
     test('전각 콜론과 = 구분자', () {
       expectParsed('SSID：cafe_wifi\nKey = abc12345', ssid: 'cafe_wifi', password: 'abc12345');
+    });
+
+    test('밑줄 뒤 괄호 메모: 표시 글자가 없으면 메모를 먼저 떼고 밑줄만 남는다', () {
+      expectParsed('SSID: cafe_ (2층)\nPW: abc12345', ssid: 'cafe_', password: 'abc12345');
+    });
+
+    test('비밀번호 값이 밑줄 + 괄호 메모여도 표시 글자가 없으면 예전과 같다', () {
+      expectParsed('SSID: cafe_guest\nPW: abc_ (메모)', ssid: 'cafe_guest', password: 'abc_');
     });
 
     test('뒤에 붙은 괄호 설명은 제거한다', () {
@@ -579,7 +588,7 @@ void main() {
     });
 
     test('다른 통신사·공유기 이름도', () {
-      expectParsed('WIFI : SK WiFiGIGA 3A2B\nPW : 1234567890', ssid: 'SK_WiFiGIGA_3A2B', password: '1234567890');
+      expectParsed('WIFI : SK WiFiGIGA 3A2B\nPW : 1234567890', ssid: 'SK_WiFiGIGA3A2B', password: '1234567890');
       expectParsed('SSID : U+Net 4C1D 5G\nPW : abcd1234', ssid: 'U+Net_4C1D_5G', password: 'abcd1234');
       expectParsed('Wi-Fi : iptime 5G 2F\nPW : abcd1234', ssid: 'iptime_5G_2F', password: 'abcd1234');
     });
@@ -701,6 +710,75 @@ void main() {
 
     test('Wi-Fi 이름을 못 찾았으면 짧은 이름표 줄을 추측하지 않는다', () {
       expect(parser.parse('오늘의 메뉴 : abc12345x').password, isNull);
+    });
+  });
+
+  group('깨진 Wi-Fi 이름표 줄에서 이름 찾기 (P2-5)', () {
+    const parser = WifiCredentialParser();
+
+    test('비밀번호는 이름표로 찾았고 이름표가 깨진 줄은 이름 후보로 (wii - hong_studio)', () {
+      for (final line in ['wii - hong_studio', 'wii : hong_studio', '와이 - hong_studio']) {
+        final c = parser.parse('$line\npw - hong0812');
+        expect(c.ssid, 'hong_studio', reason: line);
+        expect(c.password, 'hong0812', reason: line);
+        expect(c.ssidConfidence, lessThan(WifiCredential.confidentThreshold), reason: line);
+      }
+    });
+
+    test('연락처 이름표 줄은 이름이 아니다', () {
+      for (final line in ['Tel - 02_1234', 'Fax : 02_1234', '전화 - 02_1234']) {
+        expect(parser.parse('$line\npw - hong0812').ssid, isNull, reason: line);
+      }
+    });
+
+    test('줄 전체가 이미 이름 모양이면 앞부분을 이름표로 보지 않는다 (옛 결과 그대로)', () {
+      for (final name in ['TP-Link_5E2A', 'ASUS-Guest_5G', 'iptime-cafe_5G', 'Cafe-Momo_5G', 'momo.cafe_5G']) {
+        final c = parser.parse('$name\nPW : momo12345');
+        expect(c.ssid, name, reason: name);
+        expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), contains(name), reason: name);
+        expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value).length, 1, reason: name);
+      }
+      for (final (line, tail) in [('KT WIFI_5G_F3D6', 'WIFI_5G_F3D6'), ('momo cafe_5G', 'cafe_5G')]) {
+        final c = parser.parse('$line\nPW : momo12345');
+        expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), isNot(contains(tail)), reason: line);
+      }
+    });
+
+    test('이름 모양이 아닌 값이나 긴 이름표는 이름이 아니다', () {
+      expect(parser.parse('wii - hong\npw - hong0812').ssid, isNull);
+      expect(parser.parse('information - hong_studio\npw - hong0812').ssid, isNull);
+    });
+
+    test('이름표로 이름을 찾았으면 쓰지 않고, 비밀번호를 이름표로 못 찾았으면 켜지 않는다', () {
+      expect(parser.parse('WIFI : cafe_momo\nwii - hong_studio\npw - hong0812').ssid, 'cafe_momo');
+      expect(parser.parse('wii - hong_studio\nhong0812').ssid, isNull);
+    });
+  });
+
+  group('문장을 비밀번호로 고르지 않기 (P2-6)', () {
+    const parser = WifiCredentialParser();
+
+    test('이름표 다음 줄의 영어 문장은 비밀번호가 아니다', () {
+      for (final sentence in ["Ask our staff if it doesn't work", 'Please ask the staff', "Can't connect? Ask us"]) {
+        final c = parser.parse('WIFI\nID\tmomo_guest\nPW\n$sentence');
+        expect(c.ssid, 'momo_guest', reason: sentence);
+        expect(c.password, isNull, reason: sentence);
+        expect(c.candidatesOf(WifiCandidateType.password), isEmpty, reason: sentence);
+      }
+      expect(parser.parse("PW\nIt doesn't work well").password, isNull);
+    });
+
+    test('같은 줄 옆 칸의 문장도 비밀번호가 아니다', () {
+      expect(parser.parse('WIFI : momo_guest\nPW\tAsk our staff please').password, isNull);
+    });
+
+    test('이름표 바로 뒤의 띄어쓰기 든 문구는 그대로 (E1)', () {
+      expect(parser.parse('Password: my secret pass').password, 'my secret pass');
+    });
+
+    test('떨어진 값이 두 단어 이하이면 그대로', () {
+      expect(parser.parse('WIFI : momo_guest\nPW\nmy secret').password, 'my secret');
+      expect(parser.parse('WIFI : momo_guest\nPW\nCoffee! 123').password, 'Coffee!123');
     });
   });
 
@@ -886,6 +964,51 @@ void main() {
     });
   });
 
+  group('비밀번호 아래 줄의 메모 (P2-4)', () {
+    const parser = WifiCredentialParser();
+    List<String> pwCandidates(String text) =>
+        parser.parse(text).candidatesOf(WifiCandidateType.password).map((e) => e.value).toList();
+
+    test('아래 줄 메모가 숫자 0이라고 알려 주면 O를 0으로, 원래 값은 후보로', () {
+      final c = parser.parse('PW : coffee0909\n※ 0은 모두 숫자');
+      expect(c.password, 'c0ffee0909');
+      expect(pwCandidates('PW : coffee0909\n※ 0은 모두 숫자'), contains('coffee0909'));
+      for (final memo in ['※0은 모두 숫자 영(0)이에요', '* 숫자 0 입니다', '※ zero 입니다', '참고) 0은 숫자']) {
+        expect(parser.parse('WIFI: zero_cafe\nPW : coffee0909\n$memo').password, 'c0ffee0909', reason: memo);
+      }
+    });
+
+    test('비밀번호 값이 이름표 다음 줄에 있어도 위 두 줄 안이면 적용', () {
+      expect(parser.parse('WIFI: zero_cafe\nPW\ncoffee0909\n※ 0은 모두 숫자').password, 'c0ffee0909');
+    });
+
+    test('아래 줄 메모가 영문 O라고 알려 주면 0을 O로', () {
+      expect(parser.parse('PW : m0m012345\n※ O는 영문 대문자').password, 'mOmO12345');
+    });
+
+    test('메모가 비밀번호보다 위에 있으면 그대로', () {
+      expect(parser.parse('※ 0은 모두 숫자\nPW : coffee0909').password, 'coffee0909');
+    });
+
+    test('메모가 세 줄 이상 떨어져 있으면 그대로', () {
+      final c = parser.parse('PW : coffee0909\nThanks\nEnjoy\n※ 0은 모두 숫자');
+      expect(c.password, 'coffee0909');
+      expect(pwCandidates('PW : coffee0909\nThanks\nEnjoy\n※ 0은 모두 숫자'), isNot(contains('c0ffee0909')));
+    });
+
+    test('이름이나 다른 값에는 적용하지 않는다', () {
+      final c = parser.parse('WIFI: zero_cafe\nPW : abc12345\n※ 0은 모두 숫자');
+      expect(c.ssid, 'zero_cafe');
+      expect(c.password, 'abc12345');
+      final d = parser.parse('WIFI: foo_cafe\n※ 0은 모두 숫자\nPW : abc12345');
+      expect(d.ssid, 'foo_cafe');
+    });
+
+    test('메모가 숫자 0·영문 O를 알려 주지 않는 줄은 무시', () {
+      expect(parser.parse('PW : coffee0909\n※ 대소문자 구분').password, 'coffee0909');
+    });
+  });
+
   group('비밀번호 사이에 OCR이 넣은 공백', () {
     const parser = WifiCredentialParser();
     const ssidLine = 'ID : 대전역 라운지뷰 별달5G';
@@ -929,7 +1052,7 @@ void main() {
       for (final (read, fixed) in [
         ('SK_WiFiGIGA7COD_5G', 'SK_WiFiGIGA7C0D_5G'),
         ('SK_WiFiGIGA1A2O', 'SK_WiFiGIGA1A20'),
-        ('SK_WIFiGIGA7COD_2.4G', 'SK_WIFiGIGA7C0D_2.4G'),
+        ('SK_WIFiGIGA7COD_2.4G', 'SK_WiFiGIGA7C0D_2.4G'),
         ('KT_GiGA_5G_F3DO', 'KT_GiGA_5G_F3D0'),
         ('KT_GIGA_2G_I3D6', 'KT_GiGA_2G_13D6'),
         ('U+NetDO5C', 'U+NetD05C'),
@@ -945,6 +1068,77 @@ void main() {
       expectParsed('Wi-Fi : SK_WiFiGIGAHOME_5G\nPW : momo12345', ssid: 'SK_WiFiGIGAHOME_5G', password: 'momo12345');
       expectParsed('Wi-Fi : iptime_COOL\nPW : momo12345', ssid: 'iptime_COOL', password: 'momo12345');
       expectParsed('Wi-Fi : momo_OIOI\nPW : momo12345', ssid: 'momo_OIOI', password: 'momo12345');
+    });
+  });
+
+  group('통신사 공유기 이름 정규화 (P2-3, 운영자 결정판)', () {
+    const parser = WifiCredentialParser();
+
+    // 정답은 안내문에 실제로 적힌 형식이다. OCR이 읽은 모양은 정답이 될 수 없고 후보로만 남는다.
+    test('SK: 접두어를 SK_WiFiGIGA로 고치고, 읽은 값은 후보로 남긴다', () {
+      for (final (read, fixed) in [
+        ('SK_WIF1GIGA9B2E', 'SK_WiFiGIGA9B2E'),
+        ('SK_WlFlGlGA1A2B_5G', 'SK_WiFiGIGA1A2B_5G'),
+        ('SKWiFiGIGA1A2B', 'SK_WiFiGIGA1A2B'),
+        ('SK_WIFiGIGA7COD_2.4G', 'SK_WiFiGIGA7C0D_2.4G'),
+        ('SK_WIF1GIGA7COD_5G', 'SK_WiFiGIGA7C0D_5G'),
+      ]) {
+        final c = parser.parse('Wi-Fi : $read\nPW : momo12345');
+        expect(c.ssid, fixed, reason: read);
+        expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), contains(read), reason: read);
+      }
+    });
+
+    test('KT: GiGA·대역·Wave2 밑줄을 채우고 꼬리를 16진수로 고친다', () {
+      for (final (read, fixed) in [
+        ('KT_GIGA5G_Wave2_4FIA', 'KT_GiGA_5G_Wave2_4F1A'),
+        ('KT_GiGA5G_Wave2_4FIA', 'KT_GiGA_5G_Wave2_4F1A'),
+        ('KTGIGA5GWave24FIA', 'KT_GiGA_5G_Wave2_4F1A'),
+        ('KT_GIGA_2G_I3D6', 'KT_GiGA_2G_13D6'),
+        ('KT_G1GA2G1A2B', 'KT_GiGA_2G_1A2B'),
+      ]) {
+        final c = parser.parse('Wi-Fi : $read\nPW : momo12345');
+        expect(c.ssid, fixed, reason: read);
+        expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), contains(read), reason: read);
+      }
+    });
+
+    test('띄어 읽은 SK 이름은 접두어와 16진수 사이에 밑줄을 넣지 않는다', () {
+      final c = parser.parse('WIFI : SK WiFiGIGA 3A2B\nPW : 1234567890');
+      expect(c.ssid, 'SK_WiFiGIGA3A2B');
+      expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), contains('SK_WiFiGIGA_3A2B'));
+      expect(parser.parse('WIFI : SK WIF1GIGA 3A2B 5G\nPW : 1234567890').ssid, 'SK_WiFiGIGA3A2B_5G');
+    });
+
+    test('접두어를 고친 SK 이름은 밑줄 유무와 상관없이 실제 형식(밑줄 없음)으로 통일', () {
+      for (final read in ['SK_WIFIGIGA_3A2B', 'SK WIFIGIGA 3A2B', 'SK_WIF1GIGA_3A2B_5G'.replaceAll('_5G', '')]) {
+        final c = parser.parse('Wi-Fi : $read\nPW : momo12345');
+        expect(c.ssid, 'SK_WiFiGIGA3A2B', reason: read);
+      }
+    });
+
+    test('같은 안내문에 맞게 읽은 SK 이름이 있으면 접두어를 고친 이름이 그것을 넘지 않는다', () {
+      const text = '모모공탕 WiFi\n5G 전용 : SK_WiFiGIGA7COD_5G\n2.4G18 : SK_WIFIGIGA7COD_2.4G\n무선랜암호 : ABEF6@2497';
+      final c = parser.parse(text);
+      expect(c.ssid, 'SK_WiFiGIGA7C0D_5G');
+      expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), contains('SK_WiFiGIGA7C0D_2.4G'));
+    });
+
+    test('이미 맞게 읽은 이름과 통신사가 아닌 이름은 그대로', () {
+      for (final name in [
+        'SK_WiFiGIGA_3A2B',
+        'SK_WiFiGIGA1A2B',
+        'SK_WiFiGIGA1A2B_5G',
+        'SK_WiFiGIGAHOME_5G',
+        'KT_GiGA_5G_Wave2_4F1A',
+        'KT_GiGA_2G_1A2B',
+        'GIGABYTE_5G',
+        'MEGAGIGA2',
+        'SKY_cafe',
+        'KT_momo_free',
+      ]) {
+        expect(parser.parse('Wi-Fi : $name\nPW : momo12345').ssid, name, reason: name);
+      }
     });
   });
 
@@ -1010,6 +1204,256 @@ void main() {
     test('비밀번호 앞 마침표 (콜론을 마침표로 읽음)', () {
       expect(parser.parse('WIFI : cafe_momo\n비밀번호. 46114124M#').password, '46114124M#');
       expect(parser.parse('WIFI : cafe_momo\nPW : .ab12').password, '.ab12');
+    });
+  });
+
+  group('P1-1 구분자·이름표 모양 넓히기', () {
+    test('공백 뒤 마침표 구분자: ID. / PW.', () {
+      expectParsed('ID. orange_box\nPW. orange8282', ssid: 'orange_box', password: 'orange8282');
+    });
+
+    test('화살표 글자 구분자', () {
+      for (final arrow in ['▶', '►', '▷', '▸', '➤', '➢', '☞', '»', '›']) {
+        expectParsed('WiFi $arrow star_lounge\nPW $arrow star7979', ssid: 'star_lounge', password: 'star7979');
+      }
+    });
+
+    test('괄호 이름표: [WIFI] [PW]', () {
+      expectParsed('[WIFI] a_b\n[PW] c1234567', ssid: 'a_b', password: 'c1234567');
+    });
+
+    test('괄호 이름표: 【】 〔〕 <> ()', () {
+      expectParsed('【WIFI】 a_b\n【PW】 c1234567', ssid: 'a_b', password: 'c1234567');
+      expectParsed('〔WIFI〕 a_b\n〔PW〕 c1234567', ssid: 'a_b', password: 'c1234567');
+      expectParsed('<WIFI> a_b\n<PW> c1234567', ssid: 'a_b', password: 'c1234567');
+      expectParsed('(WIFI) a_b\n(PW) c1234567', ssid: 'a_b', password: 'c1234567');
+    });
+
+    test('괄호 안이 이름표가 아니면 그대로 둔다', () {
+      expectParsed('[영수증] a_b\nPW: c1234567', ssid: null, password: 'c1234567');
+    });
+
+    test('떨어진 값 앞의 콜론·등호 기호를 뗀다', () {
+      expectParsed('WIFI\t:spaced_wifi\nP W :spaced2468', ssid: 'spaced_wifi', password: 'spaced2468');
+      expectParsed('WIFI\t=a_b\nPW\t：c1234567', ssid: 'a_b', password: 'c1234567');
+    });
+
+    test('Password/PIN: 의 /PIN은 이름표에 넣는다', () {
+      expectParsed('SSID: a_b\nPassword/PIN: 12345678', ssid: 'a_b', password: '12345678');
+      expectParsed('Wireless Network Name (SSID): TP-Link 5E2A\nWireless Password/PIN: 51837264',
+          ssid: 'TP-Link_5E2A', password: '51837264');
+    });
+
+    test('ID/PW : a / b 는 그대로 나눠 읽는다', () {
+      expectParsed('ID/PW : momo_cafe / abc12345', ssid: 'momo_cafe', password: 'abc12345');
+    });
+
+    test('이름표가 아닌 No. 1234', () {
+      expectParsed('No. 1234', ssid: null, password: null);
+    });
+  });
+
+  group('P1-2 밑줄 옆 공백 지우기', () {
+    test('밑줄 앞 공백: ID ⇥ Study _Room', () {
+      expectParsed('ID\tStudy _Room\nPW\tstudy4321', ssid: 'Study_Room', password: 'study4321');
+    });
+
+    test('밑줄 뒤 공백이 있어도 한 줄 이름표가 남는다', () {
+      expectParsed('WIFI one_ line_cafe / PW x1234567', ssid: 'one_line_cafe', password: 'x1234567');
+    });
+
+    test('밑줄 양쪽 공백', () {
+      expectParsed('SSID: my _ cafe\nPW: abc12345', ssid: 'my_cafe', password: 'abc12345');
+    });
+
+    test('하이픈 옆 공백은 지우지 않는다', () {
+      expect(parser.parse('SSID: Cafe - Guest\nPW: abc12345').ssid, isNot('Cafe-Guest'));
+    });
+  });
+
+  group('P1-2 + P2-2 단어 간격 표시 글자와 밑줄 옆 공백', () {
+    const m = gapMarker;
+
+    test('밑줄 앞 표시 글자: Study<표시>_Room → Study_Room (밑줄이 두 개가 되지 않는다)', () {
+      expectParsed('ID\tStudy${m}_Room\nPW\tstudy4321', ssid: 'Study_Room', password: 'study4321');
+    });
+
+    test('밑줄 뒤 표시 글자: one_<표시>line_cafe → one_line_cafe', () {
+      expectParsed('WIFI one_${m}line_cafe / PW x1234567', ssid: 'one_line_cafe', password: 'x1234567');
+    });
+
+    test('공백과 표시 글자가 함께 밑줄 옆에 있어도 밑줄 하나: Study _<표시>Room', () {
+      expectParsed('ID\tStudy _${m}Room\nPW\tstudy4321', ssid: 'Study_Room', password: 'study4321');
+    });
+
+    test('밑줄과 떨어진 표시 글자는 이름에서 밑줄 하나가 된다', () {
+      expectParsed('SSID: Lumi${m}Cafe\nPW: lumi7788', ssid: 'Lumi_Cafe', password: 'lumi7788');
+    });
+
+    test('안내문에 실제로 있는 밑줄 두 개는 그대로 둔다', () {
+      expectParsed('SSID: my__cafe\nPW: abc12345', ssid: 'my__cafe', password: 'abc12345');
+    });
+
+    test('비밀번호의 표시 글자는 빈 문자로, 밑줄 옆이면 밑줄 하나로', () {
+      expectParsed('SSID: Lumi_Cafe\nPW: lumi${m}7788', ssid: 'Lumi_Cafe', password: 'lumi7788');
+      expectParsed('SSID: Lumi_Cafe\nPW: lumi${m}_7788', ssid: 'Lumi_Cafe', password: 'lumi_7788');
+      expectParsed('SSID: Lumi_Cafe\nPW: lumi_${m}7788', ssid: 'Lumi_Cafe', password: 'lumi_7788');
+    });
+  });
+
+  group('P1-5 한 글자 이름 감점', () {
+    test('이름표 바로 뒤의 한 글자 이름은 그대로 둔다', () {
+      expectParsed('SSID: A\nPW: abc12345', ssid: 'A', password: 'abc12345');
+      expectParsed('SSID: A / PW: abc12345', ssid: 'A', password: 'abc12345');
+    });
+
+    test('세로쓰기 이름표 조각 한 글자를 이름으로 고르지 않는다', () {
+      expectParsed(
+        '와\t비\n이\ta_b\t밀\n와이파 이\t비밀번 호\n파\t번\nc1234567',
+        ssid: 'a_b',
+        password: 'c1234567',
+      );
+    });
+  });
+
+  group('P1-3 화장실·현관 비밀번호는 Wi-Fi 비밀번호가 아니다', () {
+    test('화장실 비밀번호', () {
+      expectParsed('화장실 비밀번호\n1234*', ssid: null, password: null);
+    });
+
+    test('공동현관·도어락 비밀번호', () {
+      expectParsed('공동현관 비밀번호 : #2580*', ssid: null, password: null);
+      expectParsed('도어락 비밀번호 : 0909*\n분리수거는 목요일', ssid: null, password: null);
+    });
+
+    test('Wi-Fi 단서가 아닌 다른 장소 비밀번호들', () {
+      expectParsed('출입문 비밀번호: abc12345678\n주차장 비번: 99887766aa', ssid: null, password: null);
+      expectParsed('사물함 문 비밀번호: abc12345678', ssid: null, password: null);
+    });
+
+    test('Wi-Fi 비밀번호와 함께 적힌 안내문은 Wi-Fi 쪽이 이긴다', () {
+      expectParsed('WIFI : a_b\nPW : c1234567\n현관 비밀번호 : 1357*', ssid: 'a_b', password: 'c1234567');
+      expectParsed('Wi-Fi:stay_ocean_view\nPW: ocean7777\n현관 비밀번호 : 1357*\n체크아웃 11:00',
+          ssid: 'stay_ocean_view', password: 'ocean7777');
+    });
+
+    test('앞말이 바로 붙지 않은 와이파이 비밀번호는 그대로 인식한다', () {
+      expectParsed('현관 와이파이 비밀번호 : abc12345', ssid: null, password: 'abc12345');
+    });
+  });
+
+  group('P1-4 이름표 없는 카드 모양 오탐', () {
+    test('예약 안내 두 줄', () {
+      expectParsed('Reservation\ntable07\nguest2026', ssid: null, password: null);
+      expectParsed('예약 안내\ntable07\nguest2026', ssid: null, password: null);
+    });
+
+    test('SNS 계정·해시태그', () {
+      expectParsed('FOLLOW US\n@cafe_momo_official\n#momo2026', ssid: null, password: null);
+      expectParsed('@cafe_momo\nabc12345xyz', ssid: null, password: null);
+    });
+
+    test('주문·쿠폰·회원·영수증 제목의 두 줄', () {
+      for (final title in ['Order', '쿠폰', 'COUPON', 'Membership', '회원 가입', 'Ticket', '영수증', 'receipt no']) {
+        expectParsed('$title\nsale_2026\nabc12345xyz', ssid: null, password: null);
+      }
+    });
+
+    test('가게 이름 제목이 붙은 이름표 없는 카드는 그대로 인식한다', () {
+      expectParsed('CAFE LUNAHOUSE\nlunahouse7\nb83kd02jq1', ssid: 'lunahouse7', password: 'b83kd02jq1');
+    });
+
+    test('이름이 제목 낱말로 시작해도 이름·비밀번호 줄은 제목으로 보지 않는다', () {
+      expectParsed('CAFE\ncode_cafe7\nb83kd02jq1', ssid: 'code_cafe7', password: 'b83kd02jq1');
+    });
+  });
+
+  group('PR #2 검토 반영', () {
+    test('P1-5: 이름표 다음 줄·다음 칸의 한 글자 이름은 감점하지 않는다', () {
+      expectParsed('SSID\nA\nPW\nabc12345', ssid: 'A', password: 'abc12345');
+      expectParsed('SSID\tA\nPW\tabc12345', ssid: 'A', password: 'abc12345');
+      expectParsed('SSID:\nA\nPW: abc12345', ssid: 'A', password: 'abc12345');
+    });
+
+    test('P1-3: 한 줄에 이어 적힌 현관 비밀번호가 앞 PW 값에 붙지 않는다', () {
+      expectParsed('WIFI : a_b / PW : c1234567 / 현관 비밀번호 : 1357*', ssid: 'a_b', password: 'c1234567');
+    });
+
+    test('P1-1: 문장 끝 마침표 뒤 여러 단어는 값이 아니다', () {
+      expectParsed('Please ask for password. Next sentence', ssid: null, password: null);
+      expectParsed('ID. a_b\nPW. c1234567', ssid: 'a_b', password: 'c1234567');
+    });
+  });
+
+  group('PR #2 2차 검토: 마침표 이름표·장소 비밀번호 설계', () {
+    test('칸 맨 앞 이름표 뒤 마침표는 구분자이고 뒤 이름표 분리도 그대로 탄다', () {
+      expectParsed('Password. abc12345 / SSID: a_b', ssid: 'a_b', password: 'abc12345');
+      expectParsed('ID. a_b\nPW. c1234567', ssid: 'a_b', password: 'c1234567');
+      expectParsed('ID. a_b / PW. c1234567', ssid: 'a_b', password: 'c1234567');
+    });
+
+    test('문장 가운데 마침표는 구분자가 아니다', () {
+      expectParsed('Please ask for password. Next sentence', ssid: null, password: null);
+    });
+
+    test('장소 비밀번호 낱말이 SSID 값 안쪽이면 건드리지 않는다', () {
+      expectParsed('SSID: 화장실비밀번호연구소\nPW: abc12345', ssid: '화장실비밀번호연구소', password: 'abc12345');
+    });
+
+    test('장소 비밀번호 낱말이 붙은 가게 이름은 그대로 둔다', () {
+      expectParsed('SSID: 현관비밀번호카페\nPW: abc12345', ssid: '현관비밀번호카페', password: 'abc12345');
+      expectParsed('WIFI : 현관비밀번호카페 / PW : abc12345', ssid: '현관비밀번호카페', password: 'abc12345');
+    });
+
+    test('한 줄에 Wi-Fi·현관 비밀번호가 함께 있어도 Wi-Fi 값을 고른다', () {
+      expectParsed('WIFI : a_b / PW : c1234567 / 현관 비밀번호 : 1357*', ssid: 'a_b', password: 'c1234567');
+      expectParsed('현관 비밀번호 : 1357* / WIFI : a_b / PW : c1234567', ssid: 'a_b', password: 'c1234567');
+    });
+
+    test('방어 입력 모음', () {
+      expectParsed('SSID\nA\nPW\nabc12345', ssid: 'A', password: 'abc12345');
+      expectParsed('SSID\tA\nPW\tabc12345', ssid: 'A', password: 'abc12345');
+      expectParsed('SSID:\nA\nPW: abc12345', ssid: 'A', password: 'abc12345');
+      expectParsed('SSID: a_b\nPassword/PIN: 12345678', ssid: 'a_b', password: '12345678');
+      expectParsed('ID/PW : momo_cafe / abc12345', ssid: 'momo_cafe', password: 'abc12345');
+      expectParsed('No. 1234', ssid: null, password: null);
+    });
+  });
+
+  group('PR #2 3차 검토: 장소 이름표는 칸 맨 앞이나 구분자 뒤에서만', () {
+    test('이름 값 끝의 장소 낱말과 뒤 Wi-Fi 이름표를 보존한다', () {
+      expectParsed('SSID: Lobby 현관 PW: abc12345', ssid: 'Lobby 현관', password: 'abc12345');
+      expectParsed('SSID: 현관 PW: abc12345', ssid: '현관', password: 'abc12345');
+      expectParsed('SSID: Lobby 화장실 Password: abc12345', ssid: 'Lobby 화장실', password: 'abc12345');
+    });
+
+    test('검토자 경계 입력 21개', () {
+      const cases = <(String, String?, String?)>[
+      ('1. ID. a_b\n2. PW. c1234567', 'a_b', 'c1234567'),
+      ('1) ID. a_b\n2) PW. c1234567', 'a_b', 'c1234567'),
+      ('01. ID. a_b\n02. PW. c1234567', 'a_b', 'c1234567'),
+      ('ID. a_b / PW. c1234567', 'a_b', 'c1234567'),
+      ('SSID: 현관비밀번호카페\nPW: abc12345', '현관비밀번호카페', 'abc12345'),
+      ('SSID: cafe_현관비밀번호\nPW: abc12345', 'cafe_현관비밀번호', 'abc12345'),
+      ('SSID: cafe현관비밀번호\nPW: abc12345', 'cafe현관비밀번호', 'abc12345'),
+      ('SSID: 현관\nPW: abc12345', '현관', 'abc12345'),
+      ('SSID: Lobby 현관 / PW: abc12345', 'Lobby 현관', 'abc12345'),
+      ('SSID: Lobby 현관 PW: abc12345', 'Lobby 현관', 'abc12345'),
+      ('SSID: 현관 PW: abc12345', '현관', 'abc12345'),
+      ('SSID: Lobby 화장실 Password: abc12345', 'Lobby 화장실', 'abc12345'),
+      ('SSID: Lobby현관 PW: abc12345', 'Lobby현관', 'abc12345'),
+      ('SSID: a_b / PW: abc12345 / 현관', 'a_b', null),
+      ('SSID: a_b / PW: abc12345 / 공동 현관 비밀번호: 1357*', 'a_b', 'abc12345'),
+      ('현관 비밀번호: 1357* / SSID: a_b / PW: abc12345', 'a_b', 'abc12345'),
+      ('현관 와이파이 비밀번호: abc12345', null, 'abc12345'),
+      ('WIFI: a_b\n현관 비밀번호\n1357*\nPW: abc12345', 'a_b', 'abc12345'),
+      ('화장실 비밀번호\n1234*', null, null),
+      ('SSID: a_b / Password. abc12345', 'a_b', 'abc12345'),
+      ('Please ask for password. Next sentence', null, null),
+      ];
+      for (final (text, ssid, password) in cases) {
+        expectParsed(text, ssid: ssid, password: password);
+      }
     });
   });
 }

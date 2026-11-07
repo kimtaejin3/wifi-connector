@@ -28,7 +28,8 @@ class WifiCredentialParser {
     final found = <WifiCandidate>[];
 
     void add(_LabelMatch label, String value, double base, {required bool isolated}) {
-      var cleaned = _cleanValue(value);
+      if (label.place) return;
+      var cleaned = _cleanValue(value, label.type);
       if (cleaned.isEmpty) return;
       // "d9ki88ec01 <=숫자 0" — 비밀번호 뒤에 붙은 메모는 떼고, 메모가 알려 주는 글자는 반영한다.
       if (label.type == WifiCandidateType.password) {
@@ -55,11 +56,18 @@ class WifiCredentialParser {
       // 밑줄로 이은 값을 1순위로 두되, 추측이므로 확신도는 낮추고 원래 값도 후보로 남긴다.
       if (label.type == WifiCandidateType.ssid && cleaned.contains(_whitespace) && _machineLikeSsid(cleaned)) {
         final joined = cleaned.replaceAll(_whitespace, '_');
-        found.add(WifiCandidate(
-          value: joined,
-          type: label.type,
-          score: (base * _ssidFactor(joined, isolated: true) * 0.9).clamp(0.0, 1.0),
-        ));
+        final joinedScore = (base * _ssidFactor(joined, isolated: true) * 0.9).clamp(0.0, 1.0);
+        // "SK WiFiGIGA 3A2B" — 실제 SK 이름은 접두어 바로 뒤에 16진수가 붙는다 (`SK_WiFiGIGA3A2B`).
+        // 접두어 뒤 공백은 밑줄이 아니라 OCR이 넣은 틈이므로 지운 값을 1순위로 둔다.
+        final tight = _skSpacedTail.firstMatch(cleaned);
+        if (tight != null) {
+          found.add(WifiCandidate(
+            value: 'SK_WiFiGIGA${tight.namedGroup('hex')}${(tight.namedGroup('band') ?? '').replaceAll(_whitespace, '_')}',
+            type: label.type,
+            score: (joinedScore + 0.02).clamp(0.0, 1.0),
+          ));
+        }
+        found.add(WifiCandidate(value: joined, type: label.type, score: joinedScore));
         found.add(WifiCandidate(value: cleaned, type: label.type, score: (base * 0.7).clamp(0.0, 1.0)));
         return;
       }
@@ -82,8 +90,11 @@ class WifiCredentialParser {
       ));
     }
 
+    // 행마다 그 행의 이름표 처리로 found에 들어간 후보 범위. 비밀번호 아래 줄의 메모(P2-4)가 쓴다.
+    final rowSpans = <(int, int)>[];
     for (var r = 0; r < rows.length; r++) {
       final segs = rows[r];
+      final spanStart = found.length;
       var i = 0;
       while (i < segs.length) {
         final seg = segs[i];
@@ -177,11 +188,15 @@ class WifiCredentialParser {
         }
         i = j;
       }
+      rowSpans.add((spanStart, found.length));
     }
 
-    final wifiContext = _wifiContext.hasMatch(normalizeOcrText(rawText));
+    _applyNoteBelow(rows, rowSpans, found);
+    final wifiContext = _wifiContext.hasMatch(normalizeOcrText(rawText).replaceAll(_otherPlacePassword, ' '));
     _addUnlabeledFallbacks(rows, found, wifiContext: wifiContext);
     _addSeparatorVariants(found);
+    _addKtNormalized(found);
+    _addSkPrefixFixes(found);
     _addKtGigaVariants(found);
     _addIspHexVariants(found);
     final result = _select(found);
@@ -202,6 +217,15 @@ class WifiCredentialParser {
     if (ssid == null || password == null || password.isEmpty) return false;
     final lines = rows.where((r) => r.any((s) => s.value.trim().isNotEmpty || s.isLabel)).length;
     if (lines > 3) return false;
+    // SNS 계정("@cafe_momo")은 Wi-Fi 이름이 아니다.
+    if (ssid.startsWith('@')) return false;
+    // 예약·주문·쿠폰·회원·영수증 안내의 두 줄은 이름표 없는 Wi-Fi 카드가 아니다.
+    // 이름·비밀번호로 고른 줄 자신은 제목으로 보지 않는다 ("code_cafe7").
+    final titled = rows.any((r) {
+      final first = r.first.value.trim();
+      return first != ssid && first != password && _notCardTitle.hasMatch(first);
+    });
+    if (titled) return false;
     // 영어 단어 하나("ORANGE", "Alice")나 한글 낱말은 이름으로 보지 않는다.
     // 숫자·밑줄·하이픈이 섞였거나 "MomoCafe"처럼 단어를 붙여 쓴 이름만 받는다.
     final ssidOk = (_hasDigit.hasMatch(ssid) || ssid.contains(RegExp(r'[_\-]')) || _camelCase.hasMatch(ssid)) &&
@@ -242,6 +266,32 @@ class WifiCredentialParser {
     }
   }
 
+  /// 비밀번호 아래 줄의 메모 ("PW : coffee0909" / "※ 0은 모두 숫자"). 이름표 없는 한글 줄이 숫자 0·영문 O를
+  /// 알려 주면 바로 위 한두 행의 비밀번호 후보에만 같은 힌트를 적용한 값을 후보로 더한다(+0.001).
+  /// 메모가 비밀번호보다 위에 있거나 세 행 이상 떨어져 있으면 아무것도 하지 않는다.
+  void _applyNoteBelow(List<List<_Segment>> rows, List<(int, int)> spans, List<WifiCandidate> found) {
+    for (var r = 1; r < rows.length; r++) {
+      final row = rows[r];
+      if (row.isEmpty || row.any((s) => s.isLabel)) continue;
+      final note = row.map((s) => s.value).join(' ');
+      if (!_hangulSyllable.hasMatch(note)) continue;
+      final compact = note.replaceAll(_whitespace, '').toLowerCase();
+      if (!_digitZeroNote.hasMatch(compact) && !_letterONote.hasMatch(compact)) continue;
+      final added = <WifiCandidate>[];
+      for (var k = math.max(0, r - 2); k < r; k++) {
+        final (start, end) = spans[k];
+        for (var n = start; n < end; n++) {
+          final c = found[n];
+          if (c.type != WifiCandidateType.password || c.value.isEmpty) continue;
+          final hinted = _applyNoteHint(c.value, note);
+          if (hinted == c.value) continue;
+          added.add(WifiCandidate(value: hinted, type: c.type, score: (c.score + 0.001).clamp(0.0, 1.0)));
+        }
+      }
+      found.addAll(added);
+    }
+  }
+
   /// 메모가 "숫자 0"이라고 알려 주면 O·o를 0으로, "영문 O"라고 알려 주면 0을 O로 바꾼다.
   /// 안내문을 쓴 사람이 직접 적은 정보라 OCR보다 믿을 만하다.
   String _applyNoteHint(String value, String note) {
@@ -260,6 +310,30 @@ class WifiCredentialParser {
     final joined = parts.join();
     if (joined.length < 8 || joined.length > 63) return false;
     return parts.any((p) => p.length == 1 || _hasDigit.hasMatch(p));
+  }
+
+  /// 이름표 자리가 "wifi"·"와이파이"와 글자 한두 개 차이로 비슷한 낱말 (wii, wifl, 와이파, 와이).
+  bool _wifiLikeLabel(String label) {
+    final l = label.toLowerCase();
+    return _editDistance(l, 'wifi') <= 2 || _editDistance(l, '와이파이') <= 2;
+  }
+
+  int _editDistance(String a, String b) {
+    var prev = List<int>.generate(b.length + 1, (j) => j);
+    for (var i = 1; i <= a.length; i++) {
+      final cur = <int>[i];
+      for (var j = 1; j <= b.length; j++) {
+        cur.add(math.min(math.min(cur[j - 1], prev[j]) + 1, prev[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1)));
+      }
+      prev = cur;
+    }
+    return prev.last;
+  }
+
+  /// 비밀번호가 아니라 안내 문장으로 보이는 값: 세 단어 이상이거나, `'`가 든 여러 단어.
+  bool _sentenceLike(String v) {
+    final words = v.trim().split(_whitespace).length;
+    return words >= 3 || (words >= 2 && v.contains("'"));
   }
 
   /// 비밀번호로 쓸 수 없는 값. WPA 비밀번호는 ASCII라 한글이 들어가면 안내문의 다른 글귀다.
@@ -281,6 +355,54 @@ class WifiCredentialParser {
       final fixed = c.value.replaceAllMapped(_ktGiga, (_) => 'GiGA');
       if (fixed == c.value) continue;
       found.add(WifiCandidate(value: fixed, type: c.type, score: (c.score + 0.01).clamp(0.0, 1.0)));
+    }
+  }
+
+  /// KT 공유기 이름의 실제 형식은 `KT_GiGA_<대역>_<Wave2_><16진수 네 글자>`다. OCR이 `GIGA` 뒤 밑줄을 빠뜨리거나
+  /// 꼬리 1을 I로 읽은 값(`KT_GiGA5G_Wave2_4FIA`)을 실제 형식으로 고친 값을 1순위로 두고, 읽은 값도 후보로 남긴다.
+  void _addKtNormalized(List<WifiCandidate> found) {
+    for (final c in found.toList()) {
+      if (c.type != WifiCandidateType.ssid) continue;
+      final m = _ktRead.firstMatch(c.value);
+      if (m == null) continue;
+      final hex = m.namedGroup('hex')!.replaceAll(RegExp('[Oo]'), '0').replaceAll(RegExp('[IiLl]'), '1');
+      final wave = m.namedGroup('wave') == null ? '' : 'Wave2_';
+      final fixed = 'KT_GiGA_${m.namedGroup('band')!.toUpperCase()}_$wave$hex';
+      if (fixed == c.value) continue;
+      found.add(WifiCandidate(value: fixed, type: c.type, score: (c.score + 0.02).clamp(0.0, 1.0)));
+    }
+  }
+
+  /// SK 공유기 이름의 실제 형식은 `SK_WiFiGIGA` + 16진수 네 글자(밑줄 없음) + 선택적 `_5G`/`_2.4G`다.
+  /// OCR이 `WiFi`를 `WIF1`·`WlFl`로 읽거나 접두어 밑줄을 빠뜨린 값은 접두어만 `SK_WiFiGIGA`로 고친 값을
+  /// 1순위로 두고, 읽은 값은 후보로 남긴다. 뒤는 읽은 그대로 두며, 16진수 꼬리는 이어지는
+  /// [_addIspHexVariants]가 바로잡는다.
+  void _addSkPrefixFixes(List<WifiCandidate> found) {
+    final before = found.toList();
+    var fixedAny = false;
+    for (final c in before) {
+      if (c.type != WifiCandidateType.ssid) continue;
+      final m = _skRead.firstMatch(c.value);
+      if (m == null) continue;
+      final rest = c.value.substring(m.end);
+      final fixed = 'SK_WiFiGIGA$rest';
+      if (fixed == c.value) continue;
+      fixedAny = true;
+      // 접두어를 고친 이름은 접두어와 16진수 사이 밑줄도 지운 실제 형식(`SK_WiFiGIGA3A2B`)을 1순위로,
+      // 밑줄을 읽은 그대로 둔 값은 그 아래 후보로 남긴다.
+      final tight = _skUnderscoreTail.firstMatch(rest);
+      final real = tight == null ? fixed : 'SK_WiFiGIGA${tight.namedGroup('hex')}${tight.namedGroup('band') ?? ''}';
+      found.add(WifiCandidate(value: real, type: c.type, score: (c.score + 0.02).clamp(0.0, 1.0)));
+      if (real != fixed) {
+        found.add(WifiCandidate(value: fixed, type: c.type, score: (c.score + 0.01).clamp(0.0, 1.0)));
+      }
+    }
+    // 같은 안내문에 이미 맞게 읽은 SK 이름이 있으면 같은 가산점을 줘서, 접두어를 고친 이름이 그것을 넘지 않게 한다.
+    if (!fixedAny) return;
+    for (final c in before) {
+      if (c.type == WifiCandidateType.ssid && c.value.startsWith('SK_WiFiGIGA')) {
+        found.add(WifiCandidate(value: c.value, type: c.type, score: (c.score + 0.02).clamp(0.0, 1.0)));
+      }
     }
   }
 
@@ -339,10 +461,20 @@ class WifiCredentialParser {
     _Segment value,
     _AddCandidate add, {
     required bool sameRow,
+    bool fragmentRow = false,
   }) {
     // "FREE WIFI" 같은 제목 다음에 오는 문장은 값으로 보지 않는다.
     if (label.header && value.value.contains(_whitespace)) return;
-    add(label.label!, value.value, _detachedBase(label, sameRow: sameRow), isolated: true);
+    // 값 칸에 붙어 읽힌 구분자 (":spaced_wifi")는 값이 아니다.
+    final text = value.value.replaceFirst(_leadingSeparator, '');
+    if (text.isEmpty) return;
+    // 이름표 아래·옆 칸에 있던 안내 문장 ("Ask our staff if it doesn't work")은 비밀번호가 아니다.
+    // 이름표 바로 뒤의 값은 이 함수를 지나지 않으므로 띄어쓰기 든 비밀번호 문구는 그대로다.
+    if (label.label!.type == WifiCandidateType.password && _sentenceLike(text)) return;
+    // 세로쓰기 이름표 조각("파")이 표 열 맞추기로 이름이 되는 것을 막는다. 값 행의 칸이 모두 한 글자
+    // 조각일 때만 감점하고, 이름표가 바로 앞 칸·바로 위 행에 있는 한 글자 값("SSID\nA")은 깎지 않는다.
+    final fragment = fragmentRow && label.label!.type == WifiCandidateType.ssid && text.runes.length < 2;
+    add(label.label!, text, _detachedBase(label, sameRow: sameRow) * (fragment ? 0.2 : 1), isolated: true);
     value.consumed = true;
   }
 
@@ -358,7 +490,7 @@ class WifiCredentialParser {
       for (var k = 0; k < run.length; k++) {
         final target = next[runStart + k];
         if (target.isLabel || target.consumed) continue;
-        _addDetached(run[k], target, add, sameRow: false);
+        _addDetached(run[k], target, add, sameRow: false, fragmentRow: next.every((s) => s.value.trim().runes.length < 2));
       }
       return;
     }
@@ -466,11 +598,27 @@ class WifiCredentialParser {
       r++; // 아랫줄은 비밀번호이므로 다시 이름 후보로 보지 않는다.
     }
 
+    // 비밀번호는 이름표로 확실히 찾았는데 이름은 못 찾았을 때, 깨진 Wi-Fi 이름표 줄("wii - hong_studio")의
+    // 값을 이름 후보로 둔다. 짧은 영문·한글 낱말 + 구분자(또는 공백) + 이름 모양 값 한 칸짜리 행만 본다.
+    final hasLabeledPassword =
+        found.any((c) => c.type == WifiCandidateType.password && c.value.isNotEmpty && c.score >= 0.9);
+
     for (final row in rows) {
       for (final seg in row) {
         if (seg.isLabel || seg.consumed) continue;
         final v = seg.value.trim();
         if (v.isEmpty) continue;
+        if (!hasLabeledSsid && hasLabeledPassword && row.length == 1) {
+          final m = _brokenWifiLabelRow.firstMatch(v);
+          final label = m?.namedGroup('label') ?? '';
+          if (m != null &&
+              _wifiLikeLabel(label) &&
+              !_contactLabel.hasMatch(label) &&
+              _looksLikeSsid(m.namedGroup('value')!)) {
+            // 이름 후보만 더한다. 줄 전체를 이름으로 보는 아래 기존 추측은 그대로 이어서 돈다.
+            found.add(WifiCandidate(value: m.namedGroup('value')!, type: WifiCandidateType.ssid, score: 0.55));
+          }
+        }
         // 이름표가 깨지거나 띄어 읽혀 알아보지 못한 줄: "비 번 : 7ba19kx719", "H| H 7ba19kx719".
         // 이름을 이미 찾았고 앞부분이 짧은 글자뿐이면 오른쪽 값을 비밀번호 후보로 둔다.
         if (hasLabeledSsid && wifiContext) {
@@ -536,6 +684,7 @@ class WifiCredentialParser {
       !_greetingWords.contains(v.toLowerCase().replaceAll(_noisePunctuation, ''));
 
   bool _looksLikeSsid(String v) =>
+      !v.startsWith('@') &&
       utf8.encode(v).length <= 32 &&
       !_bandOnly.hasMatch(v) &&
       _ssidShape.hasMatch(v) &&
@@ -659,9 +808,10 @@ class WifiCredentialParser {
       final cells = normalizeOcrText(line).split('\t');
       for (var c = 0; c < cells.length; c++) {
         // "• Password: ..." 같은 글머리 기호는 라벨 인식을 막으므로 떼어낸다.
-        final cell = cells[c].trim().replaceFirst(_bullet, '').trim().replaceFirst(_iconPrefix, '');
+        var cell = cells[c].trim().replaceFirst(_bullet, '').trim().replaceFirst(_iconPrefix, '');
         // Wi-Fi·자물쇠 아이콘을 OCR이 "令", "?", "🔒" 같은 한두 글자로 읽은 셀은 버린다.
         if (cell.isEmpty || _iconOnly.hasMatch(cell)) continue;
+        cell = _unbracketLabel(cell);
         // 작은 글씨의 "아이디"를 한국어 인식기가 영문처럼 깨뜨려 읽은 셀은 원래 이름표로 되돌린다.
         // 그대로 두면 위의 "WIFI" 제목이 이 글자를 Wi-Fi 이름으로 가져간다.
         if (_garbledIdLabel.hasMatch(cell)) {
@@ -721,12 +871,24 @@ class WifiCredentialParser {
     return [left, ..._splitBands(right)];
   }
 
+  /// 칸 맨 앞의 괄호 이름표 `[WIFI] x`, `【PW】 x`, `<ID> x`를 `WIFI : x`로 바꾼다.
+  /// 괄호 안이 통째로 이름표일 때만 바꾼다 (`[영수증] x`는 그대로).
+  String _unbracketLabel(String cell) {
+    final m = _bracketLabel.firstMatch(cell);
+    if (m == null) return cell;
+    final inner = m.group(1)!.trim();
+    if (inner.isEmpty || _matchLabel(inner, 0)?.valueStart != inner.length) return cell;
+    final rest = m.group(2)!.replaceFirst(_leadingSeparator, '').trim();
+    return '$inner : $rest'.trim();
+  }
+
   List<_Segment> _segmentCell(String cell, int cellIndex) {
     final matches = <_LabelMatch>[];
     var pos = 0;
     while (pos < cell.length) {
       if (pos == 0 || _delimiter.hasMatch(cell[pos - 1])) {
-        final m = _matchLabel(cell, pos);
+        // "현관 비밀번호 :" 같은 장소 비밀번호도 이름표로 인식해 앞 값과의 경계를 만든다. 값은 버린다.
+        final m = _placeLabel(cell, pos) ?? _matchLabel(cell, pos);
         // 셀 중간의 라벨은 오탐을 줄이기 위해 강한 비밀번호 라벨이거나 구분자(:, =)가 있을 때만 인정
         if (m != null && (pos == 0 || m.hasSeparator || m.isStrongPassword)) {
           matches.add(m);
@@ -752,7 +914,7 @@ class WifiCredentialParser {
       // 따옴표로 감싼 값은 여러 단어여도 의도된 값이다 ('Connect to "Momo Guest"').
       final quoted = _wrappingQuotes.hasMatch(value);
       // "cafe_momo 이고" 같은 문장 종결을 먼저 떼어내야 아래 여러 단어 판정에 걸리지 않는다.
-      value = _cleanValue(value);
+      value = _cleanValue(value, m.type);
 
       var header = m.header;
       if (_isNoise(value)) {
@@ -770,6 +932,31 @@ class WifiCredentialParser {
       segs.add(_Segment(m, value, cellIndex, header: header));
     }
     return segs;
+  }
+
+  /// 화장실·현관 등 Wi-Fi가 아닌 곳의 비밀번호 이름표. 토큰 경계에서 장소 낱말 바로 뒤에
+  /// 비밀번호 이름표가 올 때만 인정한다 (다른 이름표의 값 안쪽 "화장실비밀번호연구소"는 해당 없음).
+  _LabelMatch? _placeLabel(String cell, int pos) {
+    // 장소 낱말이 칸 맨 앞이거나 구분자(/, |) 바로 뒤일 때만 본다. 다른 이름표의 값 안에서 만난
+    // 장소 낱말("SSID: Lobby 현관 PW: x"의 현관)은 그 값의 일부다.
+    if (!_placeTrigger.hasMatch(cell.substring(0, pos))) return null;
+    final door = _otherPlaceWord.matchAsPrefix(cell, pos);
+    if (door == null) return null;
+    final at = _whitespace.matchAsPrefix(cell, door.end)?.end ?? door.end;
+    final label = _passwordLabel.matchAsPrefix(cell, at) as RegExpMatch?;
+    // "현관 와이파이 비밀번호"는 와이파이 비밀번호 이름표다.
+    if (label == null || label.namedGroup('wifi') != null) return null;
+    final inner = _tryLabel(_passwordLabel, WifiCandidateType.password, cell, at);
+    if (inner == null) return null;
+    return _LabelMatch(
+      type: WifiCandidateType.password,
+      strength: _Strength.strong,
+      header: false,
+      start: pos,
+      valueStart: inner.valueStart,
+      hasSeparator: inner.hasSeparator,
+      place: true,
+    );
   }
 
   _LabelMatch? _matchLabel(String cell, int pos) =>
@@ -792,10 +979,29 @@ class WifiCredentialParser {
     final slash = _slash.matchAsPrefix(cell, end);
     if (slash != null) {
       final second = re.matchAsPrefix(cell, slash.end);
-      if (second != null) end = second.end;
+      if (second != null) {
+        end = second.end;
+      } else {
+        // "Password/PIN:" — 뒤에 구분자가 오는 짧은 낱말이 다른 이름표가 아니면 이름표의 일부다.
+        // "ID/PW : a / b"의 PW처럼 다른 이름표면 따로 둬서 값을 나눠 쓰게 한다.
+        final word = _slashWord.matchAsPrefix(cell, slash.end);
+        if (word != null && _matchLabel(cell, slash.end) == null) end = word.end;
+      }
     }
 
-    final sep = _separator.matchAsPrefix(cell, end);
+    var sep = _separator.matchAsPrefix(cell, end);
+    if (sep == null) {
+      final dot = _dotSeparator.matchAsPrefix(cell, end);
+      if (dot != null) {
+        if (_cellStart.hasMatch(cell.substring(0, pos))) {
+          // 칸 맨 앞의 "ID. x", "PW. x"는 "ID : x"와 똑같이 다룬다.
+          sep = dot;
+        } else if (_whitespace.hasMatch(cell.substring(dot.end).split(_valueEnd).first.trim())) {
+          // 문장 가운데의 "Please ask for password. Next sentence"는 이름표가 아니다.
+          return null;
+        }
+      }
+    }
     return _LabelMatch(
       type: type,
       strength: strength,
@@ -808,14 +1014,25 @@ class WifiCredentialParser {
 
   /// 앞뒤 공백, 괄호 설명, "비밀번호는 abc12345 입니다" 같은 문장 종결만 떼어낸다.
   /// 값 자체의 대소문자와 특수문자는 건드리지 않는다.
-  String _cleanValue(String value) {
-    var v = value.trim().replaceFirst(_trailingNote, '').trim();
+  ///
+  /// OcrService가 단어 간격이 좁은 자리에 넣은 표시 글자([gapMarker])는 여기서 없앤다:
+  /// 표시 글자는 먼저 공백과 같은 부류로 보고 밑줄 옆 공백 정리와 한 규칙으로 처리한다
+  /// ("Study<표시>_Room"의 표시 글자는 옆의 밑줄에 흡수된다). 정리 뒤에 남은 표시 글자만
+  /// 이름이면 밑줄(OCR이 놓친 밑줄 자리), 비밀번호면 빈 문자(공백이 있을 수 없다), 종류를 모르면 공백이 된다.
+  /// 앞당긴 정리는 표시 글자가 낀 매치에만 적용한다: 표시 글자가 없으면 뒤 괄호 메모 떼기가 먼저 돌아야 하므로
+  /// 밑줄 옆 공백 정리는 아래 원래 자리에서 한다(`cafe_ (2층)`). 안내문에 실제로 있는 `__`도 건드리지 않는다.
+  String _cleanValue(String value, [WifiCandidateType? type]) {
+    final gap = switch (type) { WifiCandidateType.ssid => '_', WifiCandidateType.password => '', null => ' ' };
+    var v = value
+        .replaceAllMapped(_spaceAroundUnderscore, (m) => m[0]!.contains(gapMarker) ? '_' : m[0]!)
+        .replaceAll(gapMarker, gap).trim().replaceFirst(_trailingNote, '').trim();
     final stripped = v.replaceFirst(_sentenceEnding, '').trim();
     if (stripped.isNotEmpty) v = stripped;
     // 'Connect to "Momo Guest"' — 양쪽을 모두 감싼 따옴표만 벗긴다.
     final quoted = _wrappingQuotes.firstMatch(v);
     if (quoted != null) v = quoted.group(1)!;
-    return v;
+    // OCR은 밑줄 옆에 없던 공백을 넣기도 한다 ("Study _Room", "one_ line_cafe"). 하이픈은 건드리지 않는다.
+    return v.replaceAll(_spaceAroundUnderscore, '_');
   }
 
   bool _isNoise(String value) {
@@ -845,6 +1062,7 @@ class _LabelMatch {
     required this.start,
     required this.valueStart,
     required this.hasSeparator,
+    this.place = false,
   });
 
   final WifiCandidateType type;
@@ -855,6 +1073,9 @@ class _LabelMatch {
   final int start;
   final int valueStart;
   final bool hasSeparator;
+
+  /// 화장실·현관 등 Wi-Fi가 아닌 곳의 비밀번호 이름표. 경계만 만들고 후보는 내지 않는다.
+  final bool place;
 
   bool get isStrongPassword => type == WifiCandidateType.password && strength == _Strength.strong;
 }
@@ -891,7 +1112,7 @@ const _particle = r'(?:(?:는|은|이|가|를|을)(?=\s|[:=：;|]|$)|\s+is(?=\s|
 const _boundary = r'(?![\p{L}\p{N}_]|-[\p{L}\p{N}])';
 
 final _passwordLabel = RegExp(
-  '$_free(?:(?:$_wifiWord|$_network)\\s*)?'
+  '$_free(?:(?<wifi>$_wifiWord|$_network)\\s*)?'
   '(?:(?<strong>pass\\s?w[o0]r?d|p\\s?a\\s?s\\s?s\\s?w\\s?[o0]\\s?r\\s?d|passward|passwd|passcode|pwd|p\\s?/\\s?w|p\\.w\\.?|p\\s{0,2}(?:w|vv)'
   '|비[\\s|Il1]*밀[\\s|Il1]*번[\\s|Il1]*호|비\\s*번|암\\s*호(?:\\s*키)?|보\\s*안\\s*키|네트\\s?워크\\s*키|패\\s*스\\s*워\\s*드)|(?<weak>pass|key))'
   '$_particle$_boundary',
@@ -912,7 +1133,14 @@ final _ssidLabel = RegExp(
 
 final _freePrefix = RegExp(r'^(?:free|무료)', caseSensitive: false);
 // OCR은 ':'를 ';'로, 표의 세로선을 '|'로 읽기도 한다.
-final _separator = RegExp(r'\s*(?:[:=：;|]{1,3}>?|(?:[-–—>→➜➔⇒]|=>)(?=\s))\s*');
+// "WiFi ► x"의 화살표 글자도 구분자로 본다. "ID. x"의 마침표는 칸 맨 앞 이름표일 때만(_dotSeparator).
+final _separator = RegExp(r'\s*(?:[:=：;|]{1,3}>?|(?:[-–—>→➜➔⇒▶►▷▸➤➢☞»›]|=>)(?=\s))\s*');
+final _bracketLabel = RegExp(r'^[\[【〔<(]([^\]】〕>)]{1,24})[\]】〕>)]\s*(.*)$');
+/// 칸 맨 앞 이름표 뒤 "ID. x"의 마침표. 이름표가 칸의 맨 앞(또는 번호 뒤)에 있을 때만 구분자로 쓴다.
+final _dotSeparator = RegExp(r'\s*\.(?=\s)\s*');
+final _cellStart = RegExp(r'^\s*(?:\d{1,2}[.)]\s*)?$');
+final _valueEnd = RegExp(r'\s+/\s+|\s*\|\s*');
+final _leadingSeparator = RegExp(r'^[:=：;|]+\s*');
 final _bullet = RegExp(r'^(?:[•·▪▶►☞→■□●○◆◇✔✓※★☆*]+|-(?=\s))\s*');
 final _sentenceEnding = RegExp(
   r'\s*(?:입니다|이에요|예요|에요|이며|이고|이구요|이라고|이에용|입니당|임다|이야|이에요)[.!。]?$',
@@ -924,6 +1152,7 @@ final _openKeywords = RegExp(
 final _labelNote = RegExp(r'\s*[(\[（][^)\]）]{0,24}[)\]）](?=\s*(?:[:=：]|$))');
 final _bandQualifier = RegExp(r'\s*(?:\d(?:\.\d)?\s*g(?:hz)?|\d)(?=\s*[:=：])', caseSensitive: false);
 final _slash = RegExp(r'\s*/\s*');
+final _slashWord = RegExp(r'[A-Za-z가-힣]{1,8}(?=\s*[:=：;|])');
 final _delimiter = RegExp(r'[\s/|,;·]');
 final _trailingDelimiters = RegExp(r'[\s/|,;·]+$');
 final _prefixTrailing = RegExp(r'[\s/|,;·:=：\-–—→]+$');
@@ -933,6 +1162,8 @@ final _trailingNote = RegExp(r'\s+[(\[（【][^)\]）】]*[)\]）】]$');
 final _valueSplitters = [RegExp(r'\s+/\s+'), RegExp(r'\s*\|\s*'), RegExp(r'\s*/\s*'), RegExp(r'\s+')];
 final _whitespace = RegExp(r'\s+');
 final _spaces = RegExp(r' +');
+/// 밑줄 옆의 공백과 단어 간격 표시 글자([gapMarker])를 함께 잡는다.
+final _spaceAroundUnderscore = RegExp('[\\s$gapMarker]*_[\\s$gapMarker]*');
 final _separators = RegExp(r'[ _-]');
 /// 대역 표시만 있는 값, 값 앞의 대역 표시, 값 가운데의 다음 대역 표시.
 /// 값 앞의 대역 표시에는 "5G 전용 :", "2.4G전용 :"처럼 짧은 한글 말과 구분자가 붙기도 하고,
@@ -955,6 +1186,20 @@ final _hasSymbol = RegExp(r'[^A-Za-z0-9\s]');
 /// 02-1234-5678, 010.1234.5678, +82-10-1234-5678 같은 전화번호 모양.
 final _phoneLike = RegExp(r'^\+?\d[\d().]*[-.)][\d\-.()]*\d$');
 final _ispPrefix = RegExp(r'^(?:kt|skt?|lgu?|u\+|olleh|iptime|giga|anygate|netis|tp-?link)(?=[\s_]|net|wifi|giga|$)', caseSensitive: false);
+/// Wi-Fi가 아닌 곳의 비밀번호 앞말: 화장실, 현관, 도어락, 출입문, 대문, 주차장, 사물함, 보관함, 택배함, 금고(+문).
+const _otherPlace = r'(?:화장실|현관|도어락|출입문|대문|주차장|사물함|보관함|택배함|금고)(?:\s*문)?';
+/// 장소 비밀번호 이름표가 올 수 있는 자리: 칸 맨 앞, 또는 `/`·`|`·`,` 바로 뒤.
+final _placeTrigger = RegExp(r'(?:^|[/|,])\s*$');
+const _otherPlaceStart = r'(?<![\p{L}\p{N}_])(?:공동\s?)?';
+final _otherPlaceWord = RegExp('$_otherPlaceStart$_otherPlace', unicode: true);
+/// Wi-Fi 단서를 셀 때 뺄 장소 비밀번호 이름표 (토큰 경계에서만: "SSID: 화장실비밀번호연구소"는 해당 없음).
+final _otherPlacePassword = RegExp(
+  r'(?<=^|\t|[/|,]\s*)(?:공동\s?)?'
+  '$_otherPlace\\s*(?:비[\\s|Il1]*밀[\\s|Il1]*번[\\s|Il1]*호|비\\s*번|암\\s*호|패\\s*스\\s*워\\s*드|pass\\s?w[o0]r?d|passcode|pwd|pw)(?![\\p{L}\\p{N}_])',
+  caseSensitive: false,
+  unicode: true,
+  multiLine: true,
+);
 /// 글 어딘가에 Wi-Fi 안내문이라는 단서가 있는지. "ID", "Name", "Key" 같은 일반 이름표는 단서로 치지 않는다.
 final _wifiContext = RegExp(
   '(?<![a-z])(?:$_wifi|wlan|s\\s?[s5]\\s?[i1l]\\s?d)'
@@ -971,6 +1216,20 @@ final _routerName = RegExp(
 );
 /// KT 공유기 이름의 `GiGA` 자리. 맨 앞이나 `_`, `KT`, `olleh` 뒤에 오고 뒤에는 구분자·숫자·끝이 온다.
 final _ktGiga = RegExp(r'(?<=^|[_\s\-]|kt|olleh)g[il1|]ga(?=[_\s\-]|\d|wifi|$)', caseSensitive: false);
+/// OCR이 읽은 KT 공유기 이름: `KT_GiGA_<대역>_<Wave2_><16진수>`에서 밑줄·글자가 틀어진 모양.
+final _ktRead = RegExp(
+  r'^KT_?G[il1|]GA_?(?<band>2G|5G)_?(?<wave>Wave2_?)?(?<hex>[0-9A-FOIL]{4})$',
+  caseSensitive: false,
+);
+/// OCR이 읽은 SK 공유기 이름의 접두어 (`SK_WIF1GIGA`, `SKWiFiGIGA`, `SK_WlFlGlGA`).
+final _skRead = RegExp(r'^SK_?W[il1|]F[il1|]G[il1|]GA', caseSensitive: false);
+/// 접두어 뒤의 `_` + 16진수 네 글자 + 선택적 대역 꼬리.
+final _skUnderscoreTail = RegExp(r'^_(?<hex>[0-9A-FOoIl]{4})(?<band>_(?:2\.4|2|5)G)?$', caseSensitive: false);
+/// 접두어와 16진수 사이를 공백으로 읽은 SK 이름 ("SK WiFiGIGA 3A2B", "SK WIF1GIGA 3A2B 5G").
+final _skSpacedTail = RegExp(
+  r'^SK[_\s]?W[il1|]F[il1|]G[il1|]GA\s+(?<hex>[0-9A-FOoIl]{4})(?<band>\s+(?:2\.4|2|5)G)?$',
+  caseSensitive: false,
+);
 /// 통신사 공유기 이름: 접두어 + 16진수 네 글자(OCR 혼동 글자 O·o·I·l 포함) + 선택적 대역 꼬리.
 final _ispHexName = RegExp(
   r'^(?<prefix>sk_wifigiga|kt_g[il1|]ga_(?:(?:2\.4|2|5)g_)?(?:wave2_)?|u\+net)(?<hex>[0-9A-FOoIl]{4})(?:_(?:2\.4|2|5)g)?$',
@@ -981,7 +1240,7 @@ final _hangulSyllable = RegExp(r'[가-힣]');
 /// (`숫자 0`). 비밀번호에는 한글이 들어갈 수 없고, 공백 뒤 화살표가 비밀번호일 일도 없다.
 final _passwordNote = RegExp(r'^([^\s가-힣]+)\s+((?:<=|<-+|←|⇐|⟸|=>|->)\s*.*|[^\s]*[가-힣].*)$');
 /// "숫자0", "숫자 영", "zero", "<=0(숫자)".
-final _digitZeroNote = RegExp(r'숫자(?:0|영|제로)|(?:0|영)(?:은|는)?숫자|zero|number0|digit0');
+final _digitZeroNote = RegExp(r'숫자(?:0|영|제로)|(?:0|영)(?:은|는)?(?:모두|전부|다)?숫자|zero|number0|digit0');
 /// "영문 O", "알파벳 O", "대문자 O".
 final _letterONote = RegExp(r'(?:영문|알파벳|대문자|영어)(?:o|오)|(?:o|오)(?:은|는)?(?:영문|알파벳|대문자)');
 /// 작은 글씨의 "아이디"를 한국어 인식기가 깨뜨려 읽은 모양. 실기기에서 OFOII, OFOITI, OFOICA,
@@ -992,12 +1251,20 @@ final _garbledIdLabel = RegExp(r'^[O0][FHE][O0][Il1|][CTIAl1|]{0,2}$');
 final _dateOrTime = RegExp(
   r'^(?:(?:19|20)\d{2}[-./]?\d{2}[-./]?\d{2}|\d{1,2}:\d{2}(?:\s*[~\-–]\s*\d{1,2}:\d{2})?)$',
 );
+/// 이름표 없는 카드 위나 아래에 이 낱말로 시작하는 줄이 있으면 Wi-Fi 안내가 아닌 글이다.
+final _notCardTitle = RegExp(
+  r'^(?:reservation|예약|order|주문|coupon|쿠폰|code|member(?:ship)?|회원|follow(?:\s+us)?|팔로우|ticket|티켓|receipt|영수증)',
+  caseSensitive: false,
+);
 /// 단어를 붙여 쓴 이름 (MomoCafe, iPhone).
 final _camelCase = RegExp(r'[a-z][A-Z]');
 /// 자동차 번호판 (123가4567).
 final _licensePlate = RegExp(r'^\d{2,3}\s?[가-힣]\s?\d{4}$');
 /// 알아보지 못한 짧은 이름표 + (구분자 또는 공백) + 값 하나.
 final _brokenLabelRow = RegExp(r'^(?<label>[^\s:=：;|][^:=：;|]{0,11}?)\s*(?:[:=：;|]{1,3}|\s)\s*(?<value>\S+)$');
+/// 알아보지 못한 Wi-Fi 이름표 줄: 짧은 영문·한글 낱말(2~6자) + 구분자 또는 공백 + 값 하나 ("wii - hong_studio").
+/// 구분자 앞뒤에 공백이 있어야 한다: 공백 없는 `TP-Link_5E2A`, `momo.cafe_5G`는 줄 전체가 이름이다.
+final _brokenWifiLabelRow = RegExp(r'^(?<label>[A-Za-z가-힣]{2,6})\s+[:=：;|.\-–—]{1,3}\s+(?<value>\S+)$');
 /// 연락처·영업 정보 줄의 이름표. 이 뒤의 값은 비밀번호로 보지 않는다.
 final _contactLabel = RegExp(
   r'tel|phone|call|fax|mobile|hp|open|close|전화|문의|연락|주소|영업|시간|휴무|예약|계좌|사업자',

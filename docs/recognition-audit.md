@@ -10,12 +10,12 @@
   정답과 비교한다(`test/ocr_fixture_test.dart`). 폰 없이, 같은 결과가 매번 나온다.
 - **fixture 91개**: 기존 variety 24장 + 이번에 늘린 변형 51장(`test_signs/variants/`) + 낱장 6장(`sign1~4`,
   `sign-hotspot`, `sign-sk-band`) + EXIF 회전 사진 10장. 이 중 Wi-Fi가 아닌 글이 11장(variety 17~24, 변형 49~51).
-- **지금 결과**: 통과 53 · 알려진 실패 38 (`skip` + 사유, 4장 표). 실패 원인은 바로 고칠 수 있는 파서 규칙 22건
-  (P1·P2), 설계가 더 필요한 파서 규칙 5건(P3), 파서로는 못 고치는 OCR 단계 11건(P4).
+- **지금 결과**: 통과 74 · 알려진 실패 17 (`skip` + 사유, 4장 표). P1 다섯 항목을 구현해 53 → 65, P2-3~P2-6을 구현해 65 → 69, P2-1·P2-2(`fix-geometry`)를 합치고 표시 글자와 밑줄 옆 공백 정리를 한 규칙으로 묶어 69 → 74가 됐다(처음 측정은 53 · 38).
+  남은 실패 원인은 설계가 더 필요한 파서 규칙 5건(P3), 파서로는 못 고치는 OCR 단계 12건(P4).
 - **개선 항목 19개** (5장). 파서·`OcrService`에 임시 시제품을 넣어 재 보니 P1 다섯 항목만으로 통과가 53 → 65,
   시제품을 만든 P1·P2 항목 11개를 다 합치면 53 → 74(21개 고침)다. 기존 테스트는 P2-3에서 운영자 결정으로 기대를
   바꾸기로 한 1개(`SK_WIFiGIGA7COD_2.4G` 경우) 말고는 하나도 깨지지 않았다(7장). 시제품은 모두 되돌렸고 `lib/`는
-  바뀌지 않았다.
+  바뀌지 않았다. (PR #1 시점의 설명이다. P1 다섯 항목은 PR #2에서 구현했다.)
 - **상위 3개**: P1-1 구분자·이름표 모양 넓히기(5개 고침), P1-2 밑줄 옆 공백 지우기(2개, EXIF 보정과 함께 3개),
   P1-3 화장실·현관 비밀번호 거르기(Wi-Fi 아닌 글 2개).
 - **원칙 (운영자)**: 정답(기대값)은 **무조건 정상 인식**, 즉 안내문에 실제로 적힌 값이다. OCR이 잘못 읽은 모양은
@@ -134,11 +134,12 @@ OCR_FIXTURE_REPORT=build/ocr_fixture_report.md flutter test test/ocr_fixture_tes
 ### 1.9 이번에 확인한 OCR 사실
 
 - **EXIF 회전 사진**: ML Kit는 글자는 똑바로 읽지만 상자는 **저장된 픽셀(옆으로 누운) 기준**으로 준다(방향 3·6·8 모두).
-  그래서 방향 6·8 사진은 모든 줄 상자가 세로로 길어지고 `layoutRows`가 모든 줄을 탭으로 이은 한 행으로 만든다.
+  그래서 방향 6·8 사진은 모든 줄 상자가 세로로 길어지고 `layoutRows`가 모든 줄을 탭으로 이은 한 행으로 만든다
+  (`photo-variety-06-exif6`은 한 행이 아니라 두 행이지만 값 행이 이름표 행보다 먼저 온다: `Study _Room ⇥ study4321` / `ID ⇥ PW`).
   방향 6은 탭으로 이은 칸 순서가 원래의 위→아래와 같아 이름표 다음 칸에 값이 오는 안내문은 대개 그대로 맞지만
   (`photo-sign4-exif6` 통과, 원문 보완 K1 덕분이기도 하다), 방향 8은 순서가 뒤집혀
   `photo-sign4-exif8`이 이름 `WELCOME`·비밀번호 `MOMO_GUEST`를 신뢰도 0.90/0.92로 낸다. 방향 3은 행과 칸 순서가 모두
-  뒤집힌다. 아래 변환으로 원본 상자와 1~2px 안으로 맞는다(저장 크기 `W×H`):
+  뒤집힌다. 아래 변환으로 바로 세우면 같은 글끼리 원본 fixture 상자와 가장자리 기준 최대 8px(`sign1-exif6`), 나머지 사진은 0~4px 안으로 맞는다(회전 사진은 픽셀이 달라 ML Kit 상자가 조금씩 다르다; 저장 크기 `W×H`):
   - 6: `(l, t, r, b) → (H−b, l, H−t, r)` · 8: `→ (t, W−r, b, W−l)` · 3: `→ (W−r, H−b, W−l, H−t)`
 - **밑줄을 놓친 공백은 단어 상자가 거의 붙어 있다**: 줄 높이에 대한 단어 상자 사이 간격 비율이
   밑줄 자리(OCR이 밑줄을 공백으로 읽음) `Lumi|Cafe` 0.04, `sodam|books` 0.03, `HANA|COFFEE` 0.05, `OficeGuest|3F` 0.05,
@@ -161,7 +162,7 @@ OCR_FIXTURE_REPORT=build/ocr_fixture_report.md flutter test test/ocr_fixture_tes
 | A2 | `text` = ML Kit 원문(블록 → 줄 순서, `\n`). `layoutText` = 줄 상자의 세로 중심이 `min(높이)*0.5` 안이면 같은 행으로 묶고, 행 안은 왼쪽부터 탭(`\t`)으로 잇는다 (`layoutRows`). |
 | A3 | iOS 플러그인은 글자 신뢰도를 주지 않는다(`confidence: nil`, `symbols: []`). 그래서 iOS의 "불확실 글자"는 기호 오인식 글자(`ㅡ 一 ー ㅣ 丨 〇 ○ 井 ©`)에서만 생긴다. |
 | A4 | 실시간 인식은 가이드 영역 안 줄만 남긴다(`withLines`). 셔터 사진은 가이드 영역을 잘라 인식하고, 빠진 값이 있으면 전체 사진으로 다시 인식해 채운다. 갤러리 사진은 전체를 읽는다. |
-| A5 | 상자 좌표는 ML Kit가 준 그대로 쓴다. 사진의 EXIF 회전을 따로 보정하지 않는다. |
+| A5 | **iOS**의 사진 파일(`recognizeFile`)은 JPEG의 EXIF 방향(3·6·8)과 저장 크기를 읽어 줄·단어 상자를 `uprightBox`로 똑바로 세운다(P2-1 구현). Android는 `InputImage.fromFilePath`가 이미 EXIF대로 비트맵을 돌려 읽어 상자가 똑바로 서 있으므로 보정하지 않는다(두 번 돌리면 망가진다, 검토에서 확인). EXIF가 없는 파일(셔터 경로의 크롭 결과)·크기를 못 읽은 파일·거울상(2·4·5·7)은 그대로 둔다. 카메라 프레임(`recognizeImage`)은 건드리지 않는다. |
 
 ### B. 정규화 (`core/utils/text_normalizer.dart`, 파서 입력 전에 줄마다)
 
@@ -205,6 +206,7 @@ OCR_FIXTURE_REPORT=build/ocr_fixture_report.md flutter test test/ocr_fixture_tes
 | E6 | 다음 행의 값(점수 −0.02). 헤더 행과 값 행의 칸 수가 같으면 같은 열끼리 맞춘다(표). 아니면 앞쪽 값부터 이름표 순서대로. |
 | E7 | 이름표 여러 개에 값 칸이 하나면 ` / `, `|`, `/`, 공백 순으로 나눠 본다. |
 | E8 | 제목 이름표(`FREE WIFI`) 다음의 문장(공백 포함)은 값이 아니고, 제목 다음 줄 값은 −0.25. |
+| E9 | 떨어진 칸·다음 줄에서 가져온 비밀번호 값이 3단어 이상이거나 `'`가 든 여러 단어면 안내 문장이라 버린다(P2-6). 이름표 바로 뒤 값(E1)에는 적용하지 않는다. |
 
 ### F. 후보 보정 (`add`)
 
@@ -212,6 +214,7 @@ OCR_FIXTURE_REPORT=build/ocr_fixture_report.md flutter test test/ocr_fixture_tes
 |---|---|
 | F1 | 비밀번호 앞 마침표·쉼표를 뗀다(콜론을 `.`로 읽은 경우, 뒤가 8자 이상일 때). |
 | F2 | 비밀번호 뒤 메모(`<=숫자 0`, `← zero`, 한글 설명)를 떼고, 메모가 "숫자 0"이면 `O/o→0`, "영문 O"면 `0→O`로 고친 값을 1순위, 원래 값을 0.9배 후보로. |
+| F2b | 비밀번호 아래 줄의 이름표 없는 한글 메모(`※ 0은 모두 숫자`)가 숫자 0·영문 O를 알려 주면 바로 위 1~2행의 비밀번호 후보에만 F2와 같은 힌트를 적용한 값을 +0.001 후보로 더한다(P2-4). |
 | F3 | `없음`, `none`, `open`, `x`, `-` 등은 빈 비밀번호(공개 네트워크) 후보. |
 | F4 | 공백이 든 이름이 공유기 이름 모양(이미 `_`가 있음, 통신사 접두어, 3단어 이상에 숫자 토큰 2개)이면 공백을 `_`로 이은 값을 1순위(×0.9), 원래 값은 0.7. |
 | F5 | 비밀번호 안 공백이 OCR 틈으로 보이면(조각에 숫자가 있거나 한 글자 조각) 붙인 값을 1순위, 공백 값은 −0.05 후보. |
@@ -223,6 +226,7 @@ OCR_FIXTURE_REPORT=build/ocr_fixture_report.md flutter test test/ocr_fixture_tes
 |---|---|
 | G1 | 이름표로 이름을 못 찾았을 때, 한 단어만 있는 행 다음 행이 비밀번호 모양이면 윗줄을 이름(0.45), 아랫줄을 비밀번호로 본다. |
 | G2 | 이름은 이름표로 찾았고 Wi-Fi 맥락이 있을 때, 깨진 이름표 줄(`비 번 : x`, `H| H x`: 앞부분 6자 이하·숫자 없음·연락처 이름표 아님)의 값을 비밀번호 후보(+0.05)로. |
+| G2b | 이름을 이름표로 못 찾았고 비밀번호는 이름표로 찾았을 때(0.9 이상), 깨진 Wi-Fi 이름표 한 칸짜리 행(`wii - hong_studio`: 이름표 자리가 wifi·와이파이와 편집 거리 2 이하인 영문·한글 2~6자 + 구분자 앞뒤 공백 + 이름 모양 값, 연락처 이름표 아님)의 값을 이름 후보 0.55로(P2-5). 공백 없는 `TP-Link_5E2A`처럼 줄 전체가 이름인 경우는 켜지 않고, 기존 줄 전체 추측(0.5)도 그대로 남는다. |
 | G3 | 한 행에 두 토큰(`lunahouse7 b83kd02jq1`)이면 이름·비밀번호 0.42씩. |
 | G4 | 이름 모양(`_` 포함, 통신사 접두어, `_5G` 꼬리) 0.5. |
 | G5 | 비밀번호 모양: 8~63자 ASCII, 연락처·전화번호·날짜 아님. 숫자만 0.4, 숫자+(영문|기호) 0.5. |
@@ -232,7 +236,8 @@ OCR_FIXTURE_REPORT=build/ocr_fixture_report.md flutter test test/ocr_fixture_tes
 | 셀 | 동작 |
 |---|---|
 | H1 | 공백이 든 값마다 `_`·`-`·(비밀번호만) 공백 제거 후보. 이름 끝 대역(`… 5G`) 앞 공백이면 `_` 쪽이 +0.01로 1순위. |
-| H2 | KT 이름의 `GIGA`/`GlGA`/`G1GA` → `GiGA` (+0.01). SK의 `WiFiGIGA`는 그대로. |
+| H0 | 통신사 이름 정규화(P2-3). KT: `KT_?G[il1|]GA_?(2G\|5G)_?(Wave2_?)?<16진수 4자>`이면 `KT_GiGA_<대역>_<Wave2_><16진수>`(꼬리 O→0, I/L→1)를 +0.02로. SK: `SK_?W[il1|]F[il1|]G[il1|]GA`로 시작하면 접두어만 실제 형식 `SK_WiFiGIGA`로 바꾼 값을 +0.02로(뒤는 읽은 그대로, 꼬리는 H3가 이어서 고침). 띄어 읽은 `SK WiFiGIGA 3A2B`는 접두어와 16진수 사이에 밑줄 없이 `SK_WiFiGIGA3A2B`(F4 안에서). 접두어를 고친 이름은 접두어 뒤 밑줄도 지운 `SK_WiFiGIGA3A2B`를 1순위로(밑줄 유지 값은 아래 후보). 같은 안내문에 이미 맞게 읽은 `SK_WiFiGIGA…` 이름이 있으면 그것에도 같은 +0.02를 줘서 고친 이름이 앞서지 않게 한다. 읽은 값은 모두 후보로 남는다. |
+| H2 | KT 이름의 `GIGA`/`GlGA`/`G1GA` → `GiGA` (+0.01). SK의 `WiFiGIGA`는 H0가 맡는다. |
 | H3 | 통신사 이름(`SK_WiFiGIGA`, `KT_GiGA_…`, `U+Net`) 16진수 꼬리 네 글자의 `O/o→0`, `I/l→1` (+0.01). |
 
 ### I. 선택 (`_select`)
@@ -269,26 +274,19 @@ OCR_FIXTURE_REPORT=build/ocr_fixture_report.md flutter test test/ocr_fixture_tes
 
 | 묶음 | 장 수 | 통과 | 알려진 실패 |
 |---|---|---|---|
-| variety (기존) | 24 | 18 | 6 (Wi-Fi 안내문 `06` `07` `09` `10` `16`, Wi-Fi 아닌 글 `23`) |
-| variants (이번에 늘림) | 51 | 22 | 29 |
-| 낱장 (`sign1~4`, `sign-hotspot`, `sign-sk-band`) | 6 | 5 | 1 (`sign3`) |
-| EXIF 회전 사진 | 10 | 8 | 2 |
-| **합계** | **91** | **53** | **38** |
+| variety (기존) | 24 | 21 | 3 (`07` `10` `16`) |
+| variants (이번에 늘림) | 51 | 38 | 13 |
+| 낱장 (`sign1~4`, `sign-hotspot`, `sign-sk-band`) | 6 | 5 | 1 (`sign3`, 값을 OCR이 놓침) |
+| EXIF 회전 사진 | 10 | 10 | 0 |
+| **합계** | **91** | **74** | **17** |
 
-Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 잘못 나온다. 원인별로 묶으면:
+Wi-Fi가 아닌 글 11장은 모두 맞게 걸러진다(P1-3, P1-4로 `variety-23`, `variants-49~51`을 고쳤다). 남은 실패를 원인별로 묶으면:
 
 | 원인 | 건수 | 개선 |
 |---|---|---|
-| 구분자·이름표 모양을 모름 (`ID.`, `▶`, `[WIFI]`, 값 칸에 붙은 `:`, `Password/PIN:`) | 5 | P1-1 |
-| OCR이 밑줄 옆에 공백을 넣음 (`Study _Room`, `one_ line_cafe`) | 2 | P1-2 |
-| Wi-Fi가 아닌 글을 Wi-Fi로 냄 (화장실·현관 비밀번호, 예약 안내, SNS 카드) | 4 | P1-3, P1-4 |
-| 한 글자 이름 (세로쓰기 이름표) | 1 | P1-5 |
-| EXIF 회전 사진의 상자 좌표 | 2 | P2-1 (+P1-2) |
-| OCR이 밑줄을 공백으로 읽음 (가게 이름 띄어쓰기와 글자로는 못 가림) | 4 | P2-2, P3-5 |
-| 통신사 공유기 이름을 OCR이 깨뜨림 | 2 | P2-3 |
-| 비밀번호 아래 줄 메모, 깨진 Wi-Fi 이름표, 비밀번호 대신 고른 문장 | 3 | P2-4, P2-5, P2-6 |
+| OCR이 밑줄을 공백으로 읽음 (간격이 넓은 `Harbor Guest`만 남음) | 1 | P3-5 |
 | 한 줄 두 대역, 이름 속 `.`, 자간 넓은 이름, 줄바꿈된 비밀번호 | 4 | P3-1~P3-4 |
-| OCR이 글자를 바꿔 읽거나 빠뜨리거나 줄을 놓침 (파서로는 못 고침) | 11 | P4-1~P4-3 |
+| OCR이 글자를 바꿔 읽거나 빠뜨리거나 줄을 놓침 (파서로는 못 고침) | 12 | P4-1~P4-3 |
 
 ## 4. 알려진 실패
 
@@ -298,28 +296,7 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 <!-- known-failures:start -->
 | fixture | 형태 | 기대 (이름 · 비밀번호) | 실제 (이름 · 비밀번호) | 원인 | 셀 | 개선 |
 |---|---|---|---|---|---|---|
-| `variants-17` | ID. / PW. (마침표 구분) | `orange_box` · `orange8282` | — · `orange8282` | `ID.`의 마침표를 구분자로 모름 → 약한 이름표 뒤 여러 단어로 보고 버림 | D5, D8 | P1-1 |
-| `variants-18` | ▶ 기호 구분 | `star_lounge` · `star7979` | — · — | `►`(OCR이 읽은 ▶)를 구분자로 모름 | D5, D8 | P1-1 |
-| `variants-20` | 이름표 자간이 넓음 | `spaced_wifi` · `spaced2468` | `:spaced_wifi` · `spaced2468` | 콜론이 값 칸(`:spaced_wifi`)에 붙어 같은 행 다음 칸 값으로 그대로 씀 | E4 | P1-1 |
-| `variants-25` | 영문 공유기 라벨 | `TP-Link_5E2A` · `51837264` | `TP-Link_5E2A` · `/PIN:51837264` | `Password/PIN:`의 `/PIN`이 값에 붙음 | D4 | P1-1 |
-| `variants-35` | 영수증 아래 와이파이 | `snack_bar_free` · `snack1004` | — · — | `[WIFI]`, `[PW]` 괄호 이름표를 모름 | C1, D1, D2 | P1-1 |
-| `variety-06` | ID / PW 표 | `Study_Room` · `study4321` | `Study__Room` · `study4321` | OCR이 밑줄 앞에 공백을 넣음(`Study _Room`) → 공백까지 밑줄로 이음 | F4, D9 | P1-2 |
-| `variants-19` | 한 줄에 모두 | `one_line_cafe` · `oneline2468` | — · `oneline2468` | OCR이 밑줄 뒤에 공백을 넣음(`one_ line_cafe`) → 여러 단어로 보고 이름표 버림 | D8, D9 | P1-2 |
-| `variants-49` | 화장실 비밀번호 | (Wi-Fi 아님) | — · `1234*` | "화장실 비밀번호"를 비밀번호 이름표·Wi-Fi 단서로 씀 | D1, J1 | P1-3 |
-| `variants-50` | 공동현관·도어락 비밀번호 | (Wi-Fi 아님) | — · `#2580*` | "공동현관/도어락 비밀번호"를 비밀번호 이름표·Wi-Fi 단서로 씀 | D1, J1 | P1-3 |
-| `variety-23` | 예약 안내 (영문+숫자 두 줄) | (Wi-Fi 아님) | `table07` · `guest2026` | 제목 `Reservation` + 두 줄을 이름표 없는 카드로 봄 | G1, J1 | P1-4 |
-| `variants-51` | SNS 홍보 카드 | (Wi-Fi 아님) | `@cafe_momo_official` · `#momo2026` | SNS 계정·해시태그를 카드의 이름·비밀번호로 봄 | G4, G5, J1 | P1-4 |
-| `variants-09` | 세로쓰기 이름표 | `maru_guest` · `maru4949` | `파` · `maru4949` | 세로 이름표를 한 글자씩 읽고, 표 열 맞추기로 한 글자 `파`를 이름으로 고름 | E6, F6 | P1-5 |
-| `photo-sign4-exif8` | EXIF 회전 8 (sign4) | `MOMO_GUEST` · `Coffee#2024` | `WELCOME` · `MOMO_GUEST` | 상자가 누운 좌표라 모든 줄이 한 행에 거꾸로 이어짐 → 이름표 다음 칸이 엉뚱한 값 | A2, A5, E4 | P2-1 |
-| `photo-variety-06-exif6` | EXIF 회전 6 (variety-06) | `Study_Room` · `study4321` | — · `study4321` | 모든 줄이 한 행(`ID ⇥ PW ⇥ Study _Room ⇥ study4321`)이 되고 밑줄 앞 공백까지 겹침 | A2, A5, E3 | P2-1, P1-2 |
-| `variants-01` | 얇은 글꼴 | `Lumi_Cafe` · `lumi7788` | `Lumi Cafe` · `lumi7788` | OCR이 밑줄을 공백으로 읽음 (단어 간격 0.04×줄 높이) | F4, H1, I3 | P2-2 |
-| `variants-02` | 명조체 | `sodam_books` · `books1004` | `sodam books` · `books1004` | 위와 같음 (간격 0.03) | F4, H1, I3 | P2-2 |
-| `variants-03` | 아주 굵게·좁은 자간, 이름표 위·값 아래 | `HANA_COFFEE` · `hana0303` | `HANA COFFEE` · `hana0303` | 위와 같음 (간격 0.05) | F4, H1, I3 | P2-2 |
-| `variety-09` | 통신사 공유기 이름 | `KT_GiGA_5G_Wave2_4F1A` · `k9x2m4p8q1` | `KT_GiGA5G_Wave2_4FIA` · `k9x2m4p8q1` | OCR이 `GIGA` 뒤 밑줄을 빠뜨리고 꼬리 1을 I로 읽음 → H3의 이름 모양에 안 맞아 꼬리를 못 고침 | H2, H3, G4 | P2-3 |
-| `variants-22` | SK 공유기 스티커 | `SK_WiFiGIGA9B2E` 또는 `_5G` · `B7DE1@4410` | `SK_WIF1GIGA9B2E` · `B7DE1@4410` | OCR이 `WiFi`를 `WIF1`로 읽음 | H2, H3 | P2-3 |
-| `variants-27` | 아래 줄 메모 "0은 숫자" | `zero_cafe` · `c0ffee0909` | `zero_cafe` · `coffee0909` | OCR이 0을 o로 읽었고, 다음 줄 메모("※ 0은 모두 숫자")는 쓰지 않음 | F2 | P2-4 |
-| `variants-07` | 포스트잇 마커, 살짝 기울임 | `hong_studio` · `hong0812` | — · `hong0812` | OCR이 `wifi`를 `wii`로 읽어 이름표를 못 찾음(`wii - hong_studio`) | D2, G2 | P2-5 |
-| `sign3` | WIFI 제목 아래 ID / PW 두 열 | `momo_guest` · `hello1234` | `momo_guest` · `Ask our staff if it doesn't work` | OCR이 값 `hello1234`를 놓침 → PW 다음 줄 안내 문장을 비밀번호로 고름 | E6, F6 | P2-6 (+P4-2) |
+| `sign3` | WIFI 제목 아래 ID / PW 두 열 | `momo_guest` · `hello1234` | `momo_guest` · — | OCR이 값 `hello1234`를 놓침 → 비밀번호 없음 (PW 아래 안내 문장은 P2-6이 거름) | E6, F6 | P4-2 |
 | `variants-26` | 두 대역을 한 줄에 | `mint_house` 또는 `_5G` · `mint9090` | — · `mint9090` | `WiFi 2.4G 이름 /5G 이름` 한 칸을 여러 단어 값으로 보고 이름표 버림 | C3, D8 | P3-1 |
 | `variety-10` | 문장형 | `Sunny_Cafe` · `sunny2024` | `Sunny.Cafe` · `sunny2024` | OCR이 밑줄을 마침표로 읽음 | H1 | P3-2 |
 | `variants-04` | 값의 자간이 넓음 | `cozy_home` · `cozy2026` | `co_z_y_ho_me` · `cozy2026` | OCR이 글자 사이에 공백을 넣음(`co z y_ho me`) → 밑줄이 있으니 공유기 이름으로 보고 공백을 모두 밑줄로 | F4 | P3-3 |
@@ -335,13 +312,13 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 | `variants-14` | 이모지 아이콘만 | `Sunrise_Inn` · `sunrise2026` | — · — | 이모지를 OCR이 글자로 읽어 값에 붙임(`al Sunrise_Inn`, `Psunrise2026`) | C1 | P4-3 |
 | `variants-15` | 와이파이명 / 패스워드 | `nabi_hostel` · `nabi0505` | `nabihostel` · `nabi0505` | OCR이 밑줄을 통째로 빠뜨림 | A1 | P4-3 |
 | `variants-46` | 손님용 / 직원용 | `guest_zone` · `guest3333` | `guestZone` · `guest3333` | OCR이 밑줄을 빠뜨리고 z를 Z로 읽음 | A1 | P4-3 |
-| `variants-48` | 사무실 회의실 게스트 Wi-Fi | `Office_Guest_3F` · `visit2026#` | `OficeGuest 3F` · `visit2026#` | OCR이 f와 밑줄을 빠뜨림 | A1 | P4-3 |
+| `variants-48` | 사무실 회의실 게스트 Wi-Fi | `Office_Guest_3F` · `visit2026#` | `OficeGuest_3F` · `visit2026#` | OCR이 f와 밑줄을 빠뜨림 | A1 | P4-3 |
 <!-- known-failures:end -->
 
 ## 5. 개선 항목 (우선순위 순)
 
-- **P1**: 작은 규칙 변경. 시제품으로 기대 효과를 확인했고 기존 테스트 324개가 그대로 통과했다. 바로 구현한다.
-- **P2**: `OcrService`·fixture 로더까지 바꾸거나, 규칙이 크거나, 기존 테스트와 부딪혀 결정이 필요하다. 시제품으로 효과는 확인했다.
+- **P1**: 작은 규칙 변경. 시제품으로 기대 효과를 확인했고 기존 테스트 324개가 그대로 통과했다. 바로 구현한다. **P1-1~P1-5는 구현됐다**(53 → 65, 기존 테스트 324개 그대로 통과). 아래 "고치는 fixture"·"구현 방향"은 구현 당시 기록이다.
+- **P2**: `OcrService`·fixture 로더까지 바꾸거나, 규칙이 크거나, 기존 테스트와 부딪혀 결정이 필요하다. 시제품으로 효과는 확인했다. **P2-3~P2-6은 구현됐다**(65 → 69, 아래 각 항목의 "구현 결과"). P2-1·P2-2는 `OcrService` 쪽이라 따로 한다.
 - **P3**: 시제품 없음. 오탐 위험이 커서 설계를 먼저 해야 한다.
 - **P4**: OCR이 글자를 못 읽은 경우. 파서로는 못 고친다.
 
@@ -361,6 +338,7 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 ### P1-2 밑줄 옆 공백 지우기
 
 - **고치는 fixture (2)**: `variety-06`, `variants-19`. P2-1과 함께면 `photo-variety-06-exif6`까지 3.
+- **합친 뒤 보강**: P2-2의 표시 글자(U+2009)는 이 규칙과 같은 단계에서 처리한다(`[\s표시]*_[\s표시]*` → `_`). 먼저 표시 글자를 `_`로 바꾸면 옆의 원래 밑줄과 겹쳐 `__`가 된다. 세 fixture(`variety-06`, `variants-19`, `photo-variety-06-exif6`) 통과.
 - **구현 방향**: `_cleanValue`에서 `\s*_\s*` → `_`. 이름표 판정(D8) 전에 적용되므로 `WIFI one_ line_cafe`도 이름표로 남는다.
 - **위험**: 밑줄 앞뒤에 진짜 공백이 있는 이름·비밀번호(`a _ b`)는 거의 없지만 있으면 바뀐다. 하이픈까지 넓히면 `Cafe - Guest` 같은 이름이 바뀌므로 밑줄만 한다.
 - **회귀 검사**: `밑줄을 공백으로 읽은 공유기 이름 (1.0.2 실패 사례)` 그룹(`KT_WIFI 5G_F3D6` 같은 부분 공백은 밑줄 옆 공백이 아니라 영향 없음), `밑줄을 공백으로 읽은 경우` 그룹. 새 테스트: `ID\tStudy _Room`, `WIFI one_ line_cafe / PW x1234567`.
@@ -382,7 +360,7 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 ### P1-5 한 글자 이름 감점
 
 - **고치는 fixture (1)**: `variants-09`.
-- **구현 방향**: `_ssidFactor`에서 글자 수가 2 미만이면 ×0.2. 그러면 `파`가 빠지고 밑줄 모양 추측(G4)의 `maru_guest`가 뽑힌다.
+- **구현 방향**: (실제 구현) `_ssidFactor`가 아니라 `_addDetached`에서, 표 열 맞추기로 배정된 값 행의 칸이 모두 한 글자 조각일 때만 한 글자 이름을 ×0.2. 이름표 바로 뒤(`SSID: A`)·바로 앞 칸·바로 위 행(`SSID\nA`)의 한 글자 이름은 깎지 않는다. 그러면 `파`가 빠지고 밑줄 모양 추측(G4)의 `maru_guest`가 뽑힌다.
 - **위험**: 거의 없다(한 글자 Wi-Fi 이름은 드물다). 비밀번호에는 적용하지 않는다.
 - **회귀 검사**: 전체 테스트. 새 테스트: 세로 이름표 모양 `와 ⇥ 비\n이 ⇥ a_b ⇥ 밀\n와이파 이 ⇥ 비밀번 호\n파 ⇥ 번\nc1234567`.
 
@@ -390,6 +368,7 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 
 - **고치는 fixture (1~2)**: `photo-sign4-exif8`, P1-2와 함께면 `photo-variety-06-exif6`. 지금 통과하는 EXIF 사진 8장도 `layoutText`가 한 행으로 뭉개지지 않게 된다. 가장 위험한 실패(높은 신뢰도로 엉뚱한 값)라 P2 첫 번째로 둔다.
 - **구현 방향**: `OcrService.recognizeFile(path)`에서 JPEG의 EXIF Orientation과 저장 크기를 읽고, 줄 상자를 1.9의 식으로 바꾼 뒤 `layoutRows`에 넘긴다(방향 3·6·8; 5·7은 거울상이라 드묾). 같은 함수(예: `uprightBox`)를 `ocr_service.dart`에 두고 `OcrFixture.toOcrResult()`도 fixture의 `image` 값으로 그 함수를 부르게 한다. 다른 길: 갤러리 사진도 `cropImageFile`처럼 `bakeOrientation`으로 똑바로 다시 저장한 뒤 인식(디코딩 비용).
+- **구현됨 (fix-geometry)**: `ocr_service.dart`의 `exifFrameOf`(헤더만 읽어 방향·저장 크기), `uprightBox`, `lineFromWords`. `recognizeFile`(iOS만)과 `OcrFixture.toOcrResult()`가 같은 함수를 쓴다. `photo-sign4-exif8` 통과, EXIF 사진 10장의 행 구조가 원본과 같다(`test/ocr_geometry_test.dart`).
 - **위험**: 저장 크기를 잘못 읽으면 모든 상자가 틀어져 오히려 망가진다. 셔터 경로의 크롭 이미지는 이미 `bakeOrientation`을 거치므로 두 번 돌리면 안 된다 — EXIF가 없는 파일(크롭 결과)은 그대로 둔다.
 - **회귀 검사**: fixture EXIF 사진 10장(방향 3·6·8, 이름표·값 같은 줄/다른 줄/표)과 원본 fixture의 결과가 같아야 한다. `ocr_layout_test.dart`, `integration_test/ocr_pipeline_test.dart`(기기).
 
@@ -397,10 +376,13 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 
 - **고치는 fixture (3)**: `variants-01`, `variants-02`, `variants-03`. 실제 안내문에서 가장 흔할 실패 묶음이다(얇은·작은 글씨에서 밑줄이 사라짐).
 - **구현 방향**: `OcrService`가 줄 글자를 단어 상자로 다시 잇되, 단어 사이 간격이 줄 높이의 0.12배보다 좁으면 보통 공백 대신 표시 글자(시제품은 U+2009)를 넣는다. 파서는 값을 정리할 때 표시 글자를 이름이면 `_`, 비밀번호면 빈 문자로 바꾼다(1.9의 간격 수치 참고: 밑줄 자리 0.03~0.05, 진짜 띄어쓰기 0.28~0.60). fixture에는 단어 상자가 이미 있으니 로더가 같은 lib 함수로 줄 글자를 만들면 다시 뽑지 않아도 된다.
+- **구현됨 (fix-geometry)**: `joinWords`·`lineFromWords`가 간격 < 글자 높이(단어 상자 높이 중앙값) × 0.12(`wordGapRatio`)이면 `gapMarker`(U+2009)를 넣고, 파서 `_cleanValue`가 이름은 `_`, 비밀번호는 빈 문자로 바꾼다. `variants-01~03` 통과, `variants-43`·`sign3`은 그대로. 기울어진 줄(단어 중심 세로 편차 > 글자 높이의 절반)과 거울상·미지원 EXIF 방향(2·4·5·7)은 가로 간격을 믿을 수 없어 ML Kit 글자를 그대로 둔다(검토에서 8도 기울인 `variants-43`이 `Momo_Coffee_Roasters`가 되는 회귀 확인). 표시 글자는 `normalizeOcrText`를 그대로 지나가고, 불확실 글자 위치(`uncertainCharIndexes`)는 표시 글자를 공백/없음으로 보고 맞춘다. 결과 값·후보·투표기에는 남지 않는다(`test/gap_marker_leak_test.dart`). 부작용과 해결: 밑줄 옆의 좁은 공백이 `_`가 되어 `variants-19`가 `one__line_cafe`, `variety-06`·`photo-variety-06-exif6`이 `Study__Room`이 됐다(P1-2의 `\s*_\s*` → `_` 정리가 표시 글자 뒤에는 닿지 않았다). `_cleanValue`가 표시 글자를 공백과 같은 부류로 보아 밑줄 옆 정리(`[\s표시]*_[\s표시]*` → `_`)를 먼저 하고, 남은 표시 글자만 이름은 `_`·비밀번호는 빈 문자로 바꾼다 — 세 fixture가 맞고 안내문에 실제로 있는 `__`는 그대로다. 한계: 이렇게 줄어든 값은 길이가 원문 줄과 달라 `uncertainCharIndexes`가 위치를 못 찾아 불확실 표시가 비는 쪽으로만 틀린다(밑줄 옆 공백을 정리한 값은 원래도 같았다).
 - **위험**: 좁은 글꼴·작은 글씨에서 진짜 띄어쓰기가 좁게 잡히면 `Lemon House` 같은 이름에 밑줄이 생긴다. 기울어진 줄(`variants-11`)은 가로 간격이 왜곡될 수 있다. 표시 글자가 `normalizeOcrText`·불확실 글자 위치(K2)·투표기(L1, 글자 위치 다수결)에서 다른 글자로 섞이지 않게 해야 한다.
 - **회귀 검사**: fixture `variants-43`(진짜 띄어쓰기 이름 `Momo Coffee Roasters`가 그대로여야 함), `sign3` 안내 문장, 단위 테스트 `일반 가게 이름의 공백은 그대로 둔다`. 문턱값을 바꿀 때는 fixture 전체의 간격 분포를 다시 본다.
 
 ### P2-3 통신사 공유기 이름 정규화
+
+- **구현 결과**: 구현됨(`variety-09`, `variants-22` 통과). 운영자 원칙(정답은 안내문에 실제로 적힌 값이고 OCR이 읽은 모양은 후보로만)에 따라 기존 테스트 두 곳의 기대를 바꿨다: `SK_WIFiGIGA7COD_2.4G` → `SK_WiFiGIGA7C0D_2.4G`, `SK WiFiGIGA 3A2B` → `SK_WiFiGIGA3A2B`(실제 SK 형식은 접두어와 16진수 사이에 밑줄이 없다). 아래 "구현 방향"의 `SK_WiFiGIGA_3A2B` 기대는 이 결정으로 바뀌었다. 이미 `SK_WiFiGIGA_3A2B`로 읽은 값은 건드리지 않는다.
 
 - **고치는 fixture (2)**: `variety-09`, `variants-22`.
 - **결정 (2026-11-06, 운영자)**: `SK_WIF1GIGA`·`SK_WIFiGIGA`처럼 읽힌 SK 이름은 오인식이다. 실제 형식 `SK_WiFiGIGA`로
@@ -427,6 +409,8 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 
 ### P2-4 비밀번호 아래 줄의 메모
 
+- **구현 결과**: 구현됨(`variants-27` 통과). 메모 감지에 `0은 모두 숫자`를 위해 `_digitZeroNote`가 `0은 [모두|전부|다] 숫자`도 받는다.
+
 - **고치는 fixture (1)**: `variants-27`.
 - **구현 방향**: 이름표 없는 한글 줄이 "숫자 0/영문 O" 메모(F2의 `_digitZeroNote`/`_letterONote`)면, **바로 위 1~2행**의 비밀번호 후보에 F2와 같은 힌트를 적용해 +0.001로 넣는다(시제품은 행 제한 없이 모든 비밀번호 후보에 적용했다).
 - **위험**: F2와 같다 — "0은 숫자" 메모가 있으면 영문 O까지 0으로 바뀐다(`LOOP0909` → `L0000909`; `variants-28`은 OCR이 그 줄을 놓쳐 확인 못 함). 메모 범위를 위 행으로 묶지 않으면 다른 줄의 메모가 섞인다.
@@ -434,12 +418,16 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 
 ### P2-5 깨진 Wi-Fi 이름표 줄에서 이름 찾기
 
+- **구현 결과**: 구현됨(`variants-07` 통과).
+
 - **고치는 fixture (1)**: `variants-07`.
 - **구현 방향**: G2의 짝. 이름표로 이름을 못 찾았고 비밀번호는 이름표로 찾았을 때(점수 0.9 이상), `짧은 영문·한글(2~6자) + 구분자 또는 공백 + 이름 모양 값(G4)` 한 칸짜리 행의 값을 이름 후보 0.55로 넣는다(`wii - hong_studio`).
 - **위험**: 비밀번호가 이름표로 확실할 때만 켜지므로 작다. `Tel - 02_1234`처럼 이름 모양(밑줄)인 연락처 줄이 걸릴 수 있다 — G2처럼 연락처 이름표(`_contactLabel`)를 뺀다.
 - **회귀 검사**: `자간이 넓거나 깨진 이름표` 그룹, `Wi-Fi와 관계없는 글` 그룹.
 
 ### P2-6 문장을 비밀번호로 고르지 않기
+
+- **구현 결과**: 구현됨. `sign3`은 비밀번호 없음으로 바뀌었고(OCR이 값을 놓침) 통과 수에는 들어가지 않는다.
 
 - **고치는 fixture**: 없음. `sign3`의 출력이 엉뚱한 문장(`Ask our staff if it doesn't work`) → 빈칸으로 바뀐다(OCR이 값을 못 읽어서 통과는 못 함). 사용자가 틀린 비밀번호로 연결을 시도하지 않고 직접 입력하게 된다.
 - **구현 방향**: 떨어진 칸·다음 줄에서 가져온 비밀번호 값(`_addDetached`)이 3단어 이상이거나 `'`가 든 여러 단어면 버린다. 이름표 바로 뒤 값(E1)에는 적용하지 않는다.
@@ -527,10 +515,7 @@ Wi-Fi가 아닌 글 11장 중 `variety-23`, `variants-49~51` 4장이 Wi-Fi로 �
 | P2-1 | EXIF 좌표 (+로더) | `photo-sign4-exif8` | 없음 |
 | P2-1 + P2-2 | EXIF + 단어 간격 (+로더) | `photo-sign4-exif8`, `variants-01`, `variants-02`, `variants-03` | 없음 |
 | P2-3 | 첫 판: KT 정규화 + SK 이름 전체를 다시 씀(접두어 뒤 밑줄도 지움) | `variety-09`, `variants-22` | 3개 (`SK WiFiGIGA와 단어 속 giga는 건드리지 않는다`, `다른 통신사·공유기 이름도`, `16진수에 없는 O·I는 0·1로…`) |
-| P2-3 | 보수판: KT 정규화 + SK는 숫자·세로선만 | `variety-09` | 없음 |
-| P2-3 | **결정판**: KT 정규화 + SK 접두어만 `SK_WiFiGIGA`로, 뒤는 읽은 그대로 | `variety-09`, `variants-22` | 1개 — `16진수에 없는 O·I는 0·1로…`의 `SK_WIFiGIGA7COD_2.4G` 기대 (운영자 결정으로 바꿀 기대) |
-| P2-4 | 아래 줄 메모 | `variants-27` | 없음 |
-| P2-5 | 깨진 Wi-Fi 이름표 | `variants-07` | 없음 |
-| P2-6 | 문장 거르기 | 없음 (`sign3` 비밀번호가 문장 → 없음) | 없음 |
+| P2-3 | 보수판: KT 정규화 + SK는 숫자·세로선만 | P2-3 | **결정판**: KT 정규화 + SK 접두어만 `SK_WiFiGIGA`로, 뒤는 읽은 그대로 | `variety-09`, `variants-22` | 1개 — `16진수에 없는 O·I는 0·1로…`의 `SK_WIFiGIGA7COD_2.4G` 기대 (운영자 결정으로 바꿀 기대) |
+| P2-4 | 아래 줄 메모 | P2-5 | 깨진 Wi-Fi 이름표 | P2-6 | 문장 거르기 | 없음 (`sign3` 비밀번호가 문장 → 없음) | 없음 |
 | P1 + P2 전체 (P2-3은 보수판) | | 20개 (53 → 73), P1-2+P2-1로 `photo-variety-06-exif6`도 | 없음 |
 | P1 + P2 전체 (P2-3은 결정판) | | 21개 (53 → 74) | 위 1개 (바꿀 기대) |
