@@ -5,6 +5,7 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 
 import '../../data/models/wifi_credential.dart';
 import '../../data/services/ocr_service.dart';
+import 'confusable_chars.dart';
 import 'wifi_credential_parser.dart';
 
 /// 여러 인식기의 OCR 결과를 파서에 넘겨 하나의 [WifiCredential]로 만든다.
@@ -28,20 +29,34 @@ class WifiCredentialExtractor {
       credential = credential.isEmpty ? raw : fillMissing(credential, raw);
     }
     final lines = [for (final r in ordered) ...r.lines];
-    final password = credential.password ?? '';
-    return withSubstitutions(credential.withUncertainIndexes(
+    return withTrailingTilde(withSubstitutions(credential.withUncertainIndexes(
       ssid: uncertainCharIndexes(credential.ssid ?? '', lines),
-      password: {
-        ...uncertainCharIndexes(password, lines),
-        if (_endsWithTildeLookalike(password)) password.length - 1,
-      },
-    ));
+      password: uncertainCharIndexes(credential.password ?? '', lines),
+    )));
   }
 
   /// 비밀번호 끝의 `-`는 안내문의 `~`를 OCR이 잘못 읽은 것일 때가 많다 (굵은 글씨의 물결표는 가운데가
   /// 납작해져 하이픈처럼 보인다). 반대로 `-`를 `~`로 읽는 일은 드물다. 그래서 끝의 `-`는 신뢰도가 없는
-  /// iOS 결과에서도 불확실한 글자로 보고 `~` 후보를 둔다. 값 자체는 바꾸지 않는다. 가운데 `-`는 건드리지 않는다.
-  static bool _endsWithTildeLookalike(String password) => password.length > 1 && password.endsWith('-');
+  /// iOS 결과에서도 불확실한 글자로 표시하고("확인 필요") 끝만 `~`로 바꾼 값을 후보로 둔다.
+  /// 값 자체와 다른 후보는 바꾸지 않는다. 가운데 `-`(`abc-1234`)와 이름은 건드리지 않는다.
+  @visibleForTesting
+  WifiCredential withTrailingTilde(WifiCredential credential) {
+    final password = credential.password;
+    final tilde = trailingTildeSwap(password);
+    if (password == null || tilde == null || !password.endsWith('-')) return credential;
+    final top = credential.candidatesOf(WifiCandidateType.password).firstOrNull?.score ?? 0;
+    final exists = credential.candidates.any((c) => c.type == WifiCandidateType.password && c.value == tilde);
+    return credential.copyWith(
+      passwordConfidence: math.min(credential.passwordConfidence, WifiCredential.confidentThreshold - 0.05),
+      passwordUncertainIndexes: {...credential.passwordUncertainIndexes, password.length - 1},
+      candidates: exists
+          ? credential.candidates
+          : ([
+              ...credential.candidates,
+              WifiCandidate(value: tilde, type: WifiCandidateType.password, score: (top - 0.02).clamp(0.0, 1.0)),
+            ]..sort((a, b) => b.score.compareTo(a.score))),
+    );
+  }
 
   /// 인식기가 자신 없어 한 글자 자리에 OCR이 자주 혼동하는 글자를 넣은 값을 후보로 덧붙인다
   /// (`0cat54796`의 첫 글자가 불확실하면 `@cat54796`, `Ocat54796` …).
@@ -57,14 +72,7 @@ class WifiCredentialExtractor {
       if (value == null || indexes.isEmpty) return;
       final top = credential.candidatesOf(type).firstOrNull?.score ?? 0;
       var rank = 0;
-      final sorted = indexes.toList()..sort();
-      final chosen = {
-        ...sorted.take(_maxSubstitutedChars),
-        // 비밀번호 끝 `-`(물결표를 읽은 모양)는 앞에 불확실한 글자가 많아도 빠뜨리지 않는다.
-        if (type == WifiCandidateType.password && _endsWithTildeLookalike(value) && indexes.contains(value.length - 1))
-          value.length - 1,
-      };
-      for (final i in chosen) {
+      for (final i in (indexes.toList()..sort()).take(_maxSubstitutedChars)) {
         final ch = value[i];
         final alternatives = [
           // 비밀번호 첫 글자의 0/O/o/a는 @일 때가 많다.
@@ -142,45 +150,21 @@ class WifiCredentialExtractor {
 
     expand(credential.ssid, WifiCandidateType.ssid);
     expand(credential.password, WifiCandidateType.password);
-    final tilde = _tildeSwapped(credential.password);
-    if (extra.isEmpty && tilde == null) return credential;
+    // 비밀번호 끝 `~` ↔ `-`: 어느 쪽으로 뽑혔든 다른 쪽도 후보로 둔다. 기존 후보보다 낮게 두어 순서를 바꾸지 않고,
+    // 결과 화면은 이 후보를 칩 세 개 뒤에 따로 붙인다. 이미 있으면 그대로 둔다.
+    final tilde = trailingTildeSwap(credential.password);
+    if (tilde != null) {
+      final top = credential.candidatesOf(WifiCandidateType.password).firstOrNull?.score ?? 0;
+      extra.add(WifiCandidate(value: tilde, type: WifiCandidateType.password, score: (top - 0.05).clamp(0.0, 1.0)));
+    }
+    if (extra.isEmpty) return credential;
 
     final existing = {for (final c in credential.candidates) '${c.type.name}\u0000${c.value}'};
     final candidates = [
-      // 비밀번호 끝 `~` ↔ `-`: 어느 쪽으로 뽑혔든 다른 쪽을 바로 다음 후보로 둔다. 셔터 한 장의 불확실 글자
-      // 후보로 이미 있으면 점수만 올린다 (결과 화면 칩은 세 개까지라 O·0 후보에 밀리지 않게).
-      for (final c in credential.candidates)
-        if (tilde != null && c.type == WifiCandidateType.password && c.value == tilde)
-          _tildeCandidate(credential, tilde, c)
-        else
-          c,
-      if (tilde != null && existing.add('${WifiCandidateType.password.name}\u0000$tilde'))
-        _tildeCandidate(credential, tilde, null),
+      ...credential.candidates,
       ...extra.where((c) => existing.add('${c.type.name}\u0000${c.value}')),
     ]..sort((a, b) => b.score.compareTo(a.score));
     return credential.copyWith(candidates: candidates);
-  }
-
-  /// 비밀번호 끝 글자만 `~` ↔ `-`로 바꾼 값. 끝이 둘 다 아니면 null. 가운데 글자는 건드리지 않는다.
-  /// OCR이 굵은 글씨의 끝 물결표를 하이픈으로 자주 읽어서다 ([_endsWithTildeLookalike]).
-  static String? _tildeSwapped(String? password) {
-    if (password == null || password.length < 2) return null;
-    final other = switch (password[password.length - 1]) {
-      '-' => '~',
-      '~' => '-',
-      _ => null,
-    };
-    return other == null ? null : password.replaceRange(password.length - 1, null, other);
-  }
-
-  static WifiCandidate _tildeCandidate(WifiCredential credential, String value, WifiCandidate? existing) {
-    final top = credential.candidatesOf(WifiCandidateType.password).firstOrNull?.score ?? 0;
-    final score = (top - 0.005).clamp(0.0, 1.0);
-    return WifiCandidate(
-      value: value,
-      type: WifiCandidateType.password,
-      score: existing == null ? score : math.max(existing.score, score),
-    );
   }
 
   static const _maxLookalikePositions = 4;
