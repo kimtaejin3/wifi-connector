@@ -26,6 +26,8 @@ class WifiCredentialParser {
   WifiCredential parse(String rawText) {
     final rows = _tokenize(rawText);
     final found = <WifiCandidate>[];
+    // 일부러 남긴 장식 붙은 원래 값. 아래 장식 떼기 단계가 이 후보를 다시 떼지 않게 한다.
+    final keptOriginals = Set<WifiCandidate>.identity();
 
     void add(_LabelMatch label, String value, double base, {required bool isolated}) {
       if (label.place) return;
@@ -35,11 +37,14 @@ class WifiCredentialParser {
       if (label.type == WifiCandidateType.ssid) {
         final decorated = _cleanValue(value, label.type, true);
         if (decorated != cleaned && decorated.isNotEmpty) {
-          found.add(WifiCandidate(
+          final original = WifiCandidate(
             value: decorated,
             type: label.type,
-            score: (base * _ssidFactor(decorated, isolated: isolated) * _decoratedFactor).clamp(0.0, 1.0),
-          ));
+            // 뗀 값 점수의 ×0.8. 장식 기호 자체로 다시 감점하지 않는다(같은 줄 이름표 경로와 같은 점수).
+            score: (base * _ssidFactor(cleaned, isolated: isolated) * _decoratedFactor).clamp(0.0, 1.0),
+          );
+          found.add(original);
+          keptOriginals.add(original);
         }
       }
       // "d9ki88ec01 <=숫자 0" — 비밀번호 뒤에 붙은 메모는 떼고, 메모가 알려 주는 글자는 반영한다.
@@ -208,7 +213,7 @@ class WifiCredentialParser {
     // 이름표 없이 고른 이름도 앞뒤 장식을 뗀다 (이름표로 고른 이름은 _cleanValue가 이미 뗐다).
     for (var k = 0, n = found.length; k < n; k++) {
       final c = found[k];
-      if (c.type != WifiCandidateType.ssid) continue;
+      if (c.type != WifiCandidateType.ssid || keptOriginals.contains(c)) continue;
       final plain = _withoutDecoration(c.value);
       if (plain == c.value) continue;
       found[k] = WifiCandidate(value: plain, type: c.type, score: c.score);

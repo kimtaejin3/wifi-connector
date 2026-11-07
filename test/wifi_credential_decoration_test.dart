@@ -74,7 +74,7 @@ void main() {
 
   group('경계 보완: 대칭은 같은 기호끼리, 원래 값은 항상 후보', () {
     // 2차 검토에서 찾은 경계. 서로 다른 기호(앞 `-`, 뒤 `.`)는 대칭이 아니다.
-    for (final ssid in ['-Momo.', '+Momo.', '*Momo,', '.Momo-', ',Momo+', '- Momo +', '* Momo -', 'Momo.', '·Momo.']) {
+    for (final ssid in ['-Momo.', '+Momo.', '*Momo,', '.Momo-', ',Momo+', '- Momo +', '- 모모 +', '* Momo -', 'Momo.', '·Momo.']) {
       final expected = ssid == '·Momo.' ? 'Momo.' : ssid;
       test('SSID: $ssid → $expected', () {
         expect(_parser.parse('SSID: $ssid\nPW: abc12345').ssid, expected);
@@ -85,9 +85,16 @@ void main() {
       expect(_parser.parse('SSID: -모모.\nPW: abc12345').ssid, '-모모');
     });
 
-    for (final raw in ['✿모모✿', '◆모모◆', '★cafe_momo★', '• 모모 •', '.달빛꼬치,', '- 모모 -']) {
-      test('이름표 바로 뒤 $raw: 뗀 값이 1순위, 원래 값은 ×0.8 후보', () {
-        final c = _parser.parse('SSID: $raw\nPW: abc12345');
+    for (final (raw, text) in [
+      for (final raw in ['✿모모✿', '◆모모◆', '★cafe_momo★', '• 모모 •', '.달빛꼬치,', '- 모모 -']) ...[
+        (raw, 'SSID: $raw\nPW: abc12345'), // 같은 줄 이름표
+        (raw, 'WIFI : $raw\nPW : abc12345'),
+      ],
+      // 다음 줄 (행 앞 장식은 글머리표 규칙이 먼저 떼므로 뒤쪽만 남은 모양)
+      for (final raw in ['모모✿', '모모◆', 'cafe_momo★', '모모 •', '달빛꼬치,']) (raw, 'WIFI\n$raw\nabc12345'),
+    ]) {
+      test('${text.split('\n').first.startsWith('WIFI') && !text.contains(':') ? '다음 줄' : '같은 줄'} $raw: 뗀 값이 1순위, 원래 값은 ×0.8 후보', () {
+        final c = _parser.parse(text);
         final ssids = c.candidatesOf(WifiCandidateType.ssid).toList();
         final top = ssids.first;
         expect(top.value, isNot(raw));
