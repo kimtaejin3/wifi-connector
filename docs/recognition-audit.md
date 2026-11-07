@@ -8,11 +8,11 @@
   ML Kit(앱과 같은 `OcrService`, 한국어 인식기)로 원문 OCR을 뽑아 fixture로 저장하고(`tool/ocr_dump.sh`),
   `flutter test`가 그 fixture를 앱의 사진 인식 경로(`WifiCredentialExtractor.fromOcrResults` → 파서)에 넣어
   정답과 비교한다(`test/ocr_fixture_test.dart`). 폰 없이, 같은 결과가 매번 나온다.
-- **fixture 91개**: 기존 variety 24장 + 이번에 늘린 변형 51장(`test_signs/variants/`) + 낱장 6장(`sign1~4`,
+- **fixture 93개**: 기존 variety 24장 + 이번에 늘린 변형 53장(`test_signs/variants/`, 52·53은 `deco-tilde`에서 더함) + 낱장 6장(`sign1~4`,
   `sign-hotspot`, `sign-sk-band`) + EXIF 회전 사진 10장. 이 중 Wi-Fi가 아닌 글이 11장(variety 17~24, 변형 49~51).
-- **지금 결과**: 통과 74 · 알려진 실패 17 (`skip` + 사유, 4장 표). P1 다섯 항목을 구현해 53 → 65, P2-3~P2-6을 구현해 65 → 69, P2-1·P2-2(`fix-geometry`)를 합치고 표시 글자와 밑줄 옆 공백 정리를 한 규칙으로 묶어 69 → 74가 됐다(처음 측정은 53 · 38).
+- **지금 결과**: 통과 76 · 알려진 실패 17 (`skip` + 사유, 4장 표). `deco-tilde`에서 이름 앞뒤 장식·끝 물결표 안내문 2장을 더하고 고쳐 74/91 → 76/93. P1 다섯 항목을 구현해 53 → 65, P2-3~P2-6을 구현해 65 → 69, P2-1·P2-2(`fix-geometry`)를 합치고 표시 글자와 밑줄 옆 공백 정리를 한 규칙으로 묶어 69 → 74가 됐다(처음 측정은 53 · 38).
   남은 실패 원인은 설계가 더 필요한 파서 규칙 5건(P3), 파서로는 못 고치는 OCR 단계 12건(P4).
-- **개선 항목 19개** (5장). 파서·`OcrService`에 임시 시제품을 넣어 재 보니 P1 다섯 항목만으로 통과가 53 → 65,
+- **개선 항목 21개** (5장, `deco-tilde`의 P2-7·P4-4 포함). 파서·`OcrService`에 임시 시제품을 넣어 재 보니 P1 다섯 항목만으로 통과가 53 → 65,
   시제품을 만든 P1·P2 항목 11개를 다 합치면 53 → 74(21개 고침)다. 기존 테스트는 P2-3에서 운영자 결정으로 기대를
   바꾸기로 한 1개(`SK_WIFiGIGA7COD_2.4G` 경우) 말고는 하나도 깨지지 않았다(7장). 시제품은 모두 되돌렸고 `lib/`는
   바뀌지 않았다. (PR #1 시점의 설명이다. P1 다섯 항목은 PR #2에서 구현했다.)
@@ -34,14 +34,14 @@
 | 파일 | 하는 일 |
 |---|---|
 | `test_signs/variety/index.html`, `answers.md` | 기존 안내문 24장과 정답 (1~16 Wi-Fi, 17~24 Wi-Fi 아님) |
-| `test_signs/variants/index.html`, `answers.md` | 이번에 늘린 변형 51장과 정답 (1~48 Wi-Fi, 49~51 Wi-Fi 아님) |
+| `test_signs/variants/index.html`, `answers.md` | 이번에 늘린 변형 53장과 정답 (1~48·52~53 Wi-Fi, 49~51 Wi-Fi 아님) |
 | `test_signs/answers.md` | 낱장 안내문(`sign1~4`, `sign-hotspot`, `sign-sk-band`)과 EXIF 회전 사진 10장의 정답 |
 | `test_signs/slides.js` | 슬라이드 넘기기. `?slide=N`으로 열면 N번째 장만 보이고 번호·안내 글자를 지운다 |
 | `tool/render_signs.sh` | 안내문을 `build/test_signs/`에 이미지로 모은다 (슬라이드는 장별 PNG, 낱장 HTML은 PNG, HTML 없는 PNG는 복사, EXIF 사진 생성) |
 | `tool/make_exif_photo.dart` | 똑바른 이미지를 "픽셀은 돌아간 채 + EXIF Orientation" JPEG로 만든다 (휴대폰 세로 사진 재현) |
 | `integration_test/ocr_dump_test.dart` | 시뮬레이터에서 앱의 `OcrService`로 이미지마다 원문 OCR을 읽어 fixture JSON을 쓴다. `--dart-define`으로 경로를 줄 때만 동작 |
 | `tool/ocr_dump.sh` | 시뮬레이터 부팅 → 위 테스트 실행 → fixture 개수 확인 (스크립트가 켠 시뮬레이터는 끝나고 끈다) |
-| `test/fixtures/ocr/<이름>.json` | 원문 OCR fixture 91개 (커밋됨) |
+| `test/fixtures/ocr/<이름>.json` | 원문 OCR fixture 93개 (커밋됨) |
 | `test/support/ocr_fixture.dart` | fixture를 앱의 `OcrResult`로 되살린다 |
 | `test/support/sign_answers.dart` | `answers.md`를 그대로 옮긴 정답표 |
 | `test/ocr_fixture_test.dart` | fixture → 추출기 → 정답 비교, 알려진 실패 `skip`, 목록 검사 4개 |
@@ -52,9 +52,9 @@
 ### 1.2 다시 뽑기
 
 ```sh
-tool/render_signs.sh          # build/test_signs/에 이미지 91개 (1~2분, Google Chrome headless, 임시 프로필)
-tool/ocr_dump.sh              # iPhone 16 시뮬레이터(6186BDC9-…)로 test/fixtures/ocr/*.json 91개 (첫 빌드 1~2분 + 인식 45초)
-OCR_DUMP_ONLY=variants-52 tool/ocr_dump.sh   # 몇 장만 다시 뽑기
+tool/render_signs.sh          # build/test_signs/에 이미지 93개 (1~2분, Google Chrome headless, 임시 프로필)
+tool/ocr_dump.sh              # iPhone 16 시뮬레이터(6186BDC9-…)로 test/fixtures/ocr/*.json 93개 (첫 빌드 1~2분 + 인식 45초)
+OCR_DUMP_ONLY=variants-52,variants-53 tool/ocr_dump.sh   # 몇 장만 다시 뽑기
 flutter test test/ocr_fixture_test.dart       # fixture 검사 (flutter test 전체에도 들어 있다)
 ```
 
@@ -81,12 +81,12 @@ flutter test test/ocr_fixture_test.dart       # fixture 검사 (flutter test 전
 - 테스트는 `layoutText`를 쓰지 않고 `lines`로 지금 코드의 `layoutRows`를 다시 돌린다. 그래서 행 재구성을 고치면
   fixture를 다시 뽑지 않아도 결과에 반영된다.
 - `elements`(단어 상자)는 `OcrService`가 밖으로 내주지 않아서, 덤프 도구가 같은 설정의 인식기를 한 번 더 돌려 얻고
-  줄 글자가 `OcrService` 결과와 똑같을 때만 붙인다(91개 모두 붙음). 밑줄·자간 분석(P2-2, P3-3, P3-5)을 폰 없이 시험하는 데 쓴다.
+  줄 글자가 `OcrService` 결과와 똑같을 때만 붙인다(93개 모두 붙음). 밑줄·자간 분석(P2-2, P3-3, P3-5)을 폰 없이 시험하는 데 쓴다.
 - iOS는 글자 신뢰도가 없어(A3) `chars`/`conf`는 비어 있다. Android에서 뽑으면 채워진다.
 
 ### 1.4 판정
 
-- 기준: 정답은 언제나 **정상 인식** — 안내문에 실제로 적힌 값이다. 정답표 91개(`answers.md`, `sign_answers.dart`)는
+- 기준: 정답은 언제나 **정상 인식** — 안내문에 실제로 적힌 값이다. 정답표 93개(`answers.md`, `sign_answers.dart`)는
   모두 이 기준으로 적었고, OCR이 잘못 읽은 모양은 4장의 "실제"와 보고서의 후보 목록에만 나온다. fixture를 다시 뽑아
   OCR 결과가 달라져도 정답은 바꾸지 않는다.
 - 경로: 갤러리에서 사진을 고른 경우와 같다 — `WifiCredentialExtractor().fromOcrResults([fixture.toOcrResult()])`.
@@ -120,7 +120,7 @@ OCR_FIXTURE_REPORT=build/ocr_fixture_report.md flutter test test/ocr_fixture_tes
 
 1. `test_signs/variants/index.html`에 `<section class="slide">`를 하나 더하고(값은 지어낸 것만), `answers.md` 표에
    같은 번호로 정답을 적고, `test/support/sign_answers.dart`의 `variantAnswers`에도 같은 값을 넣는다.
-2. `tool/render_signs.sh && OCR_DUMP_ONLY=variants-52 tool/ocr_dump.sh`
+2. `tool/render_signs.sh && OCR_DUMP_ONLY=variants-54 tool/ocr_dump.sh`
 3. `flutter test test/ocr_fixture_test.dart` — 틀리면 `knownFailures`와 4장 표에 사유와 함께 넣는다.
    EXIF 사진은 `tool/render_signs.sh`의 `EXIF_PHOTOS`와 `test_signs/answers.md`·`photoSources`에 넣는다.
 
@@ -148,6 +148,13 @@ OCR_FIXTURE_REPORT=build/ocr_fixture_report.md flutter test test/ocr_fixture_tes
   예외: `Harbor|Guest`(세리프 글꼴)는 밑줄 자리인데 1.07로 오히려 넓고, 자간 넓은 글자는 글자 사이 0.26~0.64.
 - 어떤 글꼴·배치에서는 줄을 통째로 놓친다: 칠판 손글씨체의 PW 줄(`variants-06`), 작은 메모가 같은 줄에 붙은 PW 줄
   (`variants-28`), 굵은 값 `hello1234`(`sign3`).
+- **이름 앞뒤 작은 장식(`◆ 이름 ◆`)**: ML Kit는 작은 마름모를 `·`(U+00B7), `•`(U+2022), `.`, `,`, `-`, `+`로 읽거나
+  아예 빠뜨리고, 한 번은 한글 한 글자로 읽었다(실제 식당 안내문 사진 원본·확대·축소·자르기 6번, `variants-52` 글꼴
+  시험 13번). 같은 안내문이라도 비밀번호 줄의 글꼴 크기만 바꿔도 읽는 모양이 달라진다. 앞쪽 장식은 C1이 떼지만 뒤쪽은
+  이름에 남았다(P2-7).
+- **비밀번호 끝 물결표(`~`)**: 실제 사진(굵은 흰 고딕, 검은 판)에서는 6번 중 4번 `-`, 1번 `-~-`, 1번만 `~`로 읽었다.
+  화면에 그린 `variants-52`·`53`에서는 `~`로 읽었다(글꼴·크기를 바꿔 14번 읽어 13번 `~`, 1번 `~~`; 한 번은 비밀번호 줄을 놓침). 반대로 안내문의 `-`를 `~`로 읽은 경우는
+  fixture 93개의 하이픈 30자 중 하나도 없다. 사진의 흐림·반사에서 물결이 납작해지는 것으로 보인다(P4-4).
 
 ## 2. 현재 파서가 하는 일 (동작 셀)
 
@@ -218,6 +225,7 @@ OCR_FIXTURE_REPORT=build/ocr_fixture_report.md flutter test test/ocr_fixture_tes
 | F3 | `없음`, `none`, `open`, `x`, `-` 등은 빈 비밀번호(공개 네트워크) 후보. |
 | F4 | 공백이 든 이름이 공유기 이름 모양(이미 `_`가 있음, 통신사 접두어, 3단어 이상에 숫자 토큰 2개)이면 공백을 `_`로 이은 값을 1순위(×0.9), 원래 값은 0.7. |
 | F5 | 비밀번호 안 공백이 OCR 틈으로 보이면(조각에 숫자가 있거나 한 글자 조각) 붙인 값을 1순위, 공백 값은 −0.05 후보. |
+| F7 | 이름(SSID) 앞뒤 장식 기호를 뗀다(`_withoutDecoration`, P2-7). `◆ ◇ • · ● ■ □ ▶ ◀ ★ ☆ ♥ ✿ ❖ ※` 등은 한쪽만 있어도, OCR이 장식을 바꿔 읽은 `. , - + *`는 양쪽에 있거나 이름과 띄어 있거나 한글 바로 뒤일 때만. 비밀번호에는 쓰지 않는다. 이름표 없이 고른 이름(G)도 같은 규칙. |
 | F6 | 점수 계수 — 이름: 32바이트 초과 ×0.3, 2단어 ×0.9(떨어진 칸)/×0.7, 3단어 ×0.7/×0.5, 4단어 이상 ×0.4, 연락처 모양 ×0.3, 잡음 낱말 ×0.2. 비밀번호: ASCII 아님 ×0.3, 4자 미만 ×0.3, 8자 미만 ×0.7, 63자 초과 ×0.3, 공백 ×0.8/×0.4. |
 
 ### G. 이름표 없는 추측 (`_addUnlabeledFallbacks`)
@@ -259,15 +267,15 @@ OCR_FIXTURE_REPORT=build/ocr_fixture_report.md flutter test test/ocr_fixture_tes
 | 셀 | 동작 |
 |---|---|
 | K1 | `layoutText`로 먼저 파싱하고, 이름·비밀번호 중 빠진 쪽이 있으면 원문(`text`)으로 다시 파싱해 빠진 쪽 후보만 채운다(`fillMissing`). 둘 다 없으면 원문 결과를 쓴다. |
-| K2 | 불확실 글자 위치(A3)가 있으면 혼동 글자(`0↔@/O/o`, `1↔l/I/!`, `5↔S/$` …)로 바꾼 후보를 앞 두 자리까지 덧붙이고 신뢰도를 낮춘다. |
-| K3 | 결과 화면 직전 `O·0·o`를 바꾼 후보를 덧붙인다(`withLookalikes`). 고른 값과 신뢰도는 그대로. |
+| K2 | 불확실 글자 위치(A3)가 있으면 혼동 글자(`0↔@/O/o`, `1↔l/I/!`, `5↔S/$`, `-↔~/_` …)로 바꾼 후보를 앞 두 자리까지 덧붙이고 신뢰도를 낮춘다. 비밀번호 끝의 `-`는 글자 신뢰도가 없어도(iOS) 불확실 위치로 보고, 앞 두 자리에 들지 않아도 `~` 후보를 만든다(P4-4). |
+| K3 | 결과 화면 직전 `O·0·o`를 바꾼 후보를 덧붙인다(`withLookalikes`). 비밀번호 끝 글자가 `-`면 `~`, `~`면 `-`를 바로 다음 후보로 둔다(칩 세 개 안에 들도록). 고른 값과 신뢰도는 그대로. |
 
 ### L. 투표기 (`credential_voter.dart`, 실시간·셔터)
 
 | 셀 | 동작 |
 |---|---|
 | L1 | 최근 8개 판독 중 가장 흔한 길이끼리 글자 위치별 다수결. 3표 이상·일치율 0.6 이상이면 "안정"(셔터 없이 결과 띄움). |
-| L2 | 한 프레임이라도 `@`로 읽었고 나머지가 `0/O/o`뿐이면 `@`를 고르고 그 자리를 불확실로 표시한다. |
+| L2 | 한 프레임이라도 `@`로 읽었고 나머지가 `0/O/o`뿐이면 `@`를 고르고 그 자리를 불확실로 표시한다. 같은 방식으로 `~`와 `-`·`_`가 섞이면 `~`(P4-4). |
 | L3 | 셔터 사진은 2표. 한 번 안정된 결과는 다른 값이 안정될 때까지 유지한다(`heldOver`). |
 
 ## 3. 결과 요약
@@ -275,10 +283,10 @@ OCR_FIXTURE_REPORT=build/ocr_fixture_report.md flutter test test/ocr_fixture_tes
 | 묶음 | 장 수 | 통과 | 알려진 실패 |
 |---|---|---|---|
 | variety (기존) | 24 | 21 | 3 (`07` `10` `16`) |
-| variants (이번에 늘림) | 51 | 38 | 13 |
+| variants (이번에 늘림) | 53 | 40 | 13 |
 | 낱장 (`sign1~4`, `sign-hotspot`, `sign-sk-band`) | 6 | 5 | 1 (`sign3`, 값을 OCR이 놓침) |
 | EXIF 회전 사진 | 10 | 10 | 0 |
-| **합계** | **91** | **74** | **17** |
+| **합계** | **93** | **76** | **17** |
 
 Wi-Fi가 아닌 글 11장은 모두 맞게 걸러진다(P1-3, P1-4로 `variety-23`, `variants-49~51`을 고쳤다). 남은 실패를 원인별로 묶으면:
 
@@ -314,6 +322,12 @@ Wi-Fi가 아닌 글 11장은 모두 맞게 걸러진다(P1-3, P1-4로 `variety-2
 | `variants-46` | 손님용 / 직원용 | `guest_zone` · `guest3333` | `guestZone` · `guest3333` | OCR이 밑줄을 빠뜨리고 z를 Z로 읽음 | A1 | P4-3 |
 | `variants-48` | 사무실 회의실 게스트 Wi-Fi | `Office_Guest_3F` · `visit2026#` | `OficeGuest_3F` · `visit2026#` | OCR이 f와 밑줄을 빠뜨림 | A1 | P4-3 |
 <!-- known-failures:end -->
+
+### 4.1 고친 실제 사례
+
+| 사례 | 증상 (값 가림) | 원인 | 재현 fixture | 개선 |
+|---|---|---|---|---|
+| 식당 안내문 사진 (검은 판, 금색 `WIFI`, `◆ 이름 ◆`, 금색 가로줄, `~`로 끝나는 비밀번호) | 이름 `<이름>•`, 비밀번호 `<비밀번호 앞부분>-` | ① OCR이 뒤 장식을 `•`·`·`·`.`로 읽고 파서가 이름 뒤 장식을 떼지 않음 ② OCR이 끝 `~`를 `-`로 읽음(사진 6번 중 5번 틀림: `-` 4번, `-~-` 1번) | `variants-52` (`·모모양꼬치·` / `Momok123~`), `variants-53` (`.달빛꼬치,` / `Dalbit2580~`), 지어낸 값 | ① P2-7 (고침) ② P4-4 (후보·불확실 표시·다수결) |
 
 ## 5. 개선 항목 (우선순위 순)
 
@@ -434,6 +448,14 @@ Wi-Fi가 아닌 글 11장은 모두 맞게 걸러진다(P1-3, P1-4로 `variety-2
 - **위험**: 이름표 다음 줄에 띄어쓰기 든 비밀번호를 적은 안내문(드묾). 이름표 바로 뒤의 공백 든 비밀번호는 그대로다(`글자로만 된 문구는 띄어쓰기를 유지한다` 테스트).
 - **회귀 검사**: `비밀번호 사이에 OCR이 넣은 공백` 그룹, `옆 포스터 글귀가 비밀번호 줄에 섞인 경우` 그룹. 이 항목을 넣으면 `sign3`의 `knownFailures` 사유를 "OCR이 값을 놓침, 비밀번호 없음"으로 바꾼다.
 
+### P2-7 이름 앞뒤 장식 기호 떼기
+
+- **구현 결과**: 구현됨(`deco-tilde`). `variants-52`, `variants-53` 통과(새 fixture). 옛 파서와 비교해 기존 테스트 문자열 1356개·fixture 원문에서 바뀐 결과는 이 두 장뿐.
+- **사례**: 실제 식당 안내문 사진(4.1). `◆이름◆`의 뒤 장식을 OCR이 `•`로 읽어 이름이 `<이름>•`가 됐다.
+- **구현 방향**: 이름에만(F7). 장식 글자 집합은 한쪽만 있어도 뗀다(앞쪽은 C1이 이미 뗐을 수 있다). OCR이 장식을 바꿔 읽는 `. , - + *`는 이름에 진짜로 있을 수 있어 양쪽에 있거나, 이름과 띄어 있거나, 한글 바로 뒤일 때만 뗀다.
+- **위험**: 이름이 진짜로 장식 기호로 끝나는 경우(`★Star★` 같은 이름)는 장식이 떨어진다. 영문 이름에 붙은 한쪽 `.`·`+`·`-`(`momo_cafe.`, `momo_LGU+`, `momo-`)와 비밀번호 끝 `~ * ! # . - +`는 그대로다.
+- **회귀 검사**: `test/wifi_credential_decoration_test.dart` (경계: `◆모모◆`, `모모•`, `• 모모`, `모모!`, 비밀번호 `abc123~`·`abc123*`).
+
 ### P3-1 한 줄에 두 대역 이름 (시제품 없음)
 
 - **대상**: `variants-26` (`WiFi 2.4G mint_house /5G mint_house 5G`).
@@ -479,6 +501,17 @@ Wi-Fi가 아닌 글 11장은 모두 맞게 걸러진다(P1-3, P1-4로 `variety-2
 
 - **대상**: `variants-08`, `variants-14`, `variants-15`, `variants-46`, `variants-48`.
 - **방향**: 파서 쪽에서 할 수 있는 것은 `variants-14`의 아이콘 접두(`al `, 붙은 `P`)를 떼는 정도인데 오탐 위험이 크다. 이 묶음은 고치지 않고 회귀 감시용으로 둔다.
+
+### P4-4 비밀번호 끝 물결표를 하이픈으로 읽음
+
+- **사례**: 실제 식당 안내문 사진(4.1). OCR이 끝 `~`를 `-`로 읽어 비밀번호가 `<비밀번호 앞부분>-`가 됐다. 사진 6번 중 `-` 4번, `-~-` 1번(1.9).
+- **구현 결과**: 구현됨(`deco-tilde`). 파서만으로는 정답을 정할 수 없으므로 1순위 값은 OCR이 읽은 그대로 두고 고칠 길을 연다:
+  - 셔터 한 장(K2): 비밀번호 끝 `-`를 불확실 글자로 표시(결과 화면에서 강조, "확인 필요")하고 `~` 후보를 둔다.
+  - 결과 화면(K3): 끝 `-` ↔ `~`를 바로 다음 후보 칩으로 둔다. 어느 쪽으로 뽑혔든 둘 다 남아 한 탭으로 고친다.
+  - 실시간 다수결(L2): 같은 자리에 `~`와 `-`·`_`가 섞이면 `~`를 고르고 그 자리를 불확실로 표시한다(`-`를 `~`로 읽은 경우는 fixture에 없음, 1.9).
+  - 연결 실패 후 확인 후보(`confusableVariants`): `~` ↔ `-`.
+- **위험**: 하이픈이 진짜인 비밀번호의 가운데 `-`(`abc-1234`)는 건드리지 않는다. 끝이 진짜 `-`인 비밀번호는 "확인 필요"가 뜨고 `~` 후보가 하나 더 보인다(값은 그대로).
+- **회귀 검사**: `test/password_tilde_test.dart`. fixture는 화면에 그린 이미지라 `~`를 제대로 읽으므로(1.9) 사진의 `-` 경로는 원문 문자열로 재현한다.
 
 ## 6. 회귀 검사 방법 (모든 항목 공통)
 
