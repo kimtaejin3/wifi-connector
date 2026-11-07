@@ -194,6 +194,13 @@ class WifiCredentialParser {
     _applyNoteBelow(rows, rowSpans, found);
     final wifiContext = _wifiContext.hasMatch(normalizeOcrText(rawText).replaceAll(_otherPlacePassword, ' '));
     _addUnlabeledFallbacks(rows, found, wifiContext: wifiContext);
+    // 이름표 없이 고른 이름도 앞뒤 장식을 뗀다 (이름표로 고른 이름은 _cleanValue가 이미 뗐다).
+    for (var k = 0; k < found.length; k++) {
+      final c = found[k];
+      if (c.type != WifiCandidateType.ssid) continue;
+      final plain = _withoutDecoration(c.value);
+      if (plain != c.value) found[k] = WifiCandidate(value: plain, type: c.type, score: c.score);
+    }
     _addSeparatorVariants(found);
     _addKtNormalized(found);
     _addSkPrefixFixes(found);
@@ -1031,8 +1038,40 @@ class WifiCredentialParser {
     // 'Connect to "Momo Guest"' — 양쪽을 모두 감싼 따옴표만 벗긴다.
     final quoted = _wrappingQuotes.firstMatch(v);
     if (quoted != null) v = quoted.group(1)!;
+    if (type == WifiCandidateType.ssid) v = _withoutDecoration(v);
     // OCR은 밑줄 옆에 없던 공백을 넣기도 한다 ("Study _Room", "one_ line_cafe"). 하이픈은 건드리지 않는다.
     return v.replaceAll(_spaceAroundUnderscore, '_');
+  }
+
+  /// 이름(SSID) 앞뒤의 장식 기호를 뗀다 ("◆ 모모양꼬치 ◆", "★cafe_momo★"). 이름에만 쓴다:
+  /// 비밀번호 끝의 `~` `*` `!` `#`는 흔한 진짜 글자다.
+  ///
+  /// - 장식 글자([_decorationEnd])는 한쪽에만 있어도 뗀다. 앞쪽은 셀을 나눌 때 글머리표 규칙([_bullet])이
+  ///   이미 뗐을 수 있어서 뒤쪽만 남은 "모모양꼬치•"도 장식이다.
+  /// - OCR은 작은 마름모를 `.` `,` `-` `+` `*`로도 읽는다([_lookalikeEnd]). 이 글자는 이름에 진짜로 있을 수 있으므로
+  ///   양쪽에 장식(또는 같은 모양)이 있거나, 이름과 띄어 있거나, 한글 바로 뒤일 때만 뗀다
+  ///   (`.달빛꼬치,`, `모모양꼬치 .`, `모모양꼬치.`). `momo_cafe.`, `momo_LGU+`는 그대로다.
+  /// - 떼고 나서 아무것도 안 남으면 원래 값을 둔다.
+  String _withoutDecoration(String value) {
+    final lead = _decorationStart.firstMatch(value) ?? _lookalikeStart.firstMatch(value);
+    final trail = _decorationEnd.firstMatch(value) ?? _lookalikeEnd.firstMatch(value);
+    final both = lead != null && trail != null && lead.end <= trail.start;
+    var start = 0;
+    var end = value.length;
+    if (lead != null) {
+      final strong = _decorationStart.hasMatch(value);
+      final spaced = lead[0]!.trimRight().length < lead[0]!.length;
+      if (strong || both || spaced) start = lead.end;
+    }
+    if (trail != null) {
+      final strong = _decorationEnd.hasMatch(value);
+      final spaced = trail[0]!.trimLeft().length < trail[0]!.length;
+      final afterHangul = trail.start > 0 && _hangulSyllable.hasMatch(value[trail.start - 1]);
+      if (strong || both || spaced || afterHangul) end = trail.start;
+    }
+    if (start >= end) return value;
+    final stripped = value.substring(start, end).trim();
+    return stripped.isEmpty ? value : stripped;
   }
 
   bool _isNoise(String value) {
@@ -1141,6 +1180,13 @@ final _dotSeparator = RegExp(r'\s*\.(?=\s)\s*');
 final _cellStart = RegExp(r'^\s*(?:\d{1,2}[.)]\s*)?$');
 final _valueEnd = RegExp(r'\s+/\s+|\s*\|\s*');
 final _leadingSeparator = RegExp(r'^[:=：;|]+\s*');
+/// 이름 앞뒤의 장식 기호 (마름모·점·네모·화살촉·별·하트·꽃·당구장 표시). 띄어 쓴 것도 함께 잡는다.
+const _decorationChars = '◆◇◈❖♦♢•·∙⋅・･●◎◉■□▪▫▶◀▷◁►◄▸◂★☆✦✧✩✪✫✬✭✮✯✰♥♡❤✿❀❁✾❋※';
+final _decorationStart = RegExp('^[$_decorationChars](?:\\s*[$_decorationChars])*\\s*');
+final _decorationEnd = RegExp('\\s*[$_decorationChars](?:\\s*[$_decorationChars])*\$');
+/// OCR이 작은 장식을 바꿔 읽은 모양. 이름에 진짜로 있을 수도 있어 조건이 맞을 때만 뗀다.
+final _lookalikeStart = RegExp(r'^[.,\-+*]\s*');
+final _lookalikeEnd = RegExp(r'\s*[.,\-+*]$');
 final _bullet = RegExp(r'^(?:[•·▪▶►☞→■□●○◆◇✔✓※★☆*]+|-(?=\s))\s*');
 final _sentenceEnding = RegExp(
   r'\s*(?:입니다|이에요|예요|에요|이며|이고|이구요|이라고|이에용|입니당|임다|이야|이에요)[.!。]?$',
