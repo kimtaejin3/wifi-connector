@@ -2,7 +2,8 @@
 //
 // 안내문은 "◆ 모모양꼬치 ◆"처럼 이름 양쪽에 작은 장식을 붙이곤 한다. 앞쪽 장식은 셀을 나눌 때
 // 글머리표 규칙이 떼지만, 뒤쪽 장식은 이름에 남았다. OCR은 작은 마름모를 `·` `•` `.` `,`로 바꿔 읽기도 한다.
-// 장식 떼기는 이름에만 한다. 비밀번호 끝의 `~` `*` `!` `#`는 흔한 진짜 글자다.
+// 장식 떼기는 이름에만 한다. 비밀번호 끝의 `~` `*` `!` `#`는 흔한 진짜 글자다. 이름의 `-` `+` `*`도 진짜 글자일 수 있어
+// 양쪽에 띄어 쓴 대칭일 때만 떼고, 뗀 경우에도 원래 값은 낮은 후보로 남긴다.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wifi_connector/features/wifi_scanner/data/models/wifi_credential.dart';
 import 'package:wifi_connector/features/wifi_scanner/domain/services/wifi_credential_parser.dart';
@@ -46,10 +47,28 @@ void main() {
       expect(c.ssid, '모모');
     });
 
-    test('후보 목록에도 장식 붙은 이름이 남지 않는다', () {
-      final c = _parser.parse('WIFI\n• 모모양꼬치 •\nMomok123~');
-      final ssids = c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value);
-      expect(ssids.where((v) => v.contains('•')), isEmpty, reason: '$ssids');
+    test('양쪽에 띄어 쓴 - + * 는 장식으로 본다', () {
+      expect(_parser.parse('WIFI : - 모모 -\nPW : abc12345').ssid, '모모');
+      expect(_parser.parse('WIFI : * 모모 *\nPW : abc12345').ssid, '모모');
+      expect(_parser.parse('WIFI : + 모모 +\nPW : abc12345').ssid, '모모');
+    });
+
+    test('뗀 경우에도 원래 값은 낮은 후보로 남는다', () {
+      final c = _parser.parse('WIFI\n·모모양꼬치•\nMomok123~');
+      final ssids = c.candidatesOf(WifiCandidateType.ssid).toList();
+      expect(ssids.first.value, '모모양꼬치');
+      final original = ssids.firstWhere((e) => e.value == '모모양꼬치•');
+      expect(original.score, lessThan(ssids.first.score));
+      // 장식 붙은 값에서 밑줄·하이픈 변형을 만들지 않는다.
+      expect(ssids.map((e) => e.value).where((v) => v.contains('_•') || v.contains('-•')), isEmpty);
+    });
+
+    test('이름표 없이 고른 이름도 원래 값을 후보로 남긴다', () {
+      final c = _parser.parse('lunahouse7★\nb83kd02jq1');
+      if (c.ssid != null) {
+        expect(c.ssid, 'lunahouse7');
+        expect(c.candidatesOf(WifiCandidateType.ssid).map((e) => e.value), contains('lunahouse7★'));
+      }
     });
   });
 
@@ -66,6 +85,13 @@ void main() {
       expect(_parser.parse('WIFI : momo_LGU+\nPW : abc12345').ssid, 'momo_LGU+');
       expect(_parser.parse('WIFI : momo-\nPW : abc12345').ssid, 'momo-');
     });
+
+    // 검토에서 찾은 경계: 이름에 진짜 쓰이는 + - * 는 한글 뒤여도, 붙은 대칭이어도 그대로다.
+    for (final ssid in ['모모+', '모모-', '모모*', '+Momo+', '-Momo-', '*Momo*', 'A-1', '5G-', 'Wi-Fi+', '모모 -', '모모 +']) {
+      test('SSID: $ssid 그대로', () {
+        expect(_parser.parse('SSID: $ssid\nPW: abc12345').ssid, ssid);
+      });
+    }
 
     test('이름 가운데 가운뎃점', () {
       expect(_parser.parse('WIFI : 카페·바_momo\nPW : abc12345').ssid, '카페·바_momo');
