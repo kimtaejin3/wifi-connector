@@ -72,6 +72,32 @@ void main() {
     });
   });
 
+  group('경계 보완: 대칭은 같은 기호끼리, 원래 값은 항상 후보', () {
+    // 2차 검토에서 찾은 경계. 서로 다른 기호(앞 `-`, 뒤 `.`)는 대칭이 아니다.
+    for (final ssid in ['-Momo.', '+Momo.', '*Momo,', '.Momo-', ',Momo+', '- Momo +', '* Momo -', 'Momo.', '·Momo.']) {
+      final expected = ssid == '·Momo.' ? 'Momo.' : ssid;
+      test('SSID: $ssid → $expected', () {
+        expect(_parser.parse('SSID: $ssid\nPW: abc12345').ssid, expected);
+      });
+    }
+
+    test('한글 뒤 마침표는 반대쪽에 다른 기호가 있어도 뗀다', () {
+      expect(_parser.parse('SSID: -모모.\nPW: abc12345').ssid, '-모모');
+    });
+
+    for (final raw in ['✿모모✿', '◆모모◆', '★cafe_momo★', '• 모모 •', '.달빛꼬치,', '- 모모 -']) {
+      test('이름표 바로 뒤 $raw: 뗀 값이 1순위, 원래 값은 ×0.8 후보', () {
+        final c = _parser.parse('SSID: $raw\nPW: abc12345');
+        final ssids = c.candidatesOf(WifiCandidateType.ssid).toList();
+        final top = ssids.first;
+        expect(top.value, isNot(raw));
+        final original = ssids.where((e) => e.value == raw);
+        expect(original, hasLength(1), reason: '${ssids.map((e) => e.value)}');
+        expect(original.single.score, closeTo(top.score * 0.8, 0.001));
+      });
+    }
+  });
+
   group('진짜 글자는 그대로 둔다', () {
     test('이름 끝 느낌표', () {
       expect(_parser.parse('WIFI : 모모!\nPW : abc12345').ssid, '모모!');

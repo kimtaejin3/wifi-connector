@@ -216,6 +216,19 @@ class WifiCredentialParser {
       final kept = math.max(c.score * _decoratedFactor, math.min(c.score - 0.01, minSelectableScore));
       found.add(WifiCandidate(value: c.value, type: c.type, score: kept));
     }
+    // 이름표 바로 뒤 이름은 셀을 나눌 때 이미 장식을 뗐다. 그 값이 후보면 떼기 전 값도 ×0.8 후보로 남긴다.
+    final decoratedOf = {
+      for (final row in rows)
+        for (final seg in row)
+          if (seg.decorated != null) seg.value: seg.decorated!,
+    };
+    for (var k = 0, n = found.length; k < n; k++) {
+      final c = found[k];
+      final original = c.type == WifiCandidateType.ssid ? decoratedOf[c.value] : null;
+      if (original == null) continue;
+      final kept = math.max(c.score * _decoratedFactor, math.min(c.score - 0.01, minSelectableScore));
+      found.add(WifiCandidate(value: original, type: c.type, score: kept));
+    }
     _addSeparatorVariants(found);
     _addKtNormalized(found);
     _addSkPrefixFixes(found);
@@ -936,6 +949,7 @@ class WifiCredentialParser {
       // 따옴표로 감싼 값은 여러 단어여도 의도된 값이다 ('Connect to "Momo Guest"').
       final quoted = _wrappingQuotes.hasMatch(value);
       // "cafe_momo 이고" 같은 문장 종결을 먼저 떼어내야 아래 여러 단어 판정에 걸리지 않는다.
+      final decorated = m.type == WifiCandidateType.ssid ? _cleanValue(value, m.type, true) : null;
       value = _cleanValue(value, m.type);
 
       var header = m.header;
@@ -951,7 +965,8 @@ class WifiCredentialParser {
         segs.add(_Segment(null, cell.substring(m.start, end).trim(), cellIndex));
         continue;
       }
-      segs.add(_Segment(m, value, cellIndex, header: header));
+      segs.add(_Segment(m, value, cellIndex, header: header,
+          decorated: decorated != null && decorated != value && value.isNotEmpty ? decorated : null));
     }
     return segs;
   }
@@ -1064,9 +1079,10 @@ class WifiCredentialParser {
   /// - 장식 글자([_decorationChars], 이름에 쓰지 않는 기호)는 한쪽만 있어도 뗀다. 앞쪽은 셀을 나눌 때
   ///   글머리표 규칙([_bullet])이 이미 뗐을 수 있어서 뒤쪽만 남은 "모모양꼬치•"도 장식이다.
   /// - OCR은 작은 마름모를 `.` `,`로도 읽는다. 이름 앞뒤에 `.` `,`가 하나씩 붙었으면(`.달빛꼬치,`) 둘 다 떼고,
-  ///   한쪽만이면 한글 바로 뒤(띄어 써도)일 때만 뗀다(`모모양꼬치.`, `모모양꼬치 .`). 한글 이름은 문장부호로 끝나지 않는다.
-  /// - `-` `+` `*`는 이름에 진짜로 쓰인다(`모모+`, `5G-`, `-Momo-`). 양쪽에 하나씩, 이름과 띄어 있을 때만
-  ///   장식으로 본다(`- 모모 -`, `* 모모 *`).
+  ///   그 밖에는 한글 바로 뒤(띄어 써도)의 뒤쪽 `.` `,`만 뗀다(`모모양꼬치.`, `모모양꼬치 .`). 한글 이름은 문장부호로
+  ///   끝나지 않는다. 영문 이름 끝 `.`은 반대쪽에 다른 기호가 있어도 그대로다(`-Momo.`).
+  /// - `-` `+` `*`는 이름에 진짜로 쓰인다(`모모+`, `5G-`, `-Momo-`). 양쪽에 같은 기호가 하나씩, 이름과 띄어
+  ///   있을 때만 장식으로 본다(`- 모모 -`, `* 모모 *`).
   /// - 떼고 나서 아무것도 안 남으면 원래 값을 둔다.
   String _withoutDecoration(String value) {
     final strongLead = _decorationStart.firstMatch(value);
@@ -1081,14 +1097,14 @@ class WifiCredentialParser {
       final leadSpaced = lead[0]!.length > leadChar.length;
       final trailSpaced = trail[0]!.length > trailChar.length;
       bool soft(String c) => _softDecoration.contains(c);
-      bool sideOk(RegExpMatch? strong, String c, bool spaced, String otherChar, bool otherSpaced) {
-        if (strong != null) return true;
-        if (soft(c)) return true; // `.` `,` — 반대쪽에 장식이나 같은 모양이 있음
-        // `-` `+` `*`: 양쪽 모두 띄어 쓴 대칭일 때만
-        return spaced && otherSpaced && !soft(otherChar);
-      }
-      if (sideOk(strongLead, leadChar, leadSpaced, trailChar, trailSpaced)) start = lead.end;
-      if (sideOk(strongTrail, trailChar, trailSpaced, leadChar, leadSpaced)) end = trail.start;
+      // 대칭은 같은 기호끼리만 본다. `.` `,`는 작은 마름모를 읽은 같은 부류로 친다(`.달빛꼬치,`).
+      // `-Momo.`처럼 서로 다른 기호는 대칭이 아니다.
+      final sameSoft = soft(leadChar) && soft(trailChar);
+      final sameHard = leadChar == trailChar && leadSpaced && trailSpaced; // `- 모모 -`, `* 모모 *`
+      if (strongLead != null || sameSoft || sameHard) start = lead.end;
+      final before = value.substring(0, trail.start).trimRight();
+      final afterHangul = before.isNotEmpty && _hangulSyllable.hasMatch(before[before.length - 1]);
+      if (strongTrail != null || sameSoft || sameHard || (soft(trailChar) && afterHangul)) end = trail.start;
     } else if (lead != null) {
       if (strongLead != null) start = lead.end;
     } else if (trail != null) {
@@ -1148,11 +1164,14 @@ class _LabelMatch {
 }
 
 class _Segment {
-  _Segment(this.label, this.value, this.cellIndex, {bool header = false})
+  _Segment(this.label, this.value, this.cellIndex, {bool header = false, this.decorated})
       : header = header || (label?.header ?? false);
 
   final _LabelMatch? label;
   final String value;
+
+  /// 이름표 바로 뒤 이름에서 앞뒤 장식을 뗐으면(F7) 떼기 전 값. 원래 값을 낮은 후보로 남기는 데 쓴다.
+  final String? decorated;
   final int cellIndex;
   final bool header;
 
