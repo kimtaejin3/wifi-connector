@@ -1,7 +1,7 @@
 /// 연결에 실패했을 때 사용자에게 "이 글자가 맞는지" 확인을 권할 후보.
 ///
 /// OCR 인식 로직과는 별개다. 이미 정해진 값에서 눈으로 구분하기 어려운 글자를
-/// 한 자리씩 바꾼 값을 만든다 (l·I·1, O·0, S·5, B·8, Z·2).
+/// 한 자리씩 바꾼 값을 만든다 (l·I·1, O·0, S·5, B·8, Z·2, ~·-).
 class ConfusableVariant {
   const ConfusableVariant({required this.value, required this.index, required this.from, required this.to});
 
@@ -31,6 +31,9 @@ const _confusables = <String, List<String>>{
   '8': ['B'],
   'Z': ['2'],
   '2': ['Z'],
+  // 굵은 글씨의 끝 물결표를 OCR이 하이픈으로 읽는다.
+  '~': ['-'],
+  '-': ['~'],
 };
 
 /// 가장 자주 틀리는 묶음. 후보 수가 넘치면 이쪽을 먼저 보여준다.
@@ -49,6 +52,8 @@ const _names = <String, String>{
   '8': '숫자 8',
   'Z': '대문자 제트',
   '2': '숫자 2',
+  '~': '물결표',
+  '-': '하이픈',
 };
 
 String describeChar(String ch) => _names.containsKey(ch) ? '$ch(${_names[ch]})' : ch;

@@ -175,6 +175,12 @@ class CredentialVoter {
         agreed = at + [for (final c in _atLookalikes) weights[c] ?? 0].fold(0, (a, b) => a + b);
         top = MapEntry('@', at);
       }
+      // 같은 이유로 `~`는 `-`·`_`로 자주 읽히지만 반대는 드물다 (굵은 글씨의 물결표가 납작하게 읽힌다).
+      final tilde = weights['~'];
+      if (tilde != null && _tildeLookalikes.contains(top.key)) {
+        agreed = tilde + [for (final c in _tildeLookalikes) weights[c] ?? 0].fold(0, (a, b) => a + b);
+        top = MapEntry('~', tilde);
+      }
       buffer.write(top.key);
       agreement = math.min(agreement, agreed / support);
       if (top.value / support < uncertainBelow) uncertain.add(i);
@@ -191,6 +197,9 @@ class CredentialVoter {
 
 /// `@`를 OCR이 대신 읽는 글자.
 const _atLookalikes = {'0', 'O', 'o'};
+
+/// `~`를 OCR이 대신 읽는 글자.
+const _tildeLookalikes = {'-', '_'};
 
 class _Reading {
   const _Reading(this.credential, this.weight);
