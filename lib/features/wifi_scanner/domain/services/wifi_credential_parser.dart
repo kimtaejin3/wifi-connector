@@ -28,6 +28,9 @@ class WifiCredentialParser {
     final found = <WifiCandidate>[];
     // 일부러 남긴 장식 붙은 원래 값. 아래 장식 떼기 단계가 이 후보를 다시 떼지 않게 한다.
     final keptOriginals = Set<WifiCandidate>.identity();
+    // 뗀 값의 ×0.8로 되돌리기 칩 범위에 넣을 원래 값. 변형을 만드는 단계가 모두 끝난 뒤에 더해서, 장식 붙은 값의
+    // 변형(`KT_F3D6★`)이 기존 교정 후보 앞으로 올라오지 않게 한다.
+    final lateOriginals = <WifiCandidate>[];
 
     void add(_LabelMatch label, String value, double base, {required bool isolated}) {
       if (label.place) return;
@@ -37,14 +40,21 @@ class WifiCredentialParser {
       if (label.type == WifiCandidateType.ssid) {
         final decorated = _cleanValue(value, label.type, true);
         if (decorated != cleaned && decorated.isNotEmpty) {
-          final original = WifiCandidate(
+          // 뗀 값은 아래 분기가 줄 점수와, 장식 붙은 값으로 매긴 점수의 ×0.8 중 높은 쪽을 받는다. 두 단어 공유기 이름은
+          // 뒤쪽이 높아서(`★KT F3D6★` 0.72 > 0.7) 교정 후보 KT-F3D6이 칩 범위에 남는다.
+          final fromDecorated = (base * _ssidFactor(decorated, isolated: isolated) * _decoratedFactor).clamp(0.0, 1.0);
+          found.add(WifiCandidate(value: cleaned, type: label.type, score: fromDecorated));
+          // 변형의 바탕이 되는 낮은 후보. 변형은 이 점수에서 나오므로 칩을 다투지 않는다.
+          final low = WifiCandidate(value: decorated, type: label.type, score: _originalScore(fromDecorated));
+          found.add(low);
+          keptOriginals.add(low);
+          final branchScore = base * (_spacedMachineSsid(cleaned) ? _spacedSsidFactor : _ssidFactor(cleaned, isolated: isolated));
+          // 어느 분기에서든 뗀 값이 실제로 받은 점수의 ×0.8이라 원래 값이 뗀 값을 앞서지 않는다.
+          lateOriginals.add(WifiCandidate(
             value: decorated,
             type: label.type,
-            // 뗀 값 점수의 ×0.8. 장식 기호 자체로 다시 감점하지 않는다(같은 줄 이름표 경로와 같은 점수).
-            score: (base * _ssidFactor(cleaned, isolated: isolated) * _decoratedFactor).clamp(0.0, 1.0),
-          );
-          found.add(original);
-          keptOriginals.add(original);
+            score: _originalScore(math.max(fromDecorated, branchScore)).clamp(0.0, 1.0),
+          ));
         }
       }
       // "d9ki88ec01 <=숫자 0" — 비밀번호 뒤에 붙은 메모는 떼고, 메모가 알려 주는 글자는 반영한다.
@@ -70,7 +80,7 @@ class WifiCredentialParser {
       }
       // "KT WIFI 5G F3D6" — 공유기 이름의 밑줄을 OCR이 공백으로 읽은 경우.
       // 밑줄로 이은 값을 1순위로 두되, 추측이므로 확신도는 낮추고 원래 값도 후보로 남긴다.
-      if (label.type == WifiCandidateType.ssid && cleaned.contains(_whitespace) && _machineLikeSsid(cleaned)) {
+      if (label.type == WifiCandidateType.ssid && _spacedMachineSsid(cleaned)) {
         final joined = cleaned.replaceAll(_whitespace, '_');
         final joinedScore = (base * _ssidFactor(joined, isolated: true) * 0.9).clamp(0.0, 1.0);
         // "SK WiFiGIGA 3A2B" — 실제 SK 이름은 접두어 바로 뒤에 16진수가 붙는다 (`SK_WiFiGIGA3A2B`).
@@ -84,7 +94,7 @@ class WifiCredentialParser {
           ));
         }
         found.add(WifiCandidate(value: joined, type: label.type, score: joinedScore));
-        found.add(WifiCandidate(value: cleaned, type: label.type, score: (base * 0.7).clamp(0.0, 1.0)));
+        found.add(WifiCandidate(value: cleaned, type: label.type, score: (base * _spacedSsidFactor).clamp(0.0, 1.0)));
         return;
       }
       // "a 123456789" — 안내문 비밀번호에 띄어쓰기는 거의 없다. 스티커나 넓은 자간 때문에 OCR이
@@ -217,9 +227,7 @@ class WifiCredentialParser {
       final plain = _withoutDecoration(c.value);
       if (plain == c.value) continue;
       found[k] = WifiCandidate(value: plain, type: c.type, score: c.score);
-      // 원래 값은 뗀 값보다 낮게, 그래도 후보 목록(최소 점수 이상)에는 남게.
-      final kept = math.max(c.score * _decoratedFactor, math.min(c.score - 0.01, minSelectableScore));
-      found.add(WifiCandidate(value: c.value, type: c.type, score: kept));
+      found.add(WifiCandidate(value: c.value, type: c.type, score: _originalScore(c.score)));
     }
     // 이름표 바로 뒤 이름은 셀을 나눌 때 이미 장식을 뗐다. 그 값이 후보면 떼기 전 값도 ×0.8 후보로 남긴다.
     final decoratedOf = {
@@ -227,18 +235,17 @@ class WifiCredentialParser {
         for (final seg in row)
           if (seg.decorated != null) seg.value: seg.decorated!,
     };
-    for (var k = 0, n = found.length; k < n; k++) {
-      final c = found[k];
+    for (final c in found) {
       final original = c.type == WifiCandidateType.ssid ? decoratedOf[c.value] : null;
       if (original == null) continue;
-      final kept = math.max(c.score * _decoratedFactor, math.min(c.score - 0.01, minSelectableScore));
-      found.add(WifiCandidate(value: original, type: c.type, score: kept));
+      lateOriginals.add(WifiCandidate(value: original, type: c.type, score: _originalScore(c.score)));
     }
     _addSeparatorVariants(found);
     _addKtNormalized(found);
     _addSkPrefixFixes(found);
     _addKtGigaVariants(found);
     _addIspHexVariants(found);
+    found.addAll(lateOriginals);
     final result = _select(found);
 
     // Wi-Fi와 관계없는 글(메뉴판, 영수증, 명함, 포스터 ...)에서 엉뚱한 값을 고르지 않게 한다.
@@ -575,6 +582,13 @@ class WifiCredentialParser {
     if (seg.header) base -= 0.25;
     return base;
   }
+
+  /// 장식을 뗀 값의 점수가 [plain]일 때 원래 값의 점수. 뗀 값보다 낮게, 그래도 후보 목록(최소 점수 이상)에는 남게.
+  double _originalScore(double plain) =>
+      math.max(plain * _decoratedFactor, math.min(plain - 0.01, minSelectableScore));
+
+  /// 공백이 든 공유기 이름. 공백을 OCR이 놓친 밑줄로 보고 이은 값을 1순위로 둔다(`add`).
+  bool _spacedMachineSsid(String v) => v.contains(_whitespace) && _machineLikeSsid(v);
 
   /// 사람이 지은 가게 이름("Lemon House")이 아니라 공유기가 만든 이름처럼 보이는지.
   /// 이미 밑줄이 섞여 있거나, 통신사·공유기 이름으로 시작하거나, 세 단어 이상에 숫자 섞인 토큰이 있다.
@@ -1085,7 +1099,8 @@ class WifiCredentialParser {
   ///   글머리표 규칙([_bullet])이 이미 뗐을 수 있어서 뒤쪽만 남은 "모모양꼬치•"도 장식이다.
   /// - OCR은 작은 마름모를 `.` `,`로도 읽는다. 이름 앞뒤에 `.` `,`가 하나씩 붙었으면(`.달빛꼬치,`) 둘 다 떼고,
   ///   그 밖에는 한글 바로 뒤(띄어 써도)의 뒤쪽 `.` `,`만 뗀다(`모모양꼬치.`, `모모양꼬치 .`). 한글 이름은 문장부호로
-  ///   끝나지 않는다. 영문 이름 끝 `.`은 반대쪽에 다른 기호가 있어도 그대로다(`-Momo.`).
+  ///   끝나지 않는다. 영문 이름 끝 `.`은 반대쪽에 다른 기호가 있어도 그대로다(`-Momo.`). 이름 앞에 붙은 `.`은 뒤쪽에
+  ///   다른 기호가 있으면 앞쪽만 뗀다(`.OOO1234-` → `OOO1234-`). 뒤쪽 기호가 없으면 그대로다(`.Momo`).
   /// - `-` `+` `*`는 이름에 진짜로 쓰인다(`모모+`, `5G-`, `-Momo-`). 양쪽에 같은 기호가 하나씩, 이름과 띄어
   ///   있을 때만 장식으로 본다(`- 모모 -`, `* 모모 *`).
   /// - 떼고 나서 아무것도 안 남으면 원래 값을 둔다.
@@ -1106,7 +1121,8 @@ class WifiCredentialParser {
       // `-Momo.`처럼 서로 다른 기호는 대칭이 아니다.
       final sameSoft = soft(leadChar) && soft(trailChar);
       final sameHard = leadChar == trailChar && leadSpaced && trailSpaced; // `- 모모 -`, `* 모모 *`
-      if (strongLead != null || sameSoft || sameHard) start = lead.end;
+      final dotOnName = leadChar == '.' && !leadSpaced && _nameStart.hasMatch(value[lead.end]);
+      if (strongLead != null || sameSoft || sameHard || dotOnName) start = lead.end;
       final before = value.substring(0, trail.start).trimRight();
       final afterHangul = before.isNotEmpty && _hangulSyllable.hasMatch(before[before.length - 1]);
       if (strongTrail != null || sameSoft || sameHard || (soft(trailChar) && afterHangul)) end = trail.start;
@@ -1240,6 +1256,9 @@ final _decorationEnd = RegExp('\\s*[$_decorationChars](?:\\s*[$_decorationChars]
 const _decoratedFactor = 0.8;
 /// OCR이 작은 마름모를 읽은 모양 중 이름 끝에 진짜로 쓰일 일이 드문 것.
 const _softDecoration = {'.', ','};
+final _nameStart = RegExp(r'[A-Za-z0-9가-힣]');
+/// 공백 든 공유기 이름(밑줄로 이은 값이 1순위)에서 공백 든 값 자체의 점수 배율.
+const _spacedSsidFactor = 0.7;
 /// OCR이 작은 장식을 바꿔 읽은 모양. 이름에 진짜로 있을 수도 있어 조건이 맞을 때만 뗀다.
 final _lookalikeStart = RegExp(r'^[.,\-+*]\s*');
 final _lookalikeEnd = RegExp(r'\s*[.,\-+*]$');
