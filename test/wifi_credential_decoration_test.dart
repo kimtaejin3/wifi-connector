@@ -76,12 +76,29 @@ void main() {
 
   group('경계 보완: 대칭은 같은 기호끼리, 원래 값은 항상 후보', () {
     // 2차 검토에서 찾은 경계. 서로 다른 기호(앞 `-`, 뒤 `.`)는 대칭이 아니다.
-    for (final ssid in ['-Momo.', '+Momo.', '*Momo,', ',Momo+', '- Momo +', '- 모모 +', '* Momo -', 'Momo.', '·Momo.']) {
-      final expected = ssid == '·Momo.' ? 'Momo.' : ssid;
-      test('SSID: $ssid → $expected', () {
-        expect(_parser.parse('SSID: $ssid\nPW: abc12345').ssid, expected);
+    for (final ssid in ['-Momo.', '+Momo.', '*Momo,', ',Momo+', '- Momo +', '- 모모 +', '* Momo -', 'Momo.']) {
+      test('SSID: $ssid 그대로', () {
+        expect(_parser.parse('SSID: $ssid\nPW: abc12345').ssid, ssid);
       });
     }
+
+    // OCR은 뒤쪽 ◆를 `.` `,`로 읽는다(variants-53). 앞이 장식 전용 글자면 뒤 `.` `,`도 장식이다.
+    for (final (text, expected) in [
+      ('와이파이 ◆ Momo .\n비밀번호 abc12345', 'Momo'),
+      ('WIFI ◆ cafe_momo .\nPW abc12345', 'cafe_momo'),
+      ('WIFI : ◆ Momo .\nPW : abc12345', 'Momo'),
+      ('SSID: ◆Momo.\nPW: abc12345', 'Momo'),
+      ('SSID: ·Momo.\nPW: abc12345', 'Momo'),
+      ('SSID: •Momo,\nPW: abc12345', 'Momo'),
+    ]) {
+      test('${text.split('\n').first} → $expected', () {
+        expect(_parser.parse(text).ssid, expected);
+      });
+    }
+
+    test('행 앞 장식을 글머리표가 먼저 떼면 뒤 마침표는 영문 이름 끝 글자로 남는다 (main과 같음)', () {
+      expect(_parser.parse('WIFI\n◆Momo.\nabc12345').ssid, 'Momo.');
+    });
 
     test('한글 뒤 마침표는 반대쪽에 다른 기호가 있어도 뗀다', () {
       expect(_parser.parse('SSID: -모모.\nPW: abc12345').ssid, '-모모');
