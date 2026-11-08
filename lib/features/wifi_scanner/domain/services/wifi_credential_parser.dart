@@ -1097,12 +1097,12 @@ class WifiCredentialParser {
   ///
   /// - 장식 글자([_decorationChars], 이름에 쓰지 않는 기호)는 한쪽만 있어도 뗀다. 앞쪽은 셀을 나눌 때
   ///   글머리표 규칙([_bullet])이 이미 뗐을 수 있어서 뒤쪽만 남은 "모모양꼬치•"도 장식이다.
-  /// - OCR은 작은 마름모를 `.` `,`로도 읽는다. 이름 앞뒤에 `.` `,`가 하나씩 붙었으면(`.달빛꼬치,`) 둘 다 떼고,
-  ///   그 밖에는 한글 바로 뒤(띄어 써도)의 뒤쪽 `.` `,`만 뗀다(`모모양꼬치.`, `모모양꼬치 .`). 한글 이름은 문장부호로
-  ///   끝나지 않는다. 앞이 장식 글자면 뒤 `.` `,`도 뗀다(`◆Momo.`). 앞이 `-` `+` `*`인 영문 이름의 끝 `.`은 그대로다(`-Momo.`). 이름 앞에 붙은 `.`은 뒤쪽에
-  ///   다른 기호가 있으면 앞쪽만 뗀다(`.OOO1234-` → `OOO1234-`). 뒤쪽 기호가 없으면 그대로다(`.Momo`).
-  /// - `-` `+` `*`는 이름에 진짜로 쓰인다(`모모+`, `5G-`, `-Momo-`). 양쪽에 같은 기호가 하나씩, 이름과 띄어
-  ///   있을 때만 장식으로 본다(`- 모모 -`, `* 모모 *`).
+  /// - OCR은 작은 마름모를 `.` `,`로도 읽는다. 양쪽에 있거나(`.달빛꼬치,`) 반대쪽이 장식 글자면(`◆Momo.`, `,모모◆`) 뗀다.
+  ///   이름과 띄어 있어도 뗀다(`- 모모 .`). 한쪽만이면 한글 바로 뒤의 뒤쪽만 뗀다(`모모양꼬치.`). 한글 이름은 문장부호로
+  ///   끝나지 않는다. 이름 앞에 붙은 `.`은 뒤쪽에 다른 기호가 있으면 뗀다(`.OOO1234-` → `OOO1234-`). 그 밖에 붙여 쓴
+  ///   `.` `,`는 그대로다(`-Momo.`, `,Momo+`, 뒤쪽 기호가 없는 `.Momo`).
+  /// - `-` `+` `*`는 이름에 진짜로 쓰인다(`모모+`, `5G-`, `-Momo-`, `◆모모-`). 양쪽 모두 이름과 띄어 있을 때만 장식으로
+  ///   본다(`- 모모 -`, `- 모모 +`, `◆ 모모 -`, `- 모모 ◆`).
   /// - 떼고 나서 아무것도 안 남으면 원래 값을 둔다.
   String _withoutDecoration(String value) {
     final strongLead = _decorationStart.firstMatch(value);
@@ -1116,19 +1116,20 @@ class WifiCredentialParser {
       final trailChar = trail[0]!.trim();
       final leadSpaced = lead[0]!.length > leadChar.length;
       final trailSpaced = trail[0]!.length > trailChar.length;
-      bool soft(String c) => _softDecoration.contains(c);
-      // 대칭은 같은 기호끼리만 본다. `.` `,`는 작은 마름모를 읽은 같은 부류로 친다(`.달빛꼬치,`).
-      // `-Momo.`처럼 서로 다른 기호는 대칭이 아니다.
-      final sameSoft = soft(leadChar) && soft(trailChar);
-      final sameHard = leadChar == trailChar && leadSpaced && trailSpaced; // `- 모모 -`, `* 모모 *`
+      final softLead = _softDecoration.contains(leadChar);
+      final softTrail = _softDecoration.contains(trailChar);
+      final bothSpaced = leadSpaced && trailSpaced;
       final dotOnName = leadChar == '.' && !leadSpaced && _nameStart.hasMatch(value[lead.end]);
-      if (strongLead != null || sameSoft || sameHard || dotOnName) start = lead.end;
       final before = value.substring(0, trail.start).trimRight();
       final afterHangul = before.isNotEmpty && _hangulSyllable.hasMatch(before[before.length - 1]);
-      // 앞이 장식 글자면 뒤 `.` `,`는 OCR이 같은 장식을 읽은 모양이다(`◆Momo.`).
-      if (strongTrail != null || sameSoft || sameHard || (soft(trailChar) && (afterHangul || strongLead != null))) {
-        end = trail.start;
-      }
+      // `.` `,`: 반대쪽이 장식 글자나 같은 부류면 OCR이 장식을 읽은 모양이다. 이름과 띄어 있어도 이름 글자가 아니다.
+      // `-` `+` `*`: 양쪽 모두 이름과 띄어 있을 때만 장식이다. 붙여 쓴 기호는 진짜 글자로 본다(`◆모모-`, `-Momo.`).
+      final leadOff = strongLead != null ||
+          (softLead ? softTrail || strongTrail != null || leadSpaced || dotOnName : bothSpaced && !softTrail);
+      final trailOff = strongTrail != null ||
+          (softTrail ? softLead || strongLead != null || trailSpaced || afterHangul : bothSpaced && !softLead);
+      if (leadOff) start = lead.end;
+      if (trailOff) end = trail.start;
     } else if (lead != null) {
       if (strongLead != null) start = lead.end;
     } else if (trail != null) {

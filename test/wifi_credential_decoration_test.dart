@@ -3,7 +3,7 @@
 // 안내문은 "◆ 모모양꼬치 ◆"처럼 이름 양쪽에 작은 장식을 붙이곤 한다. 앞쪽 장식은 셀을 나눌 때
 // 글머리표 규칙이 떼지만, 뒤쪽 장식은 이름에 남았다. OCR은 작은 마름모를 `·` `•` `.` `,`로 바꿔 읽기도 한다.
 // 장식 떼기는 이름에만 한다. 비밀번호 끝의 `~` `*` `!` `#`는 흔한 진짜 글자다. 이름의 `-` `+` `*`도 진짜 글자일 수 있어
-// 양쪽에 띄어 쓴 대칭일 때만 떼고, 뗀 경우에도 원래 값은 낮은 후보로 남긴다.
+// 양쪽이 이름과 띄어 있을 때만 떼고, 뗀 경우에도 원래 값은 낮은 후보로 남긴다.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wifi_connector/features/wifi_scanner/data/models/wifi_credential.dart';
 import 'package:wifi_connector/features/wifi_scanner/domain/services/wifi_credential_parser.dart';
@@ -74,9 +74,9 @@ void main() {
     });
   });
 
-  group('경계 보완: 대칭은 같은 기호끼리, 원래 값은 항상 후보', () {
-    // 2차 검토에서 찾은 경계. 서로 다른 기호(앞 `-`, 뒤 `.`)는 대칭이 아니다.
-    for (final ssid in ['-Momo.', '+Momo.', '*Momo,', ',Momo+', '- Momo +', '- 모모 +', '* Momo -', 'Momo.']) {
+  group('경계 보완: 붙여 쓴 기호는 보존, 원래 값은 항상 후보', () {
+    // 2차 검토에서 찾은 경계. 이름에 붙여 쓴 기호는 앞뒤가 서로 달라도 장식으로 보지 않는다.
+    for (final ssid in ['-Momo.', '+Momo.', '*Momo,', ',Momo+', 'Momo.']) {
       test('SSID: $ssid 그대로', () {
         expect(_parser.parse('SSID: $ssid\nPW: abc12345').ssid, ssid);
       });
@@ -93,6 +93,48 @@ void main() {
     ]) {
       test('${text.split('\n').first} → $expected', () {
         expect(_parser.parse(text).ssid, expected);
+      });
+    }
+
+    // ML Kit는 작은 마름모를 · • . , - +로 읽는다(docs/recognition-audit.md). 한쪽이 장식 글자면 반대쪽의 띄어 쓴
+    // - + *와 , .도 장식이다. 양쪽 모두 띄어 쓴 - + *도 장식이다. 정답이 후보에서 사라지지 않게 main과 같은 1순위로 고정한다.
+    for (final (text, expected, original) in [
+      ('WIFI : ◆ 모모 -\nPW : abc12345', '모모', '◆ 모모 -'),
+      ('SSID: ◆ 모모 -\nPW: abc12345', '모모', '◆ 모모 -'),
+      ('WIFI : ◆ 모모 +\nPW : abc12345', '모모', '◆ 모모 +'),
+      ('WIFI : - 모모 ◆\nPW : abc12345', '모모', '- 모모 ◆'),
+      ('WIFI : , 모모 ◆\nPW : abc12345', '모모', ', 모모 ◆'),
+      ('SSID: ,모모◆\nPW: abc12345', '모모', ',모모◆'),
+      ('와이파이 ◆ Momo -\n비밀번호 abc12345', 'Momo', '◆ Momo -'),
+      ('와이파이 , 모모 ◆\n비밀번호 abc12345', '모모', ', 모모 ◆'),
+      ('WIFI : - 모모 +\nPW : abc12345', '모모', '- 모모 +'),
+      ('SSID: - Momo +\nPW: abc12345', 'Momo', '- Momo +'),
+      ('SSID: * Momo -\nPW: abc12345', 'Momo', '* Momo -'),
+    ]) {
+      test('${text.split('\n').first} → $expected, 원래 값은 ×0.8 후보', () {
+        final c = _parser.parse(text);
+        expect(c.ssid, expected);
+        final ssids = c.candidatesOf(WifiCandidateType.ssid).toList();
+        final kept = ssids.where((e) => e.value == original);
+        expect(kept, hasLength(1), reason: '${ssids.map((e) => e.value)}');
+        expect(kept.single.score, closeTo(ssids.first.score * 0.8, 0.001));
+      });
+    }
+
+    // 붙여 쓴 진짜 기호는 앞이 장식이어도 건드리지 않는다.
+    for (final (ssid, expected) in [
+      ('◆모모-', '모모-'),
+      ('·Momo+', 'Momo+'),
+      ('★5G-', '5G-'),
+      ('모모+', '모모+'),
+      ('5G-', '5G-'),
+      ('-Momo-', '-Momo-'),
+      ('-모모◆', '-모모'),
+      ('◆모모 -', '모모 -'),
+      ('◆ 모모-', '모모-'),
+    ]) {
+      test('SSID: $ssid → $expected (붙여 쓴 기호 보존, main과 같음)', () {
+        expect(_parser.parse('SSID: $ssid\nPW: abc12345').ssid, expected);
       });
     }
 
